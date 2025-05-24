@@ -170,6 +170,8 @@ export class UserService {
     updates: DatabaseUserUpdate
   ): Promise<ApiResponse<DatabaseUser>> {
     try {
+      console.log('🔄 UserService.updateByTelegramId updating user:', { telegramId, updates });
+      
       const { data, error } = await supabase
         .from('users')
         .update(updates)
@@ -178,15 +180,48 @@ export class UserService {
         .single();
 
       if (error) {
+        console.error('❌ Supabase error in updateByTelegramId:', error);
         throw error;
       }
 
+      if (!data) {
+        console.error('❌ No data returned from updateByTelegramId');
+        throw new Error('Пользователь не найден или не может быть обновлен');
+      }
+
+      console.log('✅ User updated successfully:', data.id);
       return { data, error: null };
     } catch (error) {
-      console.error('Error updating user by Telegram ID:', error);
+      console.error('❌ Error updating user by Telegram ID:', error);
+      
+      // Детальная обработка ошибки Supabase
+      let errorMessage = 'Неизвестная ошибка при обновлении пользователя';
+      
+      if (error && typeof error === 'object') {
+        if ('message' in error && typeof error.message === 'string') {
+          errorMessage = error.message;
+        } else if ('error' in error && typeof error.error === 'string') {
+          errorMessage = error.error;
+        } else if ('details' in error && typeof error.details === 'string') {
+          errorMessage = error.details;
+        } else if ('hint' in error && typeof error.hint === 'string') {
+          const errorObj = error as any;
+          errorMessage = `${errorObj.message || 'Ошибка базы данных'} (${error.hint})`;
+        } else {
+          errorMessage = JSON.stringify(error);
+        }
+      } else if (typeof error === 'string') {
+        errorMessage = error;
+      }
+      
+      // Проверяем, если это ошибка RLS
+      if (errorMessage.includes('row-level security') || errorMessage.includes('RLS') || errorMessage.includes('policy')) {
+        errorMessage = `Ошибка доступа: ${errorMessage}. Возможно, нужно обновить политики безопасности.`;
+      }
+      
       return { 
         data: null, 
-        error: { message: 'Не удалось обновить пользователя' } 
+        error: { message: `Не удалось обновить пользователя: ${errorMessage}` } 
       };
     }
   }
