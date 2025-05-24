@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fiesta Debug</title>
+    <style>
+        body { font-family: system-ui; max-width: 600px; margin: 50px auto; padding: 20px; line-height: 1.5; }
+        .test { border: 1px solid #ddd; margin: 10px 0; padding: 15px; border-radius: 8px; }
+        .success { border-color: #4CAF50; background: #f0fff0; }
+        .error { border-color: #f44336; background: #fff0f0; }
+        .info { border-color: #2196F3; background: #f0f8ff; }
+        button { background: #2196F3; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; margin: 5px; }
+        button:hover { background: #1976D2; }
+        pre { background: #f5f5f5; padding: 10px; border-radius: 4px; overflow: auto; font-size: 11px; }
+        .loading { color: #666; }
+        .env-info { background: #fff3cd; border: 1px solid #ffeaa7; padding: 15px; border-radius: 8px; margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <h1>🔧 Fiesta Debug Page</h1>
+    <p>Диагностика проблем с Supabase и Telegram WebApp</p>
+    
+    <div class="env-info">
+        <h3>📍 Информация об окружении:</h3>
+        <div id="env-info">Загрузка...</div>
+    </div>
+    
+    <button onclick="runTests()">🚀 Запустить тесты Supabase</button>
+    <button onclick="testTelegram()">📱 Тест Telegram WebApp</button>
+    <button onclick="location.reload()">🔄 Обновить</button>
+    
+    <div id="results"></div>
+
+    <script>
+        // Отображаем информацию об окружении
+        document.getElementById('env-info').innerHTML = `
+            <strong>URL:</strong> ${window.location.href}<br>
+            <strong>User Agent:</strong> ${navigator.userAgent}<br>
+            <strong>Platform:</strong> ${navigator.platform}<br>
+            <strong>Language:</strong> ${navigator.language}<br>
+            <strong>Telegram WebApp:</strong> ${typeof window.Telegram !== 'undefined' ? '✅ Доступен' : '❌ Недоступен'}<br>
+            <strong>Время:</strong> ${new Date().toLocaleString()}
+        `;
+
+        let testResults = [];
+        
+        function log(message) {
+            console.log(message);
+            const results = document.getElementById('results');
+            results.innerHTML += `<div style="margin: 5px 0; font-family: monospace; font-size: 14px;">${message}</div>`;
+        }
+
+        function addTest(name, status, message, details = null) {
+            const div = document.createElement('div');
+            div.className = `test ${status}`;
+            div.innerHTML = `
+                <h3>${status === 'success' ? '✅' : status === 'info' ? 'ℹ️' : '❌'} ${name}</h3>
+                <p>${message}</p>
+                ${details ? `<details><summary>Детали</summary><pre>${JSON.stringify(details, null, 2)}</pre></details>` : ''}
+            `;
+            document.getElementById('results').appendChild(div);
+        }
+
+        async function testTelegram() {
+            document.getElementById('results').innerHTML = '';
+            log('🔄 Тестирование Telegram WebApp...');
+
+            // Проверка Telegram окружения
+            const telegramTest = {
+                hasTelegram: typeof window.Telegram !== 'undefined',
+                hasWebApp: typeof window.Telegram?.WebApp !== 'undefined',
+                webAppData: window.Telegram?.WebApp?.initDataUnsafe || null,
+                webAppUser: window.Telegram?.WebApp?.initDataUnsafe?.user || null,
+                isExpanded: window.Telegram?.WebApp?.isExpanded || false,
+                viewportHeight: window.Telegram?.WebApp?.viewportHeight || 0,
+                colorScheme: window.Telegram?.WebApp?.colorScheme || 'unknown'
+            };
+
+            if (telegramTest.hasTelegram) {
+                addTest('Telegram WebApp', 'success', 'Telegram WebApp доступен', telegramTest);
+                
+                if (telegramTest.webAppUser) {
+                    addTest('Telegram User', 'success', `Пользователь: ${telegramTest.webAppUser.first_name}`, telegramTest.webAppUser);
+                } else {
+                    addTest('Telegram User', 'error', 'Данные пользователя недоступны', null);
+                }
+            } else {
+                addTest('Telegram WebApp', 'error', 'Telegram WebApp недоступен. Откройте через Telegram бота.', telegramTest);
+            }
+
+            log('✅ Тестирование Telegram завершено');
+        }
+
+        async function runTests() {
+            document.getElementById('results').innerHTML = '';
+            log('🔄 Начинаем тестирование Supabase...');
+
+            // Получаем переменные окружения из основного приложения
+            let SUPABASE_URL, SUPABASE_KEY;
+            
+            try {
+                // Пытаемся получить конфигурацию из основного приложения
+                const response = await fetch('/');
+                const html = await response.text();
+                
+                // Простой способ - используем хардкод значения из .env.local
+                SUPABASE_URL = 'https://xajclkhhskkrgqwzhlnz.supabase.co';
+                SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhhamNsa2hoc2trcmdxd3pobG56Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDgwNzIwNDYsImV4cCI6MjA2MzY0ODA0Nn0.K76opG9RFtM8iQQaQxDBIYgbiTmM61Hp8fGgA-Q2i9o';
+                
+                addTest('Конфигурация', 'info', `URL: ${SUPABASE_URL}`, {
+                    url: SUPABASE_URL,
+                    keyLength: SUPABASE_KEY.length
+                });
+            } catch (err) {
+                addTest('Конфигурация', 'error', 'Не удалось получить конфигурацию', err.toString());
+                return;
+            }
+
+            // Тест 1: Проверка подключения
+            log('🔄 Тест 1: Подключение к Supabase');
+            try {
+                const response = await fetch(`${SUPABASE_URL}/rest/v1/users?select=id&limit=1`, {
+                    headers: {
+                        'apikey': SUPABASE_KEY,
+                        'Authorization': `Bearer ${SUPABASE_KEY}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    addTest('Supabase API', 'success', `Подключение работает (статус: ${response.status})`, {
+                        status: response.status,
+                        data: data,
+                        headers: Object.fromEntries(response.headers.entries())
+                    });
+                } else {
+                    const errorText = await response.text();
+                    addTest('Supabase API', 'error', `Ошибка API (статус: ${response.status})`, {
+                        status: response.status,
+                        error: errorText,
+                        headers: Object.fromEntries(response.headers.entries())
+                    });
+                }
+            } catch (err) {
+                addTest('Supabase API', 'error', 'Ошибка при подключении к Supabase', {
+                    error: err.toString(),
+                    stack: err.stack
+                });
+            }
+
+            // Тест 2: Проверка создания пользователя
+            log('🔄 Тест 2: Создание тестового пользователя');
+            try {
+                const testUser = {
+                    telegram_id: Math.floor(Math.random() * 1000000000), // Случайный ID
+                    first_name: 'Debug User',
+                    last_name: 'Test',
+                    username: `debug_${Date.now()}`,
+                    language_code: 'ru',
+                    is_premium: false
+                };
+
+                const response = await fetch(`${SUPABASE_URL}/rest/v1/users`, {
+                    method: 'POST',
+                    headers: {
+                        'apikey': SUPABASE_KEY,
+                        'Authorization': `Bearer ${SUPABASE_KEY}`,
+                        'Content-Type': 'application/json',
+                        'Prefer': 'return=representation'
+                    },
+                    body: JSON.stringify(testUser)
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    addTest('Создание пользователя', 'success', 'Тестовый пользователь создан', {
+                        testUser,
+                        result: data
+                    });
+                    
+                    // Удаляем тестового пользователя
+                    if (data && data[0] && data[0].id) {
+                        const deleteResponse = await fetch(`${SUPABASE_URL}/rest/v1/users?id=eq.${data[0].id}`, {
+                            method: 'DELETE',
+                            headers: {
+                                'apikey': SUPABASE_KEY,
+                                'Authorization': `Bearer ${SUPABASE_KEY}`
+                            }
+                        });
+                        if (deleteResponse.ok) {
+                            log('🗑️ Тестовый пользователь удален');
+                        }
+                    }
+                } else {
+                    const errorText = await response.text();
+                    addTest('Создание пользователя', 'error', `Ошибка создания (${response.status})`, {
+                        status: response.status,
+                        error: errorText,
+                        testUser: testUser
+                    });
+                }
+            } catch (err) {
+                addTest('Создание пользователя', 'error', 'Ошибка при создании пользователя', {
+                    error: err.toString(),
+                    stack: err.stack
+                });
+            }
+
+            log('✅ Тестирование Supabase завершено');
+        }
+
+        // Автоматически запускаем тест Telegram при загрузке
+        document.addEventListener('DOMContentLoaded', function() {
+            testTelegram();
+        });
+    </script>
+</body>
+</html> 
