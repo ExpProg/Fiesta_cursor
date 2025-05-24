@@ -8,6 +8,10 @@
   # Переменные окружения для сборки
   [build.environment]
     NODE_VERSION = "18"
+    # Supabase Configuration
+    VITE_SUPABASE_URL = "https://xajclkhhskkrgqwzhlnz.supabase.co"
+    VITE_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhhamNsa2hoc2trcmdxd3pobG56Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDgwNzIwNDYsImV4cCI6MjA2MzY0ODA0Nn0.K76opG9RFtM8iQQaQxDBIYgbiTmM61Hp8fGgA-Q2i9o"
+    VITE_DEBUG_MODE = "false"
 
 # Настройки редиректов для SPA
 [[redirects]]
