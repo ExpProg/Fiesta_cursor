@@ -248,7 +248,7 @@ function AppContent() {
           <div className="mb-4">
             <EventsList 
               key={refreshTrigger}
-              title="📅 Предстоящие мероприятия"
+              title="Мероприятия"
               limit={8}
               showUpcoming={true}
               onEventClick={(event) => {
