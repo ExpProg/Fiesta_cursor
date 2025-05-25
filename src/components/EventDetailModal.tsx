@@ -10,8 +10,12 @@ import {
   X,
   Share2,
   Heart,
-  MessageCircle
+  MessageCircle,
+  Copy,
+  Check
 } from 'lucide-react';
+import { shareEvent, generateEventShareUrl } from '@/utils/sharing';
+import { useTelegram } from './TelegramProvider';
 
 interface EventDetailModalProps {
   event: DatabaseEvent;
@@ -30,7 +34,10 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
   onDelete,
   currentUserId
 }) => {
+  const { impactOccurred } = useTelegram();
   const [isScrolled, setIsScrolled] = useState(false);
+  const [isSharing, setIsSharing] = useState(false);
+  const [shareSuccess, setShareSuccess] = useState(false);
   
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -64,6 +71,57 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
   const isEventFull = event.max_participants && event.current_participants >= event.max_participants;
   const spotsLeft = event.max_participants ? event.max_participants - event.current_participants : null;
   const isCreator = currentUserId && event.created_by === currentUserId;
+
+  const handleShare = async () => {
+    setIsSharing(true);
+    setShareSuccess(false);
+    
+    try {
+      const shareData = {
+        eventId: event.id,
+        title: event.title,
+        description: event.description || undefined,
+        imageUrl: event.image_url || undefined
+      };
+
+      const result = await shareEvent(shareData);
+      
+      if (result.success) {
+        setShareSuccess(true);
+        
+        // Тактильная обратная связь
+        impactOccurred('medium');
+        
+        // Показываем успешное сообщение
+        let message = '';
+        switch (result.method) {
+          case 'telegram':
+            message = 'Ссылка отправлена в Telegram!';
+            break;
+          case 'native':
+            message = 'Ссылка отправлена!';
+            break;
+          case 'clipboard':
+            message = 'Ссылка скопирована в буфер обмена!';
+            break;
+        }
+        
+        // Временно показываем иконку успеха
+        setTimeout(() => {
+          setShareSuccess(false);
+        }, 2000);
+      } else {
+        impactOccurred('heavy');
+        alert('Не удалось поделиться событием. Попробуйте ещё раз.');
+      }
+    } catch (error) {
+      console.error('Share error:', error);
+      impactOccurred('heavy');
+      alert('Произошла ошибка при попытке поделиться событием.');
+    } finally {
+      setIsSharing(false);
+    }
+  };
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
@@ -304,9 +362,27 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
                   <Heart className="w-4 h-4 mr-1" />
                   В избранное
                 </button>
-                <button className="flex items-center justify-center py-2 px-3 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors text-sm">
-                  <Share2 className="w-4 h-4 mr-1" />
-                  Поделиться
+                <button 
+                  onClick={handleShare}
+                  disabled={isSharing}
+                  className="flex items-center justify-center py-2 px-3 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors text-sm disabled:opacity-50"
+                >
+                  {shareSuccess ? (
+                    <>
+                      <Check className="w-4 h-4 mr-1 text-green-600" />
+                      Скопировано
+                    </>
+                  ) : isSharing ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600 mr-1"></div>
+                      Поделиться
+                    </>
+                  ) : (
+                    <>
+                      <Share2 className="w-4 h-4 mr-1" />
+                      Поделиться
+                    </>
+                  )}
                 </button>
                 <button className="flex items-center justify-center py-2 px-3 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors text-sm">
                   <MessageCircle className="w-4 h-4 mr-1" />

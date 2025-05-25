@@ -9,6 +9,7 @@ import {
 import { DebugInfo } from '@/components/DebugInfo';
 import { TestMode } from '@/components/TestMode';
 import { useTelegramTheme } from '@/hooks/useTelegramTheme';
+import { useEventSharing } from '@/hooks/useEventSharing';
 import { CreateEventForm } from './components/CreateEventForm';
 import { EventsList } from './components/EventsList';
 import { EventDetailModal } from './components/EventDetailModal';
@@ -27,6 +28,7 @@ const LoadingSpinner = () => (
 function AppContent() {
   const { user: telegramUser, impactOccurred, isInitialized } = useTelegram();
   const { isDark } = useTelegramTheme();
+  const { sharedEvent, isLoadingSharedEvent, sharedEventError, clearSharedEvent } = useEventSharing();
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [user, setUser] = useState<DatabaseUser | null>(null);
@@ -111,7 +113,27 @@ function AppContent() {
     };
   }, [showMenu]);
 
-  if (isLoading) {
+  // Автоматическое открытие события по ссылке
+  useEffect(() => {
+    if (sharedEvent && !selectedEvent) {
+      console.log('🔗 Opening shared event:', sharedEvent.id);
+      setSelectedEvent(sharedEvent);
+      impactOccurred('light');
+      // Очищаем состояние поделенного события
+      clearSharedEvent();
+    }
+  }, [sharedEvent, selectedEvent, impactOccurred, clearSharedEvent]);
+
+  // Показ ошибки загрузки поделенного события
+  useEffect(() => {
+    if (sharedEventError) {
+      console.error('❌ Shared event error:', sharedEventError);
+      alert(`Ошибка загрузки события: ${sharedEventError}`);
+      impactOccurred('heavy');
+    }
+  }, [sharedEventError, impactOccurred]);
+
+  if (isLoading || isLoadingSharedEvent) {
     return <LoadingSpinner />;
   }
 

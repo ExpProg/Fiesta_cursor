@@ -5,21 +5,29 @@
 VITE_SUPABASE_URL=https://your-project-ref.supabase.co
 VITE_SUPABASE_ANON_KEY=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...
 
+# Telegram Bot Configuration (optional)
+VITE_TELEGRAM_BOT_USERNAME=your_bot_username
+
 # ===============================================
 # ИНСТРУКЦИИ ПО НАСТРОЙКЕ:
 # ===============================================
 
 # 1. Создайте файл .env.local в корне проекта
-# 2. Скопируйте строки выше (VITE_SUPABASE_URL и VITE_SUPABASE_ANON_KEY)
-# 3. Замените значения на реальные из Supabase Dashboard:
+# 2. Скопируйте строки выше (VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY, VITE_TELEGRAM_BOT_USERNAME)
+# 3. Замените значения на реальные из Supabase Dashboard и Telegram:
 
-# КАК НАЙТИ НАСТРОЙКИ:
+# КАК НАЙТИ НАСТРОЙКИ SUPABASE:
 # 1. Откройте https://supabase.com
 # 2. Войдите в аккаунт и выберите проект
 # 3. Перейдите в Settings → API
 # 4. Скопируйте:
 #    - Project URL (например: https://abcdefgh.supabase.co)
 #    - anon public key (длинная строка начинающаяся с eyJ...)
+
+# КАК НАЙТИ TELEGRAM BOT USERNAME:
+# 1. Найдите вашего бота в Telegram
+# 2. Скопируйте username без символа @ (например: MyEventBot)
+# 3. Эта настройка нужна для корректного шаринга событий в Telegram
 
 # ВАЖНО:
 # - Используйте anon public key, НЕ service_role!
@@ -28,4 +36,5 @@ VITE_SUPABASE_ANON_KEY=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...
 
 # ПРИМЕР РЕАЛЬНЫХ ЗНАЧЕНИЙ:
 # VITE_SUPABASE_URL=https://abcdefghijklmnop.supabase.co
-# VITE_SUPABASE_ANON_KEY=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9... 
+# VITE_SUPABASE_ANON_KEY=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+# VITE_TELEGRAM_BOT_USERNAME=MyEventBot 
