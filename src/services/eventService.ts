@@ -66,7 +66,7 @@ export class EventService {
         image_url: eventData.image_url || null,
         date: eventData.date,
         event_time: eventTime, // добавляем время из даты
-        location: eventData.location || null,
+        location: eventData.location || null, // обеспечиваем null вместо undefined
         max_participants: eventData.max_participants || null,
         current_participants: 0,
         price: eventData.price || 0,
