@@ -190,7 +190,7 @@ function AppContent() {
         <div className="max-w-6xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <h1 className="text-xl font-bold">🎉 Fiesta</h1>
-            <TelegramUserInfo showPremium={true} />
+            <TelegramUserInfo />
           </div>
         </div>
       </header>

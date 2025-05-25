@@ -141,6 +141,7 @@ export const TelegramGate: React.FC<TelegramGateProps> = ({
 
 /**
  * Компонент для отображения информации о пользователе
+ * Показывает аватарку слева, имя и сокращенную фамилию справа
  */
 export const TelegramUserInfo: React.FC<{
   className?: string;
@@ -149,13 +150,18 @@ export const TelegramUserInfo: React.FC<{
 }> = ({ 
   className = '', 
   showAvatar = true, 
-  showPremium = true 
+  showPremium = false
 }) => {
   const { user, safeUserData } = useTelegram();
 
   if (!user) {
     return null;
   }
+
+  // Сокращаем фамилию до одной буквы
+  const shortLastName = safeUserData.lastName 
+    ? safeUserData.lastName.charAt(0).toUpperCase() + '.'
+    : '';
 
   return (
     <div className={`flex items-center space-x-3 ${className}`}>
@@ -165,21 +171,9 @@ export const TelegramUserInfo: React.FC<{
         </div>
       )}
       <div className="flex-1 min-w-0">
-        <div className="flex items-center space-x-2">
-          <p className="text-sm font-medium text-gray-900 truncate">
-            {safeUserData.firstName} {safeUserData.lastName}
-          </p>
-          {showPremium && safeUserData.isPremium && (
-            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800">
-              ⭐ Premium
-            </span>
-          )}
-        </div>
-        {safeUserData.username && (
-          <p className="text-sm text-gray-500 truncate">
-            @{safeUserData.username}
-          </p>
-        )}
+        <p className="text-sm font-medium text-gray-900 truncate">
+          {safeUserData.firstName} {shortLastName}
+        </p>
       </div>
     </div>
   );
