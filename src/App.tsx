@@ -242,17 +242,8 @@ function AppContent() {
           {/* Список доступных мероприятий */}
           <div className="mb-4">
             <EventsList 
-              title="🔥 Популярные вечеринки"
-              limit={6}
-              showPopular={true}
-            />
-          </div>
-
-          {/* Предстоящие мероприятия */}
-          <div className="mb-4">
-            <EventsList 
               title="📅 Предстоящие мероприятия"
-              limit={4}
+              limit={8}
               showUpcoming={true}
             />
           </div>
