@@ -14,7 +14,7 @@ import {
   Copy,
   Check
 } from 'lucide-react';
-import { shareEvent, generateEventShareUrl, copyToClipboard } from '@/utils/sharing';
+import { shareEvent, generateEventShareUrl, copyToClipboard, generateTelegramWebAppUrl } from '@/utils/sharing';
 import { useTelegram } from './TelegramProvider';
 
 interface EventDetailModalProps {
@@ -130,8 +130,9 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
     setCopyLinkSuccess(false);
     
     try {
-      const shareUrl = generateEventShareUrl(event.id);
-      const success = await copyToClipboard(shareUrl);
+      // Используем Telegram Web App ссылку для прямого открытия в Telegram
+      const telegramUrl = generateTelegramWebAppUrl(event.id);
+      const success = await copyToClipboard(telegramUrl);
       
       if (success) {
         setCopyLinkSuccess(true);
@@ -407,7 +408,7 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
                   ) : (
                     <>
                       <Copy className="w-4 h-4 mr-1" />
-                      Копировать
+                      Telegram
                     </>
                   )}
                 </button>
