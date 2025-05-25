@@ -53,11 +53,16 @@ export class EventService {
     try {
       console.log('📝 EventService.create attempting to create event:', eventData);
       
+      // Извлекаем время из даты для поля event_time
+      const eventDate = new Date(eventData.date);
+      const eventTime = eventDate.toTimeString().slice(0, 5); // формат HH:MM
+      
       const newEvent: DatabaseEventInsert = {
         title: eventData.title,
         description: eventData.description || null,
         image_url: eventData.image_url || null,
         date: eventData.date,
+        event_time: eventTime, // добавляем время из даты
         location: eventData.location || null,
         max_participants: eventData.max_participants || null,
         current_participants: 0,
@@ -65,6 +70,8 @@ export class EventService {
         created_by: createdBy,
         status: 'active'
       };
+
+      console.log('📝 Event data prepared with event_time:', { eventTime, newEvent });
 
       const { data, error } = await supabase
         .from('events')

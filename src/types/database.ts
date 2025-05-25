@@ -122,6 +122,7 @@ export interface DatabaseEvent {
   description: string | null;
   image_url: string | null;
   date: string; // TIMESTAMP WITH TIME ZONE - изменено с event_date на date
+  event_time: string | null; // TIME - добавлено поле event_time
   location: string | null;
   max_participants: number | null;
   current_participants: number;
@@ -138,6 +139,7 @@ export interface DatabaseEventInsert {
   description?: string | null;
   image_url?: string | null;
   date: string; // изменено с event_date на date
+  event_time?: string | null; // добавлено поле event_time
   location?: string | null;
   max_participants?: number | null;
   current_participants?: number;
@@ -153,6 +155,7 @@ export interface DatabaseEventUpdate {
   description?: string | null;
   image_url?: string | null;
   date?: string; // изменено с event_date на date
+  event_time?: string | null; // добавлено поле event_time
   location?: string | null;
   max_participants?: number | null;
   current_participants?: number;
