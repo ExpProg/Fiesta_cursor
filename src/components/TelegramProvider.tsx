@@ -141,7 +141,7 @@ export const TelegramGate: React.FC<TelegramGateProps> = ({
 
 /**
  * Компонент для отображения информации о пользователе
- * Показывает аватарку слева, имя и сокращенную фамилию справа
+ * Показывает имя и сокращенную фамилию слева, аватарку справа
  */
 export const TelegramUserInfo: React.FC<{
   className?: string;
@@ -165,16 +165,19 @@ export const TelegramUserInfo: React.FC<{
 
   return (
     <div className={`flex items-center space-x-3 ${className}`}>
-      {showAvatar && (
-        <div className="w-10 h-10 bg-telegram-blue rounded-full flex items-center justify-center text-white font-medium">
-          {safeUserData.firstName.charAt(0).toUpperCase()}
-        </div>
-      )}
+      {/* Имя и сокращенная фамилия слева */}
       <div className="flex-1 min-w-0">
         <p className="text-sm font-medium text-gray-900 truncate">
           {safeUserData.firstName} {shortLastName}
         </p>
       </div>
+      
+      {/* Аватарка справа */}
+      {showAvatar && (
+        <div className="w-10 h-10 bg-telegram-blue rounded-full flex items-center justify-center text-white font-medium">
+          {safeUserData.firstName.charAt(0).toUpperCase()}
+        </div>
+      )}
     </div>
   );
 };
