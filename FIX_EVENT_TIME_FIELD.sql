@@ -32,7 +32,7 @@ BEGIN
             
             -- Устанавливаем значение по умолчанию для существующих записей
             UPDATE events 
-            SET event_time = EXTRACT(HOUR FROM date) || ':' || LPAD(EXTRACT(MINUTE FROM date)::text, 2, '0')
+            SET event_time = (EXTRACT(HOUR FROM date) || ':' || LPAD(EXTRACT(MINUTE FROM date)::text, 2, '0'))::time
             WHERE event_time IS NULL;
             RAISE NOTICE '✅ Обновлены существующие записи с event_time';
             
@@ -44,7 +44,7 @@ BEGIN
         RAISE NOTICE 'ℹ️ Поле event_time не существует';
         
         -- Создаем поле event_time как необязательное
-        ALTER TABLE events ADD COLUMN event_time TEXT;
+        ALTER TABLE events ADD COLUMN event_time TIME;
         RAISE NOTICE '✅ Создано поле event_time как необязательное';
     END IF;
 

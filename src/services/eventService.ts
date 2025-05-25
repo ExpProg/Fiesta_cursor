@@ -55,7 +55,10 @@ export class EventService {
       
       // Извлекаем время из даты для поля event_time
       const eventDate = new Date(eventData.date);
-      const eventTime = eventDate.toTimeString().slice(0, 5); // формат HH:MM
+      const hours = eventDate.getHours().toString().padStart(2, '0');
+      const minutes = eventDate.getMinutes().toString().padStart(2, '0');
+      const seconds = eventDate.getSeconds().toString().padStart(2, '0');
+      const eventTime = `${hours}:${minutes}:${seconds}`; // формат HH:MM:SS для TIME поля
       
       const newEvent: DatabaseEventInsert = {
         title: eventData.title,
