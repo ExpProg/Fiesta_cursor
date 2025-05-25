@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import type { DatabaseEvent } from '@/types/database';
 import { 
   Calendar, 
@@ -30,6 +30,8 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
   onDelete,
   currentUserId
 }) => {
+  const [isScrolled, setIsScrolled] = useState(false);
+  
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     return date.toLocaleDateString('ru-RU', {
@@ -65,14 +67,20 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden">
-        {/* Header с изображением */}
-        <div className="relative h-64 overflow-hidden">
+      <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+        {/* Header с изображением - теперь sticky */}
+        <div 
+          className={`relative overflow-hidden transition-all duration-300 sticky top-0 z-10 ${
+            isScrolled ? 'h-24' : 'h-64'
+          }`}
+        >
           {event.image_url ? (
             <img 
               src={event.image_url} 
               alt={event.title}
-              className="w-full h-full object-cover"
+              className={`w-full h-full object-cover transition-all duration-300 ${
+                isScrolled ? 'object-top' : 'object-center'
+              }`}
             />
           ) : (
             <div 
@@ -89,19 +97,21 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
             <X className="w-5 h-5" />
           </button>
 
-          {/* Статус мероприятия */}
-          <div className="absolute top-4 left-4">
-            <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-              event.status === 'active' 
-                ? 'bg-green-100 text-green-800' 
-                : 'bg-gray-100 text-gray-600'
-            }`}>
-              {event.status === 'active' ? 'Активно' : 'Завершено'}
-            </span>
-          </div>
+          {/* Статус мероприятия - скрывается при скролле */}
+          {!isScrolled && (
+            <div className="absolute top-4 left-4">
+              <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                event.status === 'active' 
+                  ? 'bg-green-100 text-green-800' 
+                  : 'bg-gray-100 text-gray-600'
+              }`}>
+                {event.status === 'active' ? 'Активно' : 'Завершено'}
+              </span>
+            </div>
+          )}
 
-          {/* Цена */}
-          {(event.price > 0 || event.price_per_person) && (
+          {/* Цена - скрывается при скролле */}
+          {!isScrolled && (event.price > 0 || event.price_per_person) && (
             <div className="absolute bottom-4 right-4">
               <div className="bg-black/70 text-white px-3 py-2 rounded-lg">
                 {event.price_per_person ? (
@@ -116,176 +126,193 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
             </div>
           )}
 
-          {/* Индикатор заполненности */}
-          {isEventFull && (
+          {/* Индикатор заполненности - скрывается при скролле */}
+          {!isScrolled && isEventFull && (
             <div className="absolute bottom-4 left-4">
               <span className="bg-red-500 text-white px-3 py-1 rounded-full text-sm font-medium">
                 Мест нет
               </span>
             </div>
           )}
+
+          {/* Заголовок при скролле */}
+          {isScrolled && (
+            <div className="absolute bottom-2 left-4 right-16">
+              <h1 className="text-white font-bold text-lg truncate drop-shadow-lg">
+                {event.title}
+              </h1>
+            </div>
+          )}
         </div>
 
         {/* Контент */}
-        <div className="p-6 overflow-y-auto max-h-[calc(90vh-16rem)]">
-          {/* Заголовок */}
-          <div className="mb-6">
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">
-              {event.title}
-            </h1>
-            
-            {/* Основная информация */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-              {/* Дата и время */}
-              <div className="flex items-center text-gray-600">
-                <Calendar className="w-5 h-5 mr-3 flex-shrink-0" />
-                <div>
-                  <div className="font-medium">{formatDate(event.date)}</div>
-                  {event.event_time && (
-                    <div className="text-sm text-gray-500">в {formatTime(event.event_time)}</div>
-                  )}
-                </div>
-              </div>
-
-              {/* Место */}
-              {event.location && (
+        <div 
+          className="flex-1 overflow-y-auto"
+          onScroll={(e) => {
+            const scrollTop = e.currentTarget.scrollTop;
+            setIsScrolled(scrollTop > 50);
+          }}
+        >
+          <div className="p-6">
+            {/* Заголовок */}
+            <div className="mb-6">
+              <h1 className="text-2xl font-bold text-gray-900 mb-2">
+                {event.title}
+              </h1>
+              
+              {/* Основная информация */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                {/* Дата и время */}
                 <div className="flex items-center text-gray-600">
-                  <MapPin className="w-5 h-5 mr-3 flex-shrink-0" />
+                  <Calendar className="w-5 h-5 mr-3 flex-shrink-0" />
                   <div>
-                    <div className="font-medium">Место проведения</div>
-                    <div className="text-sm">{event.location}</div>
-                  </div>
-                </div>
-              )}
-
-              {/* Участники */}
-              <div className="flex items-center text-gray-600">
-                <Users className="w-5 h-5 mr-3 flex-shrink-0" />
-                <div>
-                  <div className="font-medium">Участники</div>
-                  <div className="text-sm">
-                    {event.current_participants} человек
-                    {event.max_participants && (
-                      <span className="text-gray-400"> / {event.max_participants}</span>
-                    )}
-                    {spotsLeft !== null && spotsLeft > 0 && (
-                      <span className="text-green-600 ml-2">
-                        (осталось {spotsLeft} мест)
-                      </span>
+                    <div className="font-medium">{formatDate(event.date)}</div>
+                    {event.event_time && (
+                      <div className="text-sm text-gray-500">в {formatTime(event.event_time)}</div>
                     )}
                   </div>
                 </div>
-              </div>
 
-              {/* Организатор */}
-              <div className="flex items-center text-gray-600">
-                <User className="w-5 h-5 mr-3 flex-shrink-0" />
-                <div>
-                  <div className="font-medium">Организатор</div>
-                  <div className="text-sm">ID: {event.created_by}</div>
+                {/* Место */}
+                {event.location && (
+                  <div className="flex items-center text-gray-600">
+                    <MapPin className="w-5 h-5 mr-3 flex-shrink-0" />
+                    <div>
+                      <div className="font-medium">Место проведения</div>
+                      <div className="text-sm">{event.location}</div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Участники */}
+                <div className="flex items-center text-gray-600">
+                  <Users className="w-5 h-5 mr-3 flex-shrink-0" />
+                  <div>
+                    <div className="font-medium">Участники</div>
+                    <div className="text-sm">
+                      {event.current_participants} человек
+                      {event.max_participants && (
+                        <span className="text-gray-400"> / {event.max_participants}</span>
+                      )}
+                      {spotsLeft !== null && spotsLeft > 0 && (
+                        <span className="text-green-600 ml-2">
+                          (осталось {spotsLeft} мест)
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Организатор */}
+                <div className="flex items-center text-gray-600">
+                  <User className="w-5 h-5 mr-3 flex-shrink-0" />
+                  <div>
+                    <div className="font-medium">Организатор</div>
+                    <div className="text-sm">ID: {event.created_by}</div>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
 
-          {/* Описание */}
-          {event.description && (
+            {/* Описание */}
+            {event.description && (
+              <div className="mb-6">
+                <h2 className="text-lg font-semibold text-gray-900 mb-3">
+                  Описание
+                </h2>
+                <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">
+                  {event.description}
+                </p>
+              </div>
+            )}
+
+            {/* Дополнительная информация */}
             <div className="mb-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-3">
-                Описание
+                Дополнительная информация
               </h2>
-              <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">
-                {event.description}
-              </p>
-            </div>
-          )}
-
-          {/* Дополнительная информация */}
-          <div className="mb-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-3">
-              Дополнительная информация
-            </h2>
-            <div className="bg-gray-50 rounded-lg p-4 space-y-2">
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-600">Создано:</span>
-                <span className="font-medium">
-                  {new Date(event.created_at).toLocaleDateString('ru-RU')}
-                </span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-600">Обновлено:</span>
-                <span className="font-medium">
-                  {new Date(event.updated_at).toLocaleDateString('ru-RU')}
-                </span>
-              </div>
-              {event.max_guests && event.max_guests !== event.max_participants && (
+              <div className="bg-gray-50 rounded-lg p-4 space-y-2">
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Максимум гостей:</span>
-                  <span className="font-medium">{event.max_guests}</span>
+                  <span className="text-gray-600">Создано:</span>
+                  <span className="font-medium">
+                    {new Date(event.created_at).toLocaleDateString('ru-RU')}
+                  </span>
                 </div>
-              )}
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Обновлено:</span>
+                  <span className="font-medium">
+                    {new Date(event.updated_at).toLocaleDateString('ru-RU')}
+                  </span>
+                </div>
+                {event.max_guests && event.max_guests !== event.max_participants && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Максимум гостей:</span>
+                    <span className="font-medium">{event.max_guests}</span>
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
 
-          {/* Кнопки действий */}
-          <div className="space-y-3">
-            {/* Кнопка редактирования для создателя */}
-            {isCreator && (
-              <>
+            {/* Кнопки действий */}
+            <div className="space-y-3">
+              {/* Кнопка редактирования для создателя */}
+              {isCreator && (
+                <>
+                  <button
+                    onClick={() => onEdit && onEdit(event)}
+                    className="w-full py-3 px-4 rounded-lg font-medium transition-colors bg-orange-600 hover:bg-orange-700 text-white"
+                  >
+                    ✏️ Редактировать мероприятие
+                  </button>
+                  
+                  <button
+                    onClick={() => {
+                      if (window.confirm('Вы уверены, что хотите удалить это мероприятие? Это действие нельзя отменить.')) {
+                        onDelete && onDelete(event.id);
+                      }
+                    }}
+                    className="w-full py-3 px-4 rounded-lg font-medium transition-colors bg-red-600 hover:bg-red-700 text-white"
+                  >
+                    🗑️ Удалить мероприятие
+                  </button>
+                </>
+              )}
+
+              {/* Основная кнопка записи (только для не-создателей) */}
+              {!isCreator && (
                 <button
-                  onClick={() => onEdit && onEdit(event)}
-                  className="w-full py-3 px-4 rounded-lg font-medium transition-colors bg-orange-600 hover:bg-orange-700 text-white"
+                  onClick={() => onBook && onBook(event.id)}
+                  disabled={isEventFull || event.status !== 'active'}
+                  className={`w-full py-3 px-4 rounded-lg font-medium transition-colors ${
+                    isEventFull || event.status !== 'active'
+                      ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                      : 'bg-blue-600 hover:bg-blue-700 text-white'
+                  }`}
                 >
-                  ✏️ Редактировать мероприятие
+                  {isEventFull 
+                    ? '🚫 Мест нет' 
+                    : event.status !== 'active'
+                    ? '⏸️ Мероприятие неактивно'
+                    : '🎟️ Записаться на мероприятие'
+                  }
                 </button>
-                
-                <button
-                  onClick={() => {
-                    if (window.confirm('Вы уверены, что хотите удалить это мероприятие? Это действие нельзя отменить.')) {
-                      onDelete && onDelete(event.id);
-                    }
-                  }}
-                  className="w-full py-3 px-4 rounded-lg font-medium transition-colors bg-red-600 hover:bg-red-700 text-white"
-                >
-                  🗑️ Удалить мероприятие
+              )}
+
+              {/* Дополнительные действия */}
+              <div className="grid grid-cols-3 gap-3">
+                <button className="flex items-center justify-center py-2 px-3 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors text-sm">
+                  <Heart className="w-4 h-4 mr-1" />
+                  В избранное
                 </button>
-              </>
-            )}
-
-            {/* Основная кнопка записи (только для не-создателей) */}
-            {!isCreator && (
-              <button
-                onClick={() => onBook && onBook(event.id)}
-                disabled={isEventFull || event.status !== 'active'}
-                className={`w-full py-3 px-4 rounded-lg font-medium transition-colors ${
-                  isEventFull || event.status !== 'active'
-                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                    : 'bg-blue-600 hover:bg-blue-700 text-white'
-                }`}
-              >
-                {isEventFull 
-                  ? '🚫 Мест нет' 
-                  : event.status !== 'active'
-                  ? '⏸️ Мероприятие неактивно'
-                  : '🎟️ Записаться на мероприятие'
-                }
-              </button>
-            )}
-
-            {/* Дополнительные действия */}
-            <div className="grid grid-cols-3 gap-3">
-              <button className="flex items-center justify-center py-2 px-3 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors text-sm">
-                <Heart className="w-4 h-4 mr-1" />
-                В избранное
-              </button>
-              <button className="flex items-center justify-center py-2 px-3 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors text-sm">
-                <Share2 className="w-4 h-4 mr-1" />
-                Поделиться
-              </button>
-              <button className="flex items-center justify-center py-2 px-3 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors text-sm">
-                <MessageCircle className="w-4 h-4 mr-1" />
-                Вопрос
-              </button>
+                <button className="flex items-center justify-center py-2 px-3 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors text-sm">
+                  <Share2 className="w-4 h-4 mr-1" />
+                  Поделиться
+                </button>
+                <button className="flex items-center justify-center py-2 px-3 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors text-sm">
+                  <MessageCircle className="w-4 h-4 mr-1" />
+                  Вопрос
+                </button>
+              </div>
             </div>
           </div>
         </div>
