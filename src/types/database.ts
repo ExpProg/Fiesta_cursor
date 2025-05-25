@@ -115,85 +115,49 @@ export interface DatabaseUserUpdate {
   updated_at?: string;
 }
 
-// Таблица events
+// Таблица events - обновленная структура
 export interface DatabaseEvent {
   id: string;
   title: string;
-  description: string;
-  date: string;
-  event_time: string;
-  location: string;
-  address: string | null;
-  coordinates: string | null; // PostGIS POINT
-  max_guests: number;
-  current_guests: number;
-  price_per_person: number;
-  currency: string;
+  description: string | null;
   image_url: string | null;
-  images: string[] | null;
-  category: string | null;
-  tags: string[] | null;
-  requirements: string | null;
-  host_id: string;
-  is_active: boolean;
-  is_featured: boolean;
-  min_age: number | null;
-  max_age: number | null;
-  dress_code: string | null;
+  event_date: string; // TIMESTAMP WITH TIME ZONE
+  location: string | null;
+  max_participants: number | null;
+  current_participants: number;
+  price: number;
+  created_by: number; // telegram_id создателя
   created_at: string;
   updated_at: string;
+  status: 'active' | 'cancelled' | 'completed' | 'draft';
 }
 
 export interface DatabaseEventInsert {
   id?: string;
   title: string;
-  description: string;
-  date: string;
-  event_time: string;
-  location: string;
-  address?: string | null;
-  coordinates?: string | null;
-  max_guests: number;
-  current_guests?: number;
-  price_per_person: number;
-  currency?: string;
+  description?: string | null;
   image_url?: string | null;
-  images?: string[] | null;
-  category?: string | null;
-  tags?: string[] | null;
-  requirements?: string | null;
-  host_id: string;
-  is_active?: boolean;
-  is_featured?: boolean;
-  min_age?: number | null;
-  max_age?: number | null;
-  dress_code?: string | null;
+  event_date: string;
+  location?: string | null;
+  max_participants?: number | null;
+  current_participants?: number;
+  price?: number;
+  created_by: number;
   created_at?: string;
   updated_at?: string;
+  status?: 'active' | 'cancelled' | 'completed' | 'draft';
 }
 
 export interface DatabaseEventUpdate {
   title?: string;
-  description?: string;
-  date?: string;
-  event_time?: string;
-  location?: string;
-  address?: string | null;
-  coordinates?: string | null;
-  max_guests?: number;
-  current_guests?: number;
-  price_per_person?: number;
-  currency?: string;
+  description?: string | null;
   image_url?: string | null;
-  images?: string[] | null;
-  category?: string | null;
-  tags?: string[] | null;
-  requirements?: string | null;
-  is_active?: boolean;
-  is_featured?: boolean;
-  min_age?: number | null;
-  max_age?: number | null;
-  dress_code?: string | null;
+  event_date?: string;
+  location?: string | null;
+  max_participants?: number | null;
+  current_participants?: number;
+  price?: number;
+  status?: 'active' | 'cancelled' | 'completed' | 'draft';
   updated_at?: string;
 }
 
@@ -355,10 +319,10 @@ export interface User extends Omit<DatabaseUser, 'created_at' | 'updated_at'> {
   updated_at: Date;
 }
 
-export interface Event extends Omit<DatabaseEvent, 'created_at' | 'updated_at' | 'date'> {
+export interface Event extends Omit<DatabaseEvent, 'created_at' | 'updated_at' | 'event_date'> {
   created_at: Date;
   updated_at: Date;
-  date: Date;
+  event_date: Date;
 }
 
 export interface Booking extends Omit<DatabaseBooking, 'created_at' | 'updated_at' | 'confirmed_at' | 'cancelled_at'> {
@@ -377,22 +341,12 @@ export interface Payment extends Omit<DatabasePayment, 'created_at' | 'updated_a
 // Форматы для создания/обновления
 export interface CreateEventData {
   title: string;
-  description: string;
-  date: string; // YYYY-MM-DD
-  event_time: string; // HH:MM
-  location: string;
-  address?: string;
-  max_guests: number;
-  price_per_person: number;
-  currency?: string;
+  description?: string;
   image_url?: string;
-  images?: string[];
-  category?: string;
-  tags?: string[];
-  requirements?: string;
-  min_age?: number;
-  max_age?: number;
-  dress_code?: string;
+  event_date: string; // ISO string format
+  location?: string;
+  max_participants?: number;
+  price?: number;
 }
 
 export interface UpdateEventData extends Partial<CreateEventData> {

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { 
   TelegramProvider, 
   TelegramThemeAdapter, 
@@ -9,27 +9,33 @@ import {
 import { DebugInfo } from '@/components/DebugInfo';
 import { TestMode } from '@/components/TestMode';
 import { useTelegramTheme } from '@/hooks/useTelegramTheme';
+import { CreateEventForm } from './components/CreateEventForm';
 import { UserService } from '@/services/userService';
 import type { DatabaseUser } from '@/types/database';
 
 // Компонент загрузки
 const LoadingSpinner = () => (
   <div className="min-h-screen flex items-center justify-center">
-    <div className="text-center">
-      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-telegram-blue mx-auto mb-4"></div>
-      <p className="text-gray-600">Загрузка Telegram WebApp...</p>
-    </div>
+    <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-telegram-blue"></div>
   </div>
 );
 
 // Основной компонент приложения
 function AppContent() {
-  const { user: telegramUser, isInitialized, safeUserData, impactOccurred } = useTelegram();
+  const { user: telegramUser, impactOccurred, isInitialized } = useTelegram();
   const { isDark } = useTelegramTheme();
-  const [, setUser] = useState<DatabaseUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [user, setUser] = useState<DatabaseUser | null>(null);
   const [errorDetails, setErrorDetails] = useState<any>(null);
+  const [showCreateEvent, setShowCreateEvent] = useState(false);
+
+  // Безопасные данные пользователя для отображения
+  const safeUserData = {
+    firstName: telegramUser?.first_name || 'Гость',
+    lastName: telegramUser?.last_name || '',
+    username: telegramUser?.username || null,
+  };
 
   useEffect(() => {
     const initializeUser = async () => {
@@ -201,6 +207,15 @@ function AppContent() {
                 🎊 Найти вечеринки
               </button>
               <button 
+                className="w-full bg-green-500 text-white py-3 px-4 rounded-lg font-medium hover:bg-green-600 transition-colors"
+                onClick={() => {
+                  setShowCreateEvent(true);
+                  impactOccurred('light');
+                }}
+              >
+                ➕ Создать мероприятие
+              </button>
+              <button 
                 className="w-full py-3 px-4 rounded-lg font-medium transition-colors"
                 style={{
                   backgroundColor: isDark ? '#232e3c' : '#f1f1f1',
@@ -236,6 +251,26 @@ function AppContent() {
           )}
         </div>
       </main>
+
+      {/* Модальное окно создания мероприятия */}
+      {showCreateEvent && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+            <CreateEventForm
+              onSuccess={(eventId) => {
+                console.log('✅ Event created with ID:', eventId);
+                setShowCreateEvent(false);
+                impactOccurred('medium');
+                // Можно добавить навигацию к созданному мероприятию
+              }}
+              onCancel={() => {
+                setShowCreateEvent(false);
+                impactOccurred('light');
+              }}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
