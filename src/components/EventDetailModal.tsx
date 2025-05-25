@@ -17,12 +17,18 @@ interface EventDetailModalProps {
   event: DatabaseEvent;
   onClose: () => void;
   onBook?: (eventId: string) => void;
+  onEdit?: (event: DatabaseEvent) => void;
+  onDelete?: (eventId: string) => void;
+  currentUserId?: number; // telegram_id текущего пользователя
 }
 
 export const EventDetailModal: React.FC<EventDetailModalProps> = ({ 
   event, 
   onClose, 
-  onBook 
+  onBook, 
+  onEdit,
+  onDelete,
+  currentUserId
 }) => {
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -55,6 +61,7 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
 
   const isEventFull = event.max_participants && event.current_participants >= event.max_participants;
   const spotsLeft = event.max_participants ? event.max_participants - event.current_participants : null;
+  const isCreator = currentUserId && event.created_by === currentUserId;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
@@ -222,23 +229,48 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
 
           {/* Кнопки действий */}
           <div className="space-y-3">
-            {/* Основная кнопка записи */}
-            <button
-              onClick={() => onBook && onBook(event.id)}
-              disabled={isEventFull || event.status !== 'active'}
-              className={`w-full py-3 px-4 rounded-lg font-medium transition-colors ${
-                isEventFull || event.status !== 'active'
-                  ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                  : 'bg-blue-600 hover:bg-blue-700 text-white'
-              }`}
-            >
-              {isEventFull 
-                ? '🚫 Мест нет' 
-                : event.status !== 'active'
-                ? '⏸️ Мероприятие неактивно'
-                : '🎟️ Записаться на мероприятие'
-              }
-            </button>
+            {/* Кнопка редактирования для создателя */}
+            {isCreator && (
+              <>
+                <button
+                  onClick={() => onEdit && onEdit(event)}
+                  className="w-full py-3 px-4 rounded-lg font-medium transition-colors bg-orange-600 hover:bg-orange-700 text-white"
+                >
+                  ✏️ Редактировать мероприятие
+                </button>
+                
+                <button
+                  onClick={() => {
+                    if (window.confirm('Вы уверены, что хотите удалить это мероприятие? Это действие нельзя отменить.')) {
+                      onDelete && onDelete(event.id);
+                    }
+                  }}
+                  className="w-full py-3 px-4 rounded-lg font-medium transition-colors bg-red-600 hover:bg-red-700 text-white"
+                >
+                  🗑️ Удалить мероприятие
+                </button>
+              </>
+            )}
+
+            {/* Основная кнопка записи (только для не-создателей) */}
+            {!isCreator && (
+              <button
+                onClick={() => onBook && onBook(event.id)}
+                disabled={isEventFull || event.status !== 'active'}
+                className={`w-full py-3 px-4 rounded-lg font-medium transition-colors ${
+                  isEventFull || event.status !== 'active'
+                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                    : 'bg-blue-600 hover:bg-blue-700 text-white'
+                }`}
+              >
+                {isEventFull 
+                  ? '🚫 Мест нет' 
+                  : event.status !== 'active'
+                  ? '⏸️ Мероприятие неактивно'
+                  : '🎟️ Записаться на мероприятие'
+                }
+              </button>
+            )}
 
             {/* Дополнительные действия */}
             <div className="grid grid-cols-3 gap-3">

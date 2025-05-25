@@ -12,6 +12,7 @@ import { useTelegramTheme } from '@/hooks/useTelegramTheme';
 import { CreateEventForm } from './components/CreateEventForm';
 import { EventsList } from './components/EventsList';
 import { EventDetailModal } from './components/EventDetailModal';
+import { EditEventForm } from './components/EditEventForm';
 import { UserService } from '@/services/userService';
 import type { DatabaseUser, DatabaseEvent } from '@/types/database';
 
@@ -32,6 +33,8 @@ function AppContent() {
   const [errorDetails, setErrorDetails] = useState<any>(null);
   const [showCreateEvent, setShowCreateEvent] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<DatabaseEvent | null>(null);
+  const [editingEvent, setEditingEvent] = useState<DatabaseEvent | null>(null);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   // Безопасные данные пользователя для отображения
   const safeUserData = {
@@ -244,6 +247,7 @@ function AppContent() {
           {/* Список доступных мероприятий */}
           <div className="mb-4">
             <EventsList 
+              key={refreshTrigger}
               title="📅 Предстоящие мероприятия"
               limit={8}
               showUpcoming={true}
@@ -270,7 +274,8 @@ function AppContent() {
                 console.log('✅ Event created with ID:', eventId);
                 setShowCreateEvent(false);
                 impactOccurred('medium');
-                // Можно добавить навигацию к созданному мероприятию
+                // Обновляем список мероприятий
+                setRefreshTrigger(prev => prev + 1);
               }}
               onCancel={() => {
                 setShowCreateEvent(false);
@@ -285,9 +290,38 @@ function AppContent() {
       {selectedEvent && (
         <EventDetailModal
           event={selectedEvent}
+          currentUserId={telegramUser?.id}
           onClose={() => {
             setSelectedEvent(null);
             impactOccurred('light');
+          }}
+          onEdit={(event) => {
+            setEditingEvent(event);
+            setSelectedEvent(null);
+            impactOccurred('light');
+          }}
+          onDelete={async (eventId) => {
+            try {
+              console.log('🗑️ Deleting event:', eventId);
+              const result = await import('@/services/eventService').then(module => 
+                module.EventService.delete(eventId)
+              );
+              
+              if (result.error) {
+                alert(`Ошибка удаления: ${result.error.message}`);
+                return;
+              }
+              
+              console.log('✅ Event deleted successfully');
+              setSelectedEvent(null);
+              impactOccurred('heavy');
+              
+              // Обновляем список мероприятий
+              setRefreshTrigger(prev => prev + 1);
+            } catch (error) {
+              console.error('❌ Delete error:', error);
+              alert('Произошла ошибка при удалении мероприятия');
+            }
           }}
           onBook={(eventId) => {
             console.log('📝 Booking event:', eventId);
@@ -296,6 +330,28 @@ function AppContent() {
             alert(`Запись на мероприятие ${eventId} - в разработке!`);
           }}
         />
+      )}
+
+      {/* Модальное окно редактирования мероприятия */}
+      {editingEvent && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+            <EditEventForm
+              event={editingEvent}
+              onSuccess={(eventId) => {
+                console.log('✅ Event updated with ID:', eventId);
+                setEditingEvent(null);
+                impactOccurred('medium');
+                // Обновляем список мероприятий
+                setRefreshTrigger(prev => prev + 1);
+              }}
+              onCancel={() => {
+                setEditingEvent(null);
+                impactOccurred('light');
+              }}
+            />
+          </div>
+        </div>
       )}
     </div>
   );
