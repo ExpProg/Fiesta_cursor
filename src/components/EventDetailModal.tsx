@@ -74,6 +74,12 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
   const spotsLeft = event.max_participants ? event.max_participants - event.current_participants : null;
   const isCreator = currentUserId && event.created_by === currentUserId;
 
+  // Определяем, настроен ли Telegram бот
+  const telegramBotUsername = import.meta.env.VITE_TELEGRAM_BOT_USERNAME;
+  const hasTelegramBot = telegramBotUsername && 
+    telegramBotUsername !== 'your_bot' && 
+    telegramBotUsername !== 'your_bot_username';
+
   const handleShare = async () => {
     setIsSharing(true);
     setShareSuccess(false);
@@ -130,13 +136,17 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
     setCopyLinkSuccess(false);
     
     try {
-      // Используем Telegram Web App ссылку для прямого открытия в Telegram
-      const telegramUrl = generateTelegramWebAppUrl(event.id);
-      const success = await copyToClipboard(telegramUrl);
+      // Используем Telegram Web App ссылку если бот настроен, иначе обычную веб-ссылку
+      const linkUrl = generateTelegramWebAppUrl(event.id);
+      const success = await copyToClipboard(linkUrl);
       
       if (success) {
         setCopyLinkSuccess(true);
         impactOccurred('light');
+        
+        // Показываем информативное сообщение о типе ссылки
+        const linkType = hasTelegramBot ? 'Telegram-ссылка' : 'Веб-ссылка';
+        console.log(`✅ ${linkType} скопирована:`, linkUrl);
         
         // Временно показываем иконку успеха
         setTimeout(() => {
@@ -408,7 +418,7 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
                   ) : (
                     <>
                       <Copy className="w-4 h-4 mr-1" />
-                      Telegram
+                      Скопировать
                     </>
                   )}
                 </button>

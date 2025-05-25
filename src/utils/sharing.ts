@@ -21,9 +21,15 @@ export function generateEventShareUrl(eventId: string): string {
  * Генерирует URL для Telegram Web App с параметром события
  */
 export function generateTelegramWebAppUrl(eventId: string): string {
-  // URL должен быть вида: https://t.me/your_bot?start=event_ID
-  // Для веб-приложения мы будем использовать параметр startapp
-  const botUsername = import.meta.env.VITE_TELEGRAM_BOT_USERNAME || 'your_bot';
+  const botUsername = import.meta.env.VITE_TELEGRAM_BOT_USERNAME;
+  
+  // Если имя бота не настроено или равно примеру, возвращаем обычную веб-ссылку
+  if (!botUsername || botUsername === 'your_bot' || botUsername === 'your_bot_username') {
+    console.warn('VITE_TELEGRAM_BOT_USERNAME не настроен, используется обычная веб-ссылка');
+    return generateEventShareUrl(eventId);
+  }
+  
+  // URL для Telegram Web App
   return `https://t.me/${botUsername}?startapp=event_${eventId}`;
 }
 
