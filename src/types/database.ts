@@ -121,7 +121,7 @@ export interface DatabaseEvent {
   title: string;
   description: string | null;
   image_url: string | null;
-  event_date: string; // TIMESTAMP WITH TIME ZONE
+  date: string; // TIMESTAMP WITH TIME ZONE - изменено с event_date на date
   location: string | null;
   max_participants: number | null;
   current_participants: number;
@@ -137,7 +137,7 @@ export interface DatabaseEventInsert {
   title: string;
   description?: string | null;
   image_url?: string | null;
-  event_date: string;
+  date: string; // изменено с event_date на date
   location?: string | null;
   max_participants?: number | null;
   current_participants?: number;
@@ -152,7 +152,7 @@ export interface DatabaseEventUpdate {
   title?: string;
   description?: string | null;
   image_url?: string | null;
-  event_date?: string;
+  date?: string; // изменено с event_date на date
   location?: string | null;
   max_participants?: number | null;
   current_participants?: number;
@@ -319,10 +319,10 @@ export interface User extends Omit<DatabaseUser, 'created_at' | 'updated_at'> {
   updated_at: Date;
 }
 
-export interface Event extends Omit<DatabaseEvent, 'created_at' | 'updated_at' | 'event_date'> {
+export interface Event extends Omit<DatabaseEvent, 'created_at' | 'updated_at' | 'date'> {
   created_at: Date;
   updated_at: Date;
-  event_date: Date;
+  date: Date;
 }
 
 export interface Booking extends Omit<DatabaseBooking, 'created_at' | 'updated_at' | 'confirmed_at' | 'cancelled_at'> {
@@ -343,7 +343,7 @@ export interface CreateEventData {
   title: string;
   description?: string;
   image_url?: string;
-  event_date: string; // ISO string format
+  date: string; // ISO string format - изменено с event_date на date
   location?: string;
   max_participants?: number;
   price?: number;

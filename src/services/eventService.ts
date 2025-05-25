@@ -57,7 +57,7 @@ export class EventService {
         title: eventData.title,
         description: eventData.description || null,
         image_url: eventData.image_url || null,
-        event_date: eventData.event_date,
+        date: eventData.date,
         location: eventData.location || null,
         max_participants: eventData.max_participants || null,
         current_participants: 0,
@@ -162,8 +162,8 @@ export class EventService {
         .from('events')
         .select('*')
         .eq('status', 'active')
-        .gte('event_date', new Date().toISOString())
-        .order('event_date', { ascending: true })
+        .gte('date', new Date().toISOString())
+        .order('date', { ascending: true })
         .limit(limit);
 
       if (error) {
@@ -193,9 +193,9 @@ export class EventService {
         .from('events')
         .select('*')
         .eq('status', 'active')
-        .gte('event_date', new Date().toISOString())
+        .gte('date', new Date().toISOString())
         .order('current_participants', { ascending: false })
-        .order('event_date', { ascending: true })
+        .order('date', { ascending: true })
         .limit(limit);
 
       if (error) {
@@ -225,9 +225,9 @@ export class EventService {
         .from('events')
         .select('*')
         .eq('status', 'active')
-        .gte('event_date', new Date().toISOString())
+        .gte('date', new Date().toISOString())
         .or(`title.ilike.%${query}%,description.ilike.%${query}%,location.ilike.%${query}%`)
-        .order('event_date', { ascending: true })
+        .order('date', { ascending: true })
         .limit(limit);
 
       if (error) {
@@ -294,10 +294,10 @@ export class EventService {
       errors.push('Описание не должно превышать 2000 символов');
     }
 
-    if (!eventData.event_date) {
+    if (!eventData.date) {
       errors.push('Дата мероприятия обязательна');
     } else {
-      const eventDate = new Date(eventData.event_date);
+      const eventDate = new Date(eventData.date);
       const now = new Date();
       if (eventDate <= now) {
         errors.push('Дата мероприятия должна быть в будущем');
@@ -326,7 +326,7 @@ export class EventService {
       ...dbEvent,
       created_at: new Date(dbEvent.created_at),
       updated_at: new Date(dbEvent.updated_at),
-      event_date: new Date(dbEvent.event_date),
+      date: new Date(dbEvent.date),
     };
   }
 

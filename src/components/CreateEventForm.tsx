@@ -21,7 +21,7 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({
     title: '',
     description: '',
     image_url: '',
-    event_date: '',
+    date: '',
     location: '',
     max_participants: undefined,
     price: 0
@@ -103,7 +103,7 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({
       // Конвертируем дату в ISO формат
       const eventDataWithISODate = {
         ...formData,
-        event_date: new Date(formData.event_date).toISOString()
+        date: new Date(formData.date).toISOString()
       };
       
       const response = await EventService.create(eventDataWithISODate, telegramUser.id);
@@ -127,7 +127,7 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({
         title: '',
         description: '',
         image_url: '',
-        event_date: '',
+        date: '',
         location: '',
         max_participants: undefined,
         price: 0
@@ -148,7 +148,7 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({
       title: '',
       description: '',
       image_url: '',
-      event_date: '',
+      date: '',
       location: '',
       max_participants: undefined,
       price: 0
@@ -297,14 +297,14 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({
 
         {/* Дата и время */}
         <div>
-          <label htmlFor="event_date" className="block text-sm font-medium text-gray-700 mb-2">
+          <label htmlFor="date" className="block text-sm font-medium text-gray-700 mb-2">
             Дата и время мероприятия *
           </label>
           <input
             type="datetime-local"
-            id="event_date"
-            name="event_date"
-            value={formData.event_date}
+            id="date"
+            name="date"
+            value={formData.date}
             onChange={handleInputChange}
             min={getMinDateTime()}
             required
