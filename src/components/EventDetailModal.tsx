@@ -14,7 +14,7 @@ import {
   Copy,
   Check
 } from 'lucide-react';
-import { shareEvent, generateEventShareUrl } from '@/utils/sharing';
+import { shareEvent, generateEventShareUrl, copyToClipboard } from '@/utils/sharing';
 import { useTelegram } from './TelegramProvider';
 
 interface EventDetailModalProps {
@@ -38,6 +38,8 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
   const [isScrolled, setIsScrolled] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
   const [shareSuccess, setShareSuccess] = useState(false);
+  const [isCopyingLink, setIsCopyingLink] = useState(false);
+  const [copyLinkSuccess, setCopyLinkSuccess] = useState(false);
   
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -120,6 +122,35 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
       alert('Произошла ошибка при попытке поделиться событием.');
     } finally {
       setIsSharing(false);
+    }
+  };
+
+  const handleCopyLink = async () => {
+    setIsCopyingLink(true);
+    setCopyLinkSuccess(false);
+    
+    try {
+      const shareUrl = generateEventShareUrl(event.id);
+      const success = await copyToClipboard(shareUrl);
+      
+      if (success) {
+        setCopyLinkSuccess(true);
+        impactOccurred('light');
+        
+        // Временно показываем иконку успеха
+        setTimeout(() => {
+          setCopyLinkSuccess(false);
+        }, 2000);
+      } else {
+        impactOccurred('heavy');
+        alert('Не удалось скопировать ссылку. Попробуйте ещё раз.');
+      }
+    } catch (error) {
+      console.error('Copy link error:', error);
+      impactOccurred('heavy');
+      alert('Произошла ошибка при копировании ссылки.');
+    } finally {
+      setIsCopyingLink(false);
     }
   };
 
@@ -358,9 +389,27 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
 
               {/* Дополнительные действия */}
               <div className="grid grid-cols-3 gap-3">
-                <button className="flex items-center justify-center py-2 px-3 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors text-sm">
-                  <Heart className="w-4 h-4 mr-1" />
-                  В избранное
+                <button 
+                  onClick={handleCopyLink}
+                  disabled={isCopyingLink}
+                  className="flex items-center justify-center py-2 px-3 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors text-sm disabled:opacity-50"
+                >
+                  {copyLinkSuccess ? (
+                    <>
+                      <Check className="w-4 h-4 mr-1 text-green-600" />
+                      Скопировано
+                    </>
+                  ) : isCopyingLink ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600 mr-1"></div>
+                      Копирую...
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-4 h-4 mr-1" />
+                      Копировать
+                    </>
+                  )}
                 </button>
                 <button 
                   onClick={handleShare}
