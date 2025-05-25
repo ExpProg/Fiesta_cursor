@@ -11,8 +11,9 @@ import { TestMode } from '@/components/TestMode';
 import { useTelegramTheme } from '@/hooks/useTelegramTheme';
 import { CreateEventForm } from './components/CreateEventForm';
 import { EventsList } from './components/EventsList';
+import { EventDetailModal } from './components/EventDetailModal';
 import { UserService } from '@/services/userService';
-import type { DatabaseUser } from '@/types/database';
+import type { DatabaseUser, DatabaseEvent } from '@/types/database';
 
 // Компонент загрузки
 const LoadingSpinner = () => (
@@ -30,6 +31,7 @@ function AppContent() {
   const [user, setUser] = useState<DatabaseUser | null>(null);
   const [errorDetails, setErrorDetails] = useState<any>(null);
   const [showCreateEvent, setShowCreateEvent] = useState(false);
+  const [selectedEvent, setSelectedEvent] = useState<DatabaseEvent | null>(null);
 
   // Безопасные данные пользователя для отображения
   const safeUserData = {
@@ -245,6 +247,10 @@ function AppContent() {
               title="📅 Предстоящие мероприятия"
               limit={8}
               showUpcoming={true}
+              onEventClick={(event) => {
+                setSelectedEvent(event);
+                impactOccurred('light');
+              }}
             />
           </div>
 
@@ -273,6 +279,23 @@ function AppContent() {
             />
           </div>
         </div>
+      )}
+
+      {/* Модальное окно детальной информации о мероприятии */}
+      {selectedEvent && (
+        <EventDetailModal
+          event={selectedEvent}
+          onClose={() => {
+            setSelectedEvent(null);
+            impactOccurred('light');
+          }}
+          onBook={(eventId) => {
+            console.log('📝 Booking event:', eventId);
+            // Здесь будет логика бронирования
+            impactOccurred('medium');
+            alert(`Запись на мероприятие ${eventId} - в разработке!`);
+          }}
+        />
       )}
     </div>
   );

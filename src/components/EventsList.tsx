@@ -8,13 +8,15 @@ interface EventsListProps {
   limit?: number;
   showUpcoming?: boolean;
   showPopular?: boolean;
+  onEventClick?: (event: DatabaseEvent) => void;
 }
 
 export const EventsList: React.FC<EventsListProps> = ({ 
   title = "Доступные мероприятия",
   limit = 6,
   showUpcoming = true,
-  showPopular = false
+  showPopular = false,
+  onEventClick
 }) => {
   const [events, setEvents] = useState<DatabaseEvent[]>([]);
   const [loading, setLoading] = useState(true);
@@ -143,6 +145,7 @@ export const EventsList: React.FC<EventsListProps> = ({
           <div 
             key={event.id} 
             className="bg-white rounded-xl shadow-md hover:shadow-lg transition-shadow duration-300 overflow-hidden cursor-pointer group"
+            onClick={() => onEventClick && onEventClick(event)}
           >
             {/* Изображение мероприятия */}
             <div className="relative h-48 overflow-hidden">
@@ -227,7 +230,13 @@ export const EventsList: React.FC<EventsListProps> = ({
 
               {/* Кнопка действия */}
               <div className="mt-4 pt-4 border-t border-gray-100">
-                <button className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200">
+                <button 
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onEventClick && onEventClick(event);
+                  }}
+                >
                   Подробнее
                 </button>
               </div>
