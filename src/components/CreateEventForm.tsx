@@ -391,7 +391,7 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({
                 Создание...
               </span>
             ) : (
-              '🎊 Создать мероприятие'
+              'Создать'
             )}
           </button>
           
