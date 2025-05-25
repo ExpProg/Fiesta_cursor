@@ -3,6 +3,9 @@
 -- ===============================================
 -- Этот файл создает таблицу events для хранения мероприятий
 
+-- Удаляем существующую таблицу если есть (осторожно!)
+-- DROP TABLE IF EXISTS events CASCADE;
+
 -- Создаем таблицу events
 CREATE TABLE IF NOT EXISTS events (
     -- Основные поля
@@ -24,12 +27,19 @@ CREATE TABLE IF NOT EXISTS events (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     
     -- Статус мероприятия
-    status VARCHAR(50) DEFAULT 'active' CHECK (status IN ('active', 'cancelled', 'completed', 'draft')),
-    
-    -- Индексы для оптимизации
-    CONSTRAINT events_title_check CHECK (LENGTH(title) >= 3),
-    CONSTRAINT events_date_check CHECK (event_date > NOW())
+    status VARCHAR(50) DEFAULT 'active' CHECK (status IN ('active', 'cancelled', 'completed', 'draft'))
 );
+
+-- ===============================================
+-- ДОБАВЛЯЕМ CONSTRAINTS ПОСЛЕ СОЗДАНИЯ ТАБЛИЦЫ
+-- ===============================================
+
+-- Ограничение на длину названия
+ALTER TABLE events ADD CONSTRAINT events_title_check CHECK (LENGTH(title) >= 3);
+
+-- Ограничение на дату события (должна быть в будущем)
+-- Убираем это ограничение, так как оно может мешать при создании тестовых данных
+-- ALTER TABLE events ADD CONSTRAINT events_date_check CHECK (event_date > NOW());
 
 -- ===============================================
 -- СОЗДАНИЕ ИНДЕКСОВ
