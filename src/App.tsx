@@ -189,7 +189,18 @@ function AppContent() {
       <header className="bg-white shadow-sm border-b border-gray-200">
         <div className="max-w-6xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
-            <h1 className="text-xl font-bold">🎉 Fiesta</h1>
+            <div className="flex items-center space-x-4">
+              <h1 className="text-xl font-bold">🎉 Fiesta</h1>
+              <button 
+                className="bg-green-500 text-white py-2 px-3 rounded-lg font-medium hover:bg-green-600 transition-colors text-sm"
+                onClick={() => {
+                  setShowCreateEvent(true);
+                  impactOccurred('light');
+                }}
+              >
+                ➕ Создать
+              </button>
+            </div>
             <TelegramUserInfo />
           </div>
         </div>
@@ -197,53 +208,6 @@ function AppContent() {
 
       <main className="max-w-6xl mx-auto">
         <div className="p-4">
-          <div className="max-w-md mx-auto bg-white rounded-lg shadow-sm p-6 mb-4">
-            <h2 className="text-lg font-semibold mb-2">
-              Добро пожаловать, {safeUserData.firstName}! 👋
-            </h2>
-            <p className="text-gray-600 mb-4">
-              Здесь вы можете находить и бронировать увлекательные вечеринки в вашем городе.
-            </p>
-            
-            <div className="grid grid-cols-2 gap-3">
-              <button 
-                className="bg-telegram-blue text-white py-3 px-4 rounded-lg font-medium hover:bg-telegram-blue/90 transition-colors text-sm"
-                onClick={() => impactOccurred('light')}
-              >
-                🎊 Найти вечеринки
-              </button>
-              <button 
-                className="bg-green-500 text-white py-3 px-4 rounded-lg font-medium hover:bg-green-600 transition-colors text-sm"
-                onClick={() => {
-                  setShowCreateEvent(true);
-                  impactOccurred('light');
-                }}
-              >
-                ➕ Создать мероприятие
-              </button>
-              <button 
-                className="py-3 px-4 rounded-lg font-medium transition-colors text-sm"
-                style={{
-                  backgroundColor: isDark ? '#232e3c' : '#f1f1f1',
-                  color: isDark ? '#ffffff' : '#000000'
-                }}
-                onClick={() => impactOccurred('light')}
-              >
-                📋 Мои бронирования
-              </button>
-              <button 
-                className="py-3 px-4 rounded-lg font-medium transition-colors text-sm"
-                style={{
-                  backgroundColor: isDark ? '#232e3c' : '#f1f1f1',
-                  color: isDark ? '#ffffff' : '#000000'
-                }}
-                onClick={() => impactOccurred('light')}
-              >
-                ⚙️ Настройки
-              </button>
-            </div>
-          </div>
-
           {/* Список доступных мероприятий */}
           <div className="mb-4">
             <EventsList 
