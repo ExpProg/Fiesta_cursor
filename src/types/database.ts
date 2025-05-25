@@ -125,9 +125,12 @@ export interface DatabaseEvent {
   event_time: string | null; // TIME - поле времени в формате HH:MM:SS
   location: string | null;
   max_participants: number | null;
+  max_guests: number | null;
   current_participants: number;
   price: number;
+  price_per_person: number | null;
   created_by: number; // telegram_id создателя
+  host_id: string | null;
   created_at: string;
   updated_at: string;
   status: 'active' | 'cancelled' | 'completed' | 'draft';
@@ -142,9 +145,12 @@ export interface DatabaseEventInsert {
   event_time?: string | null; // TIME - поле времени в формате HH:MM:SS
   location?: string | null;
   max_participants?: number | null;
+  max_guests?: number | null;
   current_participants?: number;
   price?: number;
+  price_per_person?: number | null;
   created_by: number;
+  host_id?: string | null;
   created_at?: string;
   updated_at?: string;
   status?: 'active' | 'cancelled' | 'completed' | 'draft';
@@ -158,8 +164,11 @@ export interface DatabaseEventUpdate {
   event_time?: string | null; // TIME - поле времени в формате HH:MM:SS
   location?: string | null;
   max_participants?: number | null;
+  max_guests?: number | null;
   current_participants?: number;
   price?: number;
+  price_per_person?: number | null;
+  host_id?: string | null;
   status?: 'active' | 'cancelled' | 'completed' | 'draft';
   updated_at?: string;
 }
@@ -349,7 +358,10 @@ export interface CreateEventData {
   date: string; // ISO string format - изменено с event_date на date
   location?: string;
   max_participants?: number;
+  max_guests?: number;
   price?: number;
+  price_per_person?: number;
+  host_id?: string;
 }
 
 export interface UpdateEventData extends Partial<CreateEventData> {

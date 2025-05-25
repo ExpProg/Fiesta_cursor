@@ -79,6 +79,42 @@ BEGIN
         RAISE NOTICE '✅ Поле price теперь необязательное';
     END IF;
 
+    -- 7. Исправляем поле max_guests (если обязательное)
+    IF EXISTS (
+        SELECT FROM information_schema.columns 
+        WHERE table_name = 'events' 
+        AND table_schema = 'public' 
+        AND column_name = 'max_guests'
+        AND is_nullable = 'NO'
+    ) THEN
+        ALTER TABLE events ALTER COLUMN max_guests DROP NOT NULL;
+        RAISE NOTICE '✅ Поле max_guests теперь необязательное';
+    END IF;
+
+    -- 8. Исправляем поле price_per_person (если обязательное)
+    IF EXISTS (
+        SELECT FROM information_schema.columns 
+        WHERE table_name = 'events' 
+        AND table_schema = 'public' 
+        AND column_name = 'price_per_person'
+        AND is_nullable = 'NO'
+    ) THEN
+        ALTER TABLE events ALTER COLUMN price_per_person DROP NOT NULL;
+        RAISE NOTICE '✅ Поле price_per_person теперь необязательное';
+    END IF;
+
+    -- 9. Исправляем поле host_id (если обязательное)
+    IF EXISTS (
+        SELECT FROM information_schema.columns 
+        WHERE table_name = 'events' 
+        AND table_schema = 'public' 
+        AND column_name = 'host_id'
+        AND is_nullable = 'NO'
+    ) THEN
+        ALTER TABLE events ALTER COLUMN host_id DROP NOT NULL;
+        RAISE NOTICE '✅ Поле host_id теперь необязательное';
+    END IF;
+
     -- Добавляем недостающие поля если их нет
     
     -- Поле created_by

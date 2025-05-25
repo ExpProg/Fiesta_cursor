@@ -10,6 +10,7 @@ import { DebugInfo } from '@/components/DebugInfo';
 import { TestMode } from '@/components/TestMode';
 import { useTelegramTheme } from '@/hooks/useTelegramTheme';
 import { CreateEventForm } from './components/CreateEventForm';
+import { EventsList } from './components/EventsList';
 import { UserService } from '@/services/userService';
 import type { DatabaseUser } from '@/types/database';
 
@@ -181,7 +182,7 @@ function AppContent() {
   return (
     <div className="min-h-screen">
       <header className="bg-white shadow-sm border-b border-gray-200">
-        <div className="max-w-md mx-auto px-4 py-4">
+        <div className="max-w-6xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <h1 className="text-xl font-bold">🎉 Fiesta</h1>
             <TelegramUserInfo showPremium={true} />
@@ -189,9 +190,9 @@ function AppContent() {
         </div>
       </header>
 
-      <main className="max-w-md mx-auto">
+      <main className="max-w-6xl mx-auto">
         <div className="p-4">
-          <div className="bg-white rounded-lg shadow-sm p-6 mb-4">
+          <div className="max-w-md mx-auto bg-white rounded-lg shadow-sm p-6 mb-4">
             <h2 className="text-lg font-semibold mb-2">
               Добро пожаловать, {safeUserData.firstName}! 👋
             </h2>
@@ -199,15 +200,15 @@ function AppContent() {
               Здесь вы можете находить и бронировать увлекательные вечеринки в вашем городе.
             </p>
             
-            <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-3">
               <button 
-                className="w-full bg-telegram-blue text-white py-3 px-4 rounded-lg font-medium hover:bg-telegram-blue/90 transition-colors"
+                className="bg-telegram-blue text-white py-3 px-4 rounded-lg font-medium hover:bg-telegram-blue/90 transition-colors text-sm"
                 onClick={() => impactOccurred('light')}
               >
                 🎊 Найти вечеринки
               </button>
               <button 
-                className="w-full bg-green-500 text-white py-3 px-4 rounded-lg font-medium hover:bg-green-600 transition-colors"
+                className="bg-green-500 text-white py-3 px-4 rounded-lg font-medium hover:bg-green-600 transition-colors text-sm"
                 onClick={() => {
                   setShowCreateEvent(true);
                   impactOccurred('light');
@@ -216,7 +217,7 @@ function AppContent() {
                 ➕ Создать мероприятие
               </button>
               <button 
-                className="w-full py-3 px-4 rounded-lg font-medium transition-colors"
+                className="py-3 px-4 rounded-lg font-medium transition-colors text-sm"
                 style={{
                   backgroundColor: isDark ? '#232e3c' : '#f1f1f1',
                   color: isDark ? '#ffffff' : '#000000'
@@ -226,7 +227,7 @@ function AppContent() {
                 📋 Мои бронирования
               </button>
               <button 
-                className="w-full py-3 px-4 rounded-lg font-medium transition-colors"
+                className="py-3 px-4 rounded-lg font-medium transition-colors text-sm"
                 style={{
                   backgroundColor: isDark ? '#232e3c' : '#f1f1f1',
                   color: isDark ? '#ffffff' : '#000000'
@@ -238,11 +239,22 @@ function AppContent() {
             </div>
           </div>
 
-          <div className="bg-white rounded-lg shadow-sm p-4">
-            <h3 className="font-medium mb-2">🔥 Популярные вечеринки</h3>
-            <p className="text-sm text-gray-500">
-              Скоро здесь появятся самые интересные события!
-            </p>
+          {/* Список доступных мероприятий */}
+          <div className="mb-4">
+            <EventsList 
+              title="🔥 Популярные вечеринки"
+              limit={6}
+              showPopular={true}
+            />
+          </div>
+
+          {/* Предстоящие мероприятия */}
+          <div className="mb-4">
+            <EventsList 
+              title="📅 Предстоящие мероприятия"
+              limit={4}
+              showUpcoming={true}
+            />
           </div>
 
           {/* Debug информация только в режиме разработки */}
