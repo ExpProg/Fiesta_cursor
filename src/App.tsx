@@ -210,7 +210,9 @@ function AppContent() {
             <h1 className="text-xl font-bold">🎉 Fiesta</h1>
             
             <div className="flex items-center space-x-3">
-              {/* Бургер-меню слева от аватарки */}
+              <TelegramUserInfo />
+              
+              {/* Бургер-меню справа от аватарки */}
               <div className="relative menu-container">
                 <button 
                   className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
@@ -263,8 +265,6 @@ function AppContent() {
                   </div>
                 )}
               </div>
-              
-              <TelegramUserInfo />
             </div>
           </div>
         </div>
