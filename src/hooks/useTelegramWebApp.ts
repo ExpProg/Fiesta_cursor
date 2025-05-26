@@ -160,11 +160,36 @@ export const useTelegramWebApp = (): UseTelegramWebAppReturn => {
         setError(null);
 
         // Проверяем, что мы внутри Telegram WebApp
-        const isInTelegram = typeof window !== 'undefined' && 
-                            (window.location.search.includes('tgWebAppData') || 
-                             window.location.hash.includes('tgWebAppData') ||
-                             // @ts-ignore
-                             (typeof window.Telegram !== 'undefined' && window.Telegram.WebApp));
+        const isInTelegram = typeof window !== 'undefined' && (
+          // Проверяем наличие Telegram WebApp API
+          // @ts-ignore
+          (typeof window.Telegram !== 'undefined' && window.Telegram.WebApp) ||
+          // Проверяем параметры URL
+          window.location.search.includes('tgWebAppData') || 
+          window.location.hash.includes('tgWebAppData') ||
+          // Проверяем User Agent
+          navigator.userAgent.includes('Telegram') ||
+          // Проверяем referrer
+          document.referrer.includes('telegram.org') ||
+          document.referrer.includes('web.telegram.org') ||
+          // Проверяем наличие специфичных параметров Telegram
+          window.location.search.includes('tgWebAppVersion') ||
+          window.location.search.includes('tgWebAppPlatform')
+        );
+
+        // Логируем информацию для диагностики
+        console.log('🔍 Telegram WebApp Detection:', {
+          isInTelegram,
+          userAgent: navigator.userAgent,
+          referrer: document.referrer,
+          location: window.location.href,
+          search: window.location.search,
+          hash: window.location.hash,
+          // @ts-ignore
+          hasTelegramAPI: typeof window.Telegram !== 'undefined',
+          // @ts-ignore
+          hasWebApp: typeof window.Telegram?.WebApp !== 'undefined'
+        });
 
         if (!isInTelegram) {
           // Режим разработки - создаем mock данные

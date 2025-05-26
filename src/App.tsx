@@ -206,13 +206,20 @@ function AppContent() {
               🔧 Тест подключения к базе данных
             </button>
             
-            {/* Ссылка на debug страницу */}
+            {/* Ссылки на диагностические страницы */}
+            <a
+              href="/telegram-debug.html"
+              target="_blank"
+              className="block w-full bg-purple-500 text-white px-4 py-2 rounded-lg hover:bg-purple-600 transition-colors text-sm text-center mb-2"
+            >
+              🔍 Диагностика Telegram WebApp
+            </a>
             <a
               href="/debug.html"
               target="_blank"
               className="block w-full bg-purple-500 text-white px-4 py-2 rounded-lg hover:bg-purple-600 transition-colors text-sm text-center"
             >
-              🔍 Открыть полную диагностику
+              🔧 Полная диагностика
             </a>
           </div>
         </div>

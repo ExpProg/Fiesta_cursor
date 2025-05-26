@@ -13,7 +13,7 @@
     VITE_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhhamNsa2hoc2trcmdxd3pobG56Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDgwNzIwNDYsImV4cCI6MjA2MzY0ODA0Nn0.K76opG9RFtM8iQQaQxDBIYgbiTmM61Hp8fGgA-Q2i9o"
     VITE_DEBUG_MODE = "false"
     # Telegram Bot Configuration (замените на имя вашего реального бота)
-    VITE_TELEGRAM_BOT_USERNAME = "FiestaEventBot"
+    VITE_TELEGRAM_BOT_USERNAME = "Fiesta_cursor_bot"
     
 
 # Настройки редиректов для SPA
@@ -26,10 +26,11 @@
 [[headers]]
   for = "/*"
   [headers.values]
-    X-Frame-Options = "DENY"
+    X-Frame-Options = "SAMEORIGIN"
     X-XSS-Protection = "1; mode=block"
     X-Content-Type-Options = "nosniff"
     Referrer-Policy = "strict-origin-when-cross-origin"
+    Content-Security-Policy = "frame-ancestors 'self' https://web.telegram.org https://telegram.org"
 
 # Настройки для статических файлов
 [[headers]]
