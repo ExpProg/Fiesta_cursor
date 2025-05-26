@@ -29,13 +29,8 @@ export function generateTelegramWebAppUrl(eventId: string): string {
     return generateEventShareUrl(eventId);
   }
   
-  // ВРЕМЕННОЕ РЕШЕНИЕ: Используем обычные URL параметры вместо startapp
-  // Это работает, когда пользователь открывает бота, а затем переходит по ссылке
-  const webAppUrl = `https://fiesta-cursor.netlify.app?event=${eventId}`;
-  
-  // Возвращаем ссылку на бота с инструкцией открыть Web App
-  // Пользователь должен будет нажать кнопку Menu или команду в боте
-  return webAppUrl;
+  // Генерируем Mini App ссылку в формате t.me/BOT_USERNAME/APP_NAME?startapp=event_ID
+  return `https://t.me/${botUsername}/My_Fiesta?startapp=event_${eventId}`;
 }
 
 /**

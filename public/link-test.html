@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Link Generation Test - Fiesta</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #f5f5f5;
+            line-height: 1.5;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border-left: 4px solid #007bff;
+        }
+        .generated-link {
+            background: #e9ecef;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+            word-break: break-all;
+            margin: 10px 0;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .success {
+            color: #28a745;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔗 Тест генерации ссылок</h1>
+        
+        <div class="test-section">
+            <h3>Тестовые ID событий:</h3>
+            <button onclick="testLink('test123')">test123</button>
+            <button onclick="testLink('c202282f-e06a-40e1-8ea7-e154518c4a6c')">Реальный UUID</button>
+            <button onclick="testLink('abc-def-123')">abc-def-123</button>
+        </div>
+
+        <div class="test-section">
+            <h3>Результат:</h3>
+            <div id="result">Нажмите кнопку выше для генерации ссылки</div>
+        </div>
+
+        <div class="test-section">
+            <h3>Ожидаемый формат:</h3>
+            <div class="generated-link">
+                https://t.me/Fiesta_cursor_bot/My_Fiesta?startapp=event_[ID]
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Симуляция функции generateTelegramWebAppUrl
+        function generateTelegramWebAppUrl(eventId) {
+            const botUsername = 'Fiesta_cursor_bot'; // Симулируем переменную окружения
+            
+            if (!botUsername || botUsername === 'your_bot' || botUsername === 'your_bot_username') {
+                return `https://fiesta-cursor.netlify.app?event=${eventId}`;
+            }
+            
+            // Генерируем Mini App ссылку в формате t.me/BOT_USERNAME/APP_NAME?startapp=event_ID
+            return `https://t.me/${botUsername}/My_Fiesta?startapp=event_${eventId}`;
+        }
+
+        function testLink(eventId) {
+            const link = generateTelegramWebAppUrl(eventId);
+            const resultDiv = document.getElementById('result');
+            
+            resultDiv.innerHTML = `
+                <h4>Сгенерированная ссылка для ID: <code>${eventId}</code></h4>
+                <div class="generated-link">${link}</div>
+                <button onclick="copyToClipboard('${link}')">📋 Скопировать</button>
+                <div id="copy-status"></div>
+            `;
+        }
+
+        async function copyToClipboard(text) {
+            try {
+                await navigator.clipboard.writeText(text);
+                document.getElementById('copy-status').innerHTML = 
+                    '<div class="success">✅ Ссылка скопирована!</div>';
+                
+                setTimeout(() => {
+                    document.getElementById('copy-status').innerHTML = '';
+                }, 2000);
+            } catch (err) {
+                document.getElementById('copy-status').innerHTML = 
+                    '<div style="color: red;">❌ Ошибка копирования</div>';
+            }
+        }
+
+        // Автоматический тест при загрузке
+        window.onload = function() {
+            testLink('c202282f-e06a-40e1-8ea7-e154518c4a6c');
+        };
+    </script>
+</body>
+</html> 
