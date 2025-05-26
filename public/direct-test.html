@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="telegram-web-app" content="true">
+    <title>Direct Link Test - Fiesta</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: var(--tg-theme-bg-color, #ffffff);
+            color: var(--tg-theme-text-color, #000000);
+            line-height: 1.5;
+        }
+        .success { background: #d4edda; }
+        .warning { background: #fff3cd; }
+        .error { background: #f8d7da; }
+        .test-link {
+            display: block;
+            padding: 15px;
+            margin: 10px 0;
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            text-decoration: none;
+            color: #495057;
+        }
+        pre {
+            background: #ffffff;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+            font-size: 12px;
+            border: 1px solid #ddd;
+            margin: 10px 0;
+        }
+        .instruction {
+            background: #e7f3ff;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+            border-left: 4px solid #2481cc;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔗 Direct Link Test</h1>
+    
+    <div class="instruction">
+        <h3>📋 Инструкция по тестированию:</h3>
+        <ol>
+            <li>Откройте бота: <a href="https://t.me/Fiesta_cursor_bot">@Fiesta_cursor_bot</a></li>
+            <li>Нажмите кнопку Menu или отправьте /start</li>
+            <li>Когда откроется Web App, попробуйте ссылки ниже</li>
+        </ol>
+    </div>
+
+    <h3>Тестовые ссылки (откройте в Telegram Web App):</h3>
+    
+    <a href="https://fiesta-cursor.netlify.app/direct-test.html?event=test123" class="test-link">
+        <strong>Тест 1:</strong> ?event=test123<br>
+        <small>Прямой URL параметр</small>
+    </a>
+
+    <a href="https://fiesta-cursor.netlify.app/direct-test.html?event=c202282f-e06a-40e1-8ea7-e154518c4a6c" class="test-link">
+        <strong>Тест 2:</strong> Реальный UUID события<br>
+        <small>Формат как в реальном приложении</small>
+    </a>
+
+    <a href="https://fiesta-cursor.netlify.app/?event=test123" class="test-link">
+        <strong>Тест 3:</strong> Главная страница с параметром<br>
+        <small>Как будет работать в реальном приложении</small>
+    </a>
+
+    <h3>Текущее состояние:</h3>
+    <div id="status"></div>
+
+    <h3>Обнаруженные параметры:</h3>
+    <pre id="params-info"></pre>
+
+    <h3>Telegram WebApp данные:</h3>
+    <pre id="telegram-info"></pre>
+
+    <script>
+        function updateInfo() {
+            // Проверяем URL параметры
+            const urlParams = new URLSearchParams(window.location.search);
+            const eventParam = urlParams.get('event');
+            
+            const paramsInfo = {
+                url: window.location.href,
+                search: window.location.search,
+                eventParam: eventParam,
+                allParams: Object.fromEntries(urlParams)
+            };
+            
+            // Telegram данные
+            const telegramInfo = {
+                available: typeof window.Telegram !== 'undefined',
+                webAppAvailable: typeof window.Telegram?.WebApp !== 'undefined'
+            };
+
+            if (telegramInfo.webAppAvailable) {
+                const webApp = window.Telegram.WebApp;
+                telegramInfo.webApp = {
+                    version: webApp.version,
+                    platform: webApp.platform,
+                    initData: webApp.initData ? 'present' : 'missing',
+                    startParam: webApp.initDataUnsafe?.start_param || 'missing',
+                    user: webApp.initDataUnsafe?.user ? 'present' : 'missing'
+                };
+            }
+
+            document.getElementById('params-info').textContent = JSON.stringify(paramsInfo, null, 2);
+            document.getElementById('telegram-info').textContent = JSON.stringify(telegramInfo, null, 2);
+
+            // Обновляем статус
+            const statusDiv = document.getElementById('status');
+            
+            if (eventParam) {
+                document.body.className = 'success';
+                statusDiv.innerHTML = `
+                    <div style="padding: 15px; background: #d4edda; border-radius: 8px; color: #155724;">
+                        <h4>✅ Параметр события найден!</h4>
+                        <p><strong>Event ID:</strong> ${eventParam}</p>
+                        <p>Этот метод работает! Можно использовать прямые URL параметры.</p>
+                    </div>
+                `;
+            } else if (telegramInfo.webAppAvailable) {
+                document.body.className = 'warning';
+                statusDiv.innerHTML = `
+                    <div style="padding: 15px; background: #fff3cd; border-radius: 8px; color: #856404;">
+                        <h4>⚠️ Telegram WebApp работает, но параметры не найдены</h4>
+                        <p>Попробуйте ссылки выше для тестирования параметров.</p>
+                    </div>
+                `;
+            } else {
+                document.body.className = 'error';
+                statusDiv.innerHTML = `
+                    <div style="padding: 15px; background: #f8d7da; border-radius: 8px; color: #721c24;">
+                        <h4>❌ Telegram WebApp не найден</h4>
+                        <p>Откройте эту страницу через Telegram бота.</p>
+                    </div>
+                `;
+            }
+        }
+
+        // Инициализация
+        document.addEventListener('DOMContentLoaded', function() {
+            updateInfo();
+            
+            if (window.Telegram?.WebApp) {
+                try {
+                    window.Telegram.WebApp.ready();
+                    window.Telegram.WebApp.expand();
+                } catch (e) {
+                    console.error('Telegram WebApp initialization error:', e);
+                }
+            }
+        });
+
+        // Обновляем каждые 2 секунды
+        setInterval(updateInfo, 2000);
+    </script>
+</body>
+</html> 

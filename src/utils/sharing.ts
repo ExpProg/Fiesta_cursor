@@ -29,8 +29,13 @@ export function generateTelegramWebAppUrl(eventId: string): string {
     return generateEventShareUrl(eventId);
   }
   
-  // URL для Telegram Web App
-  return `https://t.me/${botUsername}?startapp=event_${eventId}`;
+  // ВРЕМЕННОЕ РЕШЕНИЕ: Используем обычные URL параметры вместо startapp
+  // Это работает, когда пользователь открывает бота, а затем переходит по ссылке
+  const webAppUrl = `https://fiesta-cursor.netlify.app?event=${eventId}`;
+  
+  // Возвращаем ссылку на бота с инструкцией открыть Web App
+  // Пользователь должен будет нажать кнопку Menu или команду в боте
+  return webAppUrl;
 }
 
 /**
