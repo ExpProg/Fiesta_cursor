@@ -143,6 +143,12 @@
                     hasTelegramInUserAgent: navigator.userAgent.includes('Telegram'),
                     hasTelegramInReferrer: document.referrer.includes('telegram'),
                     hasTgWebAppData: window.location.search.includes('tgWebAppData') || window.location.hash.includes('tgWebAppData')
+                },
+                parameters: {
+                    urlSearchParams: Object.fromEntries(new URLSearchParams(window.location.search)),
+                    hashParams: window.location.hash ? Object.fromEntries(new URLSearchParams(window.location.hash.substring(1))) : {},
+                    startappFromUrl: new URLSearchParams(window.location.search).get('startapp'),
+                    startParamFromUrl: new URLSearchParams(window.location.search).get('start_param')
                 }
             };
 
@@ -155,10 +161,35 @@
                     isExpanded: webApp.isExpanded,
                     viewportHeight: webApp.viewportHeight,
                     initData: webApp.initData ? 'Присутствует' : 'Отсутствует',
-                    user: webApp.initDataUnsafe?.user ? 'Присутствует' : 'Отсутствует'
+                    user: webApp.initDataUnsafe?.user ? 'Присутствует' : 'Отсутствует',
+                    startParam: webApp.initDataUnsafe?.start_param || 'Отсутствует'
                 };
 
+                // Дополнительная диагностика параметров
+                diagnostic.parameters.telegramStartParam = webApp.initDataUnsafe?.start_param;
+                
+                // Парсим initData вручную для поиска start_param
+                if (webApp.initData) {
+                    try {
+                        const initDataParams = new URLSearchParams(webApp.initData);
+                        diagnostic.parameters.startParamFromInitData = initDataParams.get('start_param');
+                    } catch (e) {
+                        diagnostic.parameters.initDataParseError = e.message;
+                    }
+                }
+
                 updateStatus('✅ Telegram WebApp успешно загружен!', 'success');
+                
+                // Проверяем наличие параметров события
+                const startParam = webApp.initDataUnsafe?.start_param;
+                if (startParam && startParam.startsWith('event_')) {
+                    const eventId = startParam.replace('event_', '');
+                    updateStatus(`✅ Найден параметр события: ${eventId}`, 'success');
+                } else if (startParam) {
+                    updateStatus(`⚠️ Найден start_param, но не событие: ${startParam}`, 'info');
+                } else {
+                    updateStatus('ℹ️ Параметры события не найдены', 'info');
+                }
                 
                 // Вызываем ready и expand
                 try {

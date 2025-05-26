@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="telegram-web-app" content="true">
+    <title>Parameter Test - Fiesta</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: var(--tg-theme-bg-color, #ffffff);
+            color: var(--tg-theme-text-color, #000000);
+            line-height: 1.5;
+        }
+        .section {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+            border: 1px solid #dee2e6;
+        }
+        .success { background: #d4edda; border-color: #c3e6cb; }
+        .error { background: #f8d7da; border-color: #f5c6cb; }
+        .warning { background: #fff3cd; border-color: #ffeaa7; }
+        pre {
+            background: #ffffff;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+            font-size: 12px;
+            border: 1px solid #ddd;
+        }
+        h3 { margin-top: 0; }
+    </style>
+</head>
+<body>
+    <h1>🔍 Parameter Diagnostic</h1>
+    
+    <div id="url-section" class="section">
+        <h3>URL Information</h3>
+        <pre id="url-info"></pre>
+    </div>
+
+    <div id="telegram-section" class="section">
+        <h3>Telegram WebApp</h3>
+        <pre id="telegram-info"></pre>
+    </div>
+
+    <div id="params-section" class="section">
+        <h3>Parameter Detection</h3>
+        <pre id="params-info"></pre>
+    </div>
+
+    <div id="event-section" class="section">
+        <h3>Event ID Extraction</h3>
+        <pre id="event-info"></pre>
+    </div>
+
+    <script>
+        function updateInfo() {
+            // URL Information
+            const urlInfo = {
+                href: window.location.href,
+                origin: window.location.origin,
+                pathname: window.location.pathname,
+                search: window.location.search,
+                hash: window.location.hash,
+                searchParams: Object.fromEntries(new URLSearchParams(window.location.search)),
+                hashParams: window.location.hash ? Object.fromEntries(new URLSearchParams(window.location.hash.substring(1))) : {}
+            };
+            document.getElementById('url-info').textContent = JSON.stringify(urlInfo, null, 2);
+
+            // Telegram WebApp Information
+            const telegramInfo = {
+                available: typeof window.Telegram !== 'undefined',
+                webAppAvailable: typeof window.Telegram?.WebApp !== 'undefined'
+            };
+
+            if (telegramInfo.webAppAvailable) {
+                const webApp = window.Telegram.WebApp;
+                telegramInfo.webApp = {
+                    version: webApp.version,
+                    platform: webApp.platform,
+                    initData: webApp.initData || null,
+                    initDataUnsafe: webApp.initDataUnsafe || null
+                };
+            }
+            document.getElementById('telegram-info').textContent = JSON.stringify(telegramInfo, null, 2);
+
+            // Parameter Detection
+            const paramsInfo = {
+                fromUrl: {
+                    startapp: new URLSearchParams(window.location.search).get('startapp'),
+                    start_param: new URLSearchParams(window.location.search).get('start_param'),
+                    event: new URLSearchParams(window.location.search).get('event')
+                },
+                fromHash: {},
+                fromTelegram: {}
+            };
+
+            if (window.location.hash) {
+                const hashParams = new URLSearchParams(window.location.hash.substring(1));
+                paramsInfo.fromHash = {
+                    startapp: hashParams.get('startapp'),
+                    start_param: hashParams.get('start_param'),
+                    event: hashParams.get('event')
+                };
+            }
+
+            if (window.Telegram?.WebApp) {
+                const webApp = window.Telegram.WebApp;
+                paramsInfo.fromTelegram = {
+                    start_param: webApp.initDataUnsafe?.start_param,
+                    initDataRaw: webApp.initData
+                };
+
+                // Парсим initData вручную
+                if (webApp.initData) {
+                    try {
+                        const initDataParams = new URLSearchParams(webApp.initData);
+                        paramsInfo.fromTelegram.parsedInitData = {
+                            start_param: initDataParams.get('start_param'),
+                            user: initDataParams.get('user') ? 'present' : null,
+                            auth_date: initDataParams.get('auth_date'),
+                            hash: initDataParams.get('hash') ? 'present' : null
+                        };
+                    } catch (e) {
+                        paramsInfo.fromTelegram.parseError = e.message;
+                    }
+                }
+            }
+            document.getElementById('params-info').textContent = JSON.stringify(paramsInfo, null, 2);
+
+            // Event ID Extraction
+            const eventInfo = {
+                methods: {},
+                finalEventId: null
+            };
+
+            // Метод 1: URL параметр event
+            const eventFromUrl = new URLSearchParams(window.location.search).get('event');
+            eventInfo.methods.urlEvent = eventFromUrl;
+
+            // Метод 2: URL параметр startapp
+            const startappFromUrl = new URLSearchParams(window.location.search).get('startapp');
+            if (startappFromUrl && startappFromUrl.startsWith('event_')) {
+                eventInfo.methods.urlStartapp = startappFromUrl.replace('event_', '');
+            }
+
+            // Метод 3: Telegram start_param
+            if (window.Telegram?.WebApp?.initDataUnsafe?.start_param) {
+                const telegramStartParam = window.Telegram.WebApp.initDataUnsafe.start_param;
+                eventInfo.methods.telegramStartParam = telegramStartParam;
+                if (telegramStartParam.startsWith('event_')) {
+                    eventInfo.methods.telegramEventId = telegramStartParam.replace('event_', '');
+                }
+            }
+
+            // Метод 4: Парсинг initData
+            if (window.Telegram?.WebApp?.initData) {
+                try {
+                    const initDataParams = new URLSearchParams(window.Telegram.WebApp.initData);
+                    const startParamFromInitData = initDataParams.get('start_param');
+                    eventInfo.methods.initDataStartParam = startParamFromInitData;
+                    if (startParamFromInitData && startParamFromInitData.startsWith('event_')) {
+                        eventInfo.methods.initDataEventId = startParamFromInitData.replace('event_', '');
+                    }
+                } catch (e) {
+                    eventInfo.methods.initDataError = e.message;
+                }
+            }
+
+            // Определяем финальный Event ID
+            eventInfo.finalEventId = eventFromUrl || 
+                                   eventInfo.methods.urlStartapp || 
+                                   eventInfo.methods.telegramEventId || 
+                                   eventInfo.methods.initDataEventId || 
+                                   null;
+
+            document.getElementById('event-info').textContent = JSON.stringify(eventInfo, null, 2);
+
+            // Обновляем стили секций
+            const sections = document.querySelectorAll('.section');
+            sections.forEach(section => {
+                section.className = 'section';
+            });
+
+            if (eventInfo.finalEventId) {
+                document.getElementById('event-section').classList.add('success');
+            } else if (Object.keys(eventInfo.methods).length > 1) {
+                document.getElementById('event-section').classList.add('warning');
+            } else {
+                document.getElementById('event-section').classList.add('error');
+            }
+
+            if (telegramInfo.webAppAvailable) {
+                document.getElementById('telegram-section').classList.add('success');
+            } else {
+                document.getElementById('telegram-section').classList.add('error');
+            }
+        }
+
+        // Инициализация
+        document.addEventListener('DOMContentLoaded', function() {
+            updateInfo();
+            
+            if (window.Telegram?.WebApp) {
+                try {
+                    window.Telegram.WebApp.ready();
+                    window.Telegram.WebApp.expand();
+                } catch (e) {
+                    console.error('Telegram WebApp initialization error:', e);
+                }
+            }
+        });
+
+        // Обновляем каждые 2 секунды
+        setInterval(updateInfo, 2000);
+    </script>
+</body>
+</html> 

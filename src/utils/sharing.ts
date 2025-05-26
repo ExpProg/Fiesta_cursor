@@ -75,13 +75,51 @@ export function getEventIdFromUrl(): string | null {
  */
 export function getEventIdFromTelegramStart(): string | null {
   try {
-    // В Telegram Web App start параметр доступен через window.Telegram.WebApp.initDataUnsafe.start_param
+    // В Telegram Web App start параметр доступен через несколько способов
     if (typeof window !== 'undefined' && 'Telegram' in window) {
       const telegram = (window as any).Telegram?.WebApp;
-      const startParam = telegram?.initDataUnsafe?.start_param;
+      
+      // Способ 1: Через initDataUnsafe.start_param
+      let startParam = telegram?.initDataUnsafe?.start_param;
+      
+      // Способ 2: Через initData строку (парсим вручную)
+      if (!startParam && telegram?.initData) {
+        try {
+          const initDataParams = new URLSearchParams(telegram.initData);
+          startParam = initDataParams.get('start_param');
+        } catch (e) {
+          console.warn('Failed to parse initData for start_param:', e);
+        }
+      }
+      
+      // Способ 3: Проверяем URL параметры (fallback)
+      if (!startParam) {
+        const urlParams = new URLSearchParams(window.location.search);
+        startParam = urlParams.get('startapp') || urlParams.get('start_param');
+      }
+      
+      // Способ 4: Проверяем hash параметры
+      if (!startParam && window.location.hash) {
+        try {
+          const hashParams = new URLSearchParams(window.location.hash.substring(1));
+          startParam = hashParams.get('startapp') || hashParams.get('start_param');
+        } catch (e) {
+          console.warn('Failed to parse hash for start_param:', e);
+        }
+      }
+      
+      console.log('🔍 Telegram start param detection:', {
+        fromInitDataUnsafe: telegram?.initDataUnsafe?.start_param,
+        fromInitData: telegram?.initData ? 'present' : 'missing',
+        fromUrl: new URLSearchParams(window.location.search).get('startapp'),
+        fromHash: window.location.hash,
+        finalStartParam: startParam
+      });
       
       if (startParam && startParam.startsWith('event_')) {
-        return startParam.replace('event_', '');
+        const eventId = startParam.replace('event_', '');
+        console.log('✅ Event ID extracted from Telegram start param:', eventId);
+        return eventId;
       }
     }
   } catch (error) {
