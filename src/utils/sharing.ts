@@ -34,6 +34,35 @@ export function generateTelegramWebAppUrl(eventId: string): string {
 }
 
 /**
+ * Генерирует альтернативную ссылку с обычными URL параметрами
+ * Используется как fallback если startapp не работает
+ */
+export function generateTelegramWebAppUrlWithParams(eventId: string): string {
+  const botUsername = import.meta.env.VITE_TELEGRAM_BOT_USERNAME;
+  
+  if (!botUsername || botUsername === 'your_bot' || botUsername === 'your_bot_username') {
+    return generateEventShareUrl(eventId);
+  }
+  
+  // Используем обычные URL параметры вместо startapp
+  return `https://t.me/${botUsername}?start=event_${eventId}`;
+}
+
+/**
+ * Генерирует простую ссылку для тестирования без префикса
+ */
+export function generateSimpleTelegramUrl(eventId: string): string {
+  const botUsername = import.meta.env.VITE_TELEGRAM_BOT_USERNAME;
+  
+  if (!botUsername || botUsername === 'your_bot' || botUsername === 'your_bot_username') {
+    return generateEventShareUrl(eventId);
+  }
+  
+  // Простой формат без префикса event_
+  return `https://t.me/${botUsername}?startapp=${eventId}`;
+}
+
+/**
  * Копирует текст в буфер обмена
  */
 export async function copyToClipboard(text: string): Promise<boolean> {
@@ -95,14 +124,14 @@ export function getEventIdFromTelegramStart(): string | null {
       // Способ 3: Проверяем URL параметры (fallback)
       if (!startParam) {
         const urlParams = new URLSearchParams(window.location.search);
-        startParam = urlParams.get('startapp') || urlParams.get('start_param');
+        startParam = urlParams.get('startapp') || urlParams.get('start_param') || urlParams.get('start');
       }
       
       // Способ 4: Проверяем hash параметры
       if (!startParam && window.location.hash) {
         try {
           const hashParams = new URLSearchParams(window.location.hash.substring(1));
-          startParam = hashParams.get('startapp') || hashParams.get('start_param');
+          startParam = hashParams.get('startapp') || hashParams.get('start_param') || hashParams.get('start');
         } catch (e) {
           console.warn('Failed to parse hash for start_param:', e);
         }
@@ -116,10 +145,28 @@ export function getEventIdFromTelegramStart(): string | null {
         finalStartParam: startParam
       });
       
-      if (startParam && startParam.startsWith('event_')) {
-        const eventId = startParam.replace('event_', '');
-        console.log('✅ Event ID extracted from Telegram start param:', eventId);
-        return eventId;
+      if (startParam) {
+        let eventId = null;
+        
+        // Формат 1: event_123 (с префиксом)
+        if (startParam.startsWith('event_')) {
+          eventId = startParam.replace('event_', '');
+        }
+        // Формат 2: evt123 (короткий префикс)
+        else if (startParam.startsWith('evt')) {
+          eventId = startParam.replace('evt', '');
+        }
+        // Формат 3: простой параметр без префикса (если это UUID или похоже на ID события)
+        else if (/^[a-f0-9-]{36}$/.test(startParam) || /^[a-zA-Z0-9_-]+$/.test(startParam)) {
+          eventId = startParam;
+        }
+        
+        if (eventId) {
+          console.log('✅ Event ID extracted from Telegram start param:', eventId, 'from:', startParam);
+          return eventId;
+        } else {
+          console.warn('⚠️ Start param found but not recognized as event ID:', startParam);
+        }
       }
     }
   } catch (error) {
