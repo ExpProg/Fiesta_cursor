@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#0088cc">
+    <meta name="color-scheme" content="light dark">
+    <meta name="telegram-web-app" content="true">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <title>Telegram WebApp Test - Fiesta</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: var(--tg-theme-bg-color, #ffffff);
+            color: var(--tg-theme-text-color, #000000);
+            line-height: 1.5;
+            text-align: center;
+        }
+        .status {
+            padding: 20px;
+            border-radius: 12px;
+            margin: 20px 0;
+            font-size: 18px;
+            font-weight: 600;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+            border: 2px solid #c3e6cb;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 2px solid #f5c6cb;
+        }
+        .info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 2px solid #bee5eb;
+        }
+        .button {
+            background: var(--tg-theme-button-color, #2481cc);
+            color: var(--tg-theme-button-text-color, #ffffff);
+            border: none;
+            padding: 15px 30px;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            margin: 10px;
+            transition: opacity 0.2s;
+        }
+        .button:hover {
+            opacity: 0.8;
+        }
+        pre {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            overflow-x: auto;
+            text-align: left;
+            font-size: 12px;
+            border: 1px solid #dee2e6;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 Telegram WebApp Test</h1>
+    
+    <div id="status" class="status info">
+        Проверяем Telegram WebApp...
+    </div>
+
+    <div id="info"></div>
+
+    <button class="button" onclick="testAlert()">Тест Alert</button>
+    <button class="button" onclick="testHaptic()">Тест Вибрации</button>
+    <button class="button" onclick="goToApp()">Перейти к приложению</button>
+
+    <h3>Диагностическая информация:</h3>
+    <pre id="diagnostic"></pre>
+
+    <script>
+        function updateStatus(message, type = 'info') {
+            const statusEl = document.getElementById('status');
+            statusEl.textContent = message;
+            statusEl.className = `status ${type}`;
+        }
+
+        function testAlert() {
+            try {
+                if (window.Telegram && window.Telegram.WebApp) {
+                    window.Telegram.WebApp.showAlert('✅ Telegram WebApp работает!');
+                } else {
+                    alert('❌ Telegram WebApp недоступен');
+                }
+            } catch (e) {
+                alert('❌ Ошибка: ' + e.message);
+            }
+        }
+
+        function testHaptic() {
+            try {
+                if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.HapticFeedback) {
+                    window.Telegram.WebApp.HapticFeedback.impactOccurred('medium');
+                    updateStatus('✅ Вибрация сработала!', 'success');
+                } else {
+                    updateStatus('❌ Haptic Feedback недоступен', 'error');
+                }
+            } catch (e) {
+                updateStatus('❌ Ошибка вибрации: ' + e.message, 'error');
+            }
+        }
+
+        function goToApp() {
+            window.location.href = '/';
+        }
+
+        function checkTelegramWebApp() {
+            const telegramAvailable = typeof window.Telegram !== 'undefined';
+            const webAppAvailable = telegramAvailable && typeof window.Telegram.WebApp !== 'undefined';
+            
+            const diagnostic = {
+                timestamp: new Date().toISOString(),
+                environment: {
+                    userAgent: navigator.userAgent,
+                    referrer: document.referrer,
+                    url: window.location.href,
+                    search: window.location.search,
+                    hash: window.location.hash,
+                    protocol: window.location.protocol,
+                    host: window.location.host
+                },
+                telegram: {
+                    available: telegramAvailable,
+                    webAppAvailable: webAppAvailable
+                },
+                detection: {
+                    hasTelegramInUserAgent: navigator.userAgent.includes('Telegram'),
+                    hasTelegramInReferrer: document.referrer.includes('telegram'),
+                    hasTgWebAppData: window.location.search.includes('tgWebAppData') || window.location.hash.includes('tgWebAppData')
+                }
+            };
+
+            if (webAppAvailable) {
+                const webApp = window.Telegram.WebApp;
+                diagnostic.telegram.webApp = {
+                    version: webApp.version,
+                    platform: webApp.platform,
+                    colorScheme: webApp.colorScheme,
+                    isExpanded: webApp.isExpanded,
+                    viewportHeight: webApp.viewportHeight,
+                    initData: webApp.initData ? 'Присутствует' : 'Отсутствует',
+                    user: webApp.initDataUnsafe?.user ? 'Присутствует' : 'Отсутствует'
+                };
+
+                updateStatus('✅ Telegram WebApp успешно загружен!', 'success');
+                
+                // Вызываем ready и expand
+                try {
+                    webApp.ready();
+                    webApp.expand();
+                } catch (e) {
+                    console.error('Ошибка инициализации:', e);
+                }
+            } else {
+                updateStatus('❌ Telegram WebApp не найден', 'error');
+            }
+
+            document.getElementById('diagnostic').textContent = JSON.stringify(diagnostic, null, 2);
+        }
+
+        // Инициализация
+        document.addEventListener('DOMContentLoaded', function() {
+            setTimeout(checkTelegramWebApp, 100);
+        });
+    </script>
+</body>
+</html> 
