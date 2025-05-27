@@ -15,6 +15,8 @@ import {
   Check
 } from 'lucide-react';
 import { shareEvent, generateEventShareUrl, copyToClipboard, generateTelegramWebAppUrl } from '@/utils/sharing';
+import { EventParticipants } from './EventParticipants';
+import { EventResponseButtons } from './EventResponseButtons';
 import { useTelegram } from './TelegramProvider';
 
 interface EventDetailModalProps {
@@ -24,6 +26,9 @@ interface EventDetailModalProps {
   onEdit?: (event: DatabaseEvent) => void;
   onDelete?: (eventId: string) => void;
   currentUserId?: number; // telegram_id текущего пользователя
+  userFirstName?: string;
+  userLastName?: string | null;
+  userUsername?: string | null;
 }
 
 export const EventDetailModal: React.FC<EventDetailModalProps> = ({ 
@@ -32,7 +37,10 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
   onBook, 
   onEdit,
   onDelete,
-  currentUserId
+  currentUserId,
+  userFirstName,
+  userLastName,
+  userUsername
 }) => {
   const { impactOccurred } = useTelegram();
   const [isScrolled, setIsScrolled] = useState(false);
@@ -285,23 +293,11 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
                 )}
 
                 {/* Участники */}
-                <div className="flex items-center text-gray-600">
-                  <Users className="w-5 h-5 mr-3 flex-shrink-0" />
-                  <div>
-                    <div className="font-medium">Участники</div>
-                    <div className="text-sm">
-                      {event.current_participants} человек
-                      {event.max_participants && (
-                        <span className="text-gray-400"> / {event.max_participants}</span>
-                      )}
-                      {spotsLeft !== null && spotsLeft > 0 && (
-                        <span className="text-green-600 ml-2">
-                          (осталось {spotsLeft} мест)
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </div>
+                <EventParticipants
+                  eventId={event.id}
+                  currentParticipants={event.current_participants}
+                  maxParticipants={event.max_participants}
+                />
 
                 {/* Организатор */}
                 <div className="flex items-center text-gray-600">
@@ -352,6 +348,16 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
                 )}
               </div>
             </div>
+
+            {/* Кнопки откликов */}
+            <EventResponseButtons
+              event={event}
+              currentUserId={currentUserId}
+              userFirstName={userFirstName}
+              userLastName={userLastName}
+              userUsername={userUsername}
+              className="mb-6"
+            />
 
             {/* Кнопки действий */}
             <div className="space-y-3">

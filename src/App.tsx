@@ -348,6 +348,9 @@ function AppContent() {
         <EventDetailModal
           event={selectedEvent}
           currentUserId={telegramUser?.id}
+          userFirstName={telegramUser?.first_name}
+          userLastName={telegramUser?.last_name}
+          userUsername={telegramUser?.username}
           onClose={() => {
             setSelectedEvent(null);
             impactOccurred('light');

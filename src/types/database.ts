@@ -530,4 +530,48 @@ export interface ValidationSchema {
     lastName: { max: 50 };
     bio: { max: 500 };
   };
+}
+
+// Таблица event_responses - отклики на мероприятия
+export type ResponseStatus = 'attending' | 'not_attending' | 'maybe';
+
+export interface EventResponse {
+  id: string;
+  event_id: string;
+  user_telegram_id: number;
+  user_first_name: string;
+  user_last_name: string | null;
+  user_username: string | null;
+  response_status: ResponseStatus;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface EventResponseInsert {
+  id?: string;
+  event_id: string;
+  user_telegram_id: number;
+  user_first_name: string;
+  user_last_name?: string | null;
+  user_username?: string | null;
+  response_status: ResponseStatus;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface EventResponseUpdate {
+  response_status?: ResponseStatus;
+  updated_at?: string;
+}
+
+// Интерфейс для участника мероприятия
+export interface EventParticipant {
+  telegram_id: number;
+  first_name: string;
+  last_name: string | null;
+  username: string | null;
+  response_status: ResponseStatus;
+  responded_at: string;
+  // Вычисляемое поле для отображения имени
+  display_name?: string;
 } 
