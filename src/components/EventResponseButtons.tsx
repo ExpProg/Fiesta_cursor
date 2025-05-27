@@ -9,7 +9,8 @@ import {
   respondToEvent, 
   canUserRespond,
   getResponseButtonClass,
-  getResponseStatusText 
+  getResponseStatusText,
+  checkEventResponsesTable
 } from '@/utils/eventResponses';
 import type { ResponseStatus, DatabaseEvent } from '@/types/database';
 
@@ -35,6 +36,7 @@ export const EventResponseButtons: React.FC<EventResponseButtonsProps> = ({
   const [userResponse, setUserResponse] = useState<ResponseStatus | null>(null);
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState<ResponseStatus | null>(null);
+  const [tableError, setTableError] = useState<string | null>(null);
 
   // Проверяем, является ли пользователь создателем мероприятия
   const isCreator = currentUserId === event.created_by;
@@ -42,9 +44,21 @@ export const EventResponseButtons: React.FC<EventResponseButtonsProps> = ({
   // Загружаем текущий статус отклика пользователя
   useEffect(() => {
     if (currentUserId) {
-      loadUserResponse();
+      checkTableAndLoadResponse();
     }
   }, [currentUserId, event.id]);
+
+  const checkTableAndLoadResponse = async () => {
+    // Сначала проверяем таблицу
+    const tableCheck = await checkEventResponsesTable();
+    if (!tableCheck.exists || !tableCheck.canInsert) {
+      setTableError(tableCheck.error || 'Система откликов недоступна');
+      return;
+    }
+    
+    setTableError(null);
+    loadUserResponse();
+  };
 
   const loadUserResponse = async () => {
     if (!currentUserId) return;
@@ -132,8 +146,18 @@ export const EventResponseButtons: React.FC<EventResponseButtonsProps> = ({
 
   return (
     <div className={`${className}`}>
+      {/* Ошибка системы откликов */}
+      {tableError && (
+        <div className="mb-3 p-3 bg-red-50 rounded-lg">
+          <div className="text-red-700 text-sm">
+            <div className="font-medium">Система откликов недоступна</div>
+            <div className="text-xs mt-1">{tableError}</div>
+          </div>
+        </div>
+      )}
+
       {/* Текущий статус отклика */}
-      {userResponse && (
+      {userResponse && !tableError && (
         <div className="mb-3 p-3 bg-blue-50 rounded-lg">
           <div className="flex items-center justify-between">
             <div className="flex items-center">
@@ -164,8 +188,8 @@ export const EventResponseButtons: React.FC<EventResponseButtonsProps> = ({
           {/* Кнопка "Буду" */}
           <button
             onClick={() => handleResponse('attending')}
-            disabled={!canRespond || submitting !== null || loading}
-            className={getResponseButtonClass('attending', userResponse, !canRespond || loading)}
+            disabled={!canRespond || submitting !== null || loading || tableError !== null}
+            className={getResponseButtonClass('attending', userResponse, !canRespond || loading || tableError !== null)}
           >
             {submitting === 'attending' ? (
               <div className="flex items-center justify-center">
@@ -183,8 +207,8 @@ export const EventResponseButtons: React.FC<EventResponseButtonsProps> = ({
           {/* Кнопка "Не буду" */}
           <button
             onClick={() => handleResponse('not_attending')}
-            disabled={submitting !== null || loading}
-            className={getResponseButtonClass('not_attending', userResponse, loading)}
+            disabled={submitting !== null || loading || tableError !== null}
+            className={getResponseButtonClass('not_attending', userResponse, loading || tableError !== null)}
           >
             {submitting === 'not_attending' ? (
               <div className="flex items-center justify-center">

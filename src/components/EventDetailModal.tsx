@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import type { DatabaseEvent } from '@/types/database';
+import type { DatabaseEvent, ResponseStatus } from '@/types/database';
 import { 
   Calendar, 
   MapPin, 
@@ -15,6 +15,7 @@ import {
   Check
 } from 'lucide-react';
 import { shareEvent, generateEventShareUrl, copyToClipboard, generateTelegramWebAppUrl } from '@/utils/sharing';
+import { refreshEventData } from '@/utils/eventResponses';
 import { EventParticipants } from './EventParticipants';
 import { EventResponseButtons } from './EventResponseButtons';
 import { useTelegram } from './TelegramProvider';
@@ -48,6 +49,28 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
   const [shareSuccess, setShareSuccess] = useState(false);
   const [isCopyingLink, setIsCopyingLink] = useState(false);
   const [copyLinkSuccess, setCopyLinkSuccess] = useState(false);
+  const [updatedEvent, setUpdatedEvent] = useState<DatabaseEvent>(event);
+  
+  // Обновляем локальное состояние мероприятия при изменении props
+  useEffect(() => {
+    setUpdatedEvent(event);
+  }, [event]);
+
+  // Обработчик изменения отклика - обновляет данные мероприятия из БД
+  const handleResponseChange = async (newResponse: ResponseStatus | null) => {
+    console.log('User response changed to:', newResponse);
+    
+    // Обновляем данные мероприятия из базы данных
+    try {
+      const refreshedEvent = await refreshEventData(updatedEvent.id);
+      if (refreshedEvent) {
+        setUpdatedEvent(refreshedEvent);
+        console.log('Event data refreshed, new participant count:', refreshedEvent.current_participants);
+      }
+    } catch (error) {
+      console.error('Failed to refresh event data:', error);
+    }
+  };
   
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -78,9 +101,9 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
     return gradients[Math.floor(Math.random() * gradients.length)];
   };
 
-  const isEventFull = event.max_participants && event.current_participants >= event.max_participants;
-  const spotsLeft = event.max_participants ? event.max_participants - event.current_participants : null;
-  const isCreator = currentUserId && event.created_by === currentUserId;
+  const isEventFull = updatedEvent.max_participants && updatedEvent.current_participants >= updatedEvent.max_participants;
+  const spotsLeft = updatedEvent.max_participants ? updatedEvent.max_participants - updatedEvent.current_participants : null;
+  const isCreator = currentUserId && updatedEvent.created_by === currentUserId;
 
   // Определяем, настроен ли Telegram бот
   const telegramBotUsername = import.meta.env.VITE_TELEGRAM_BOT_USERNAME;
@@ -94,10 +117,10 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
     
     try {
       const shareData = {
-        eventId: event.id,
-        title: event.title,
-        description: event.description || undefined,
-        imageUrl: event.image_url || undefined
+        eventId: updatedEvent.id,
+        title: updatedEvent.title,
+        description: updatedEvent.description || undefined,
+        imageUrl: updatedEvent.image_url || undefined
       };
 
       const result = await shareEvent(shareData);
@@ -145,7 +168,7 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
     
     try {
       // Используем Telegram Web App ссылку если бот настроен, иначе обычную веб-ссылку
-      const linkUrl = generateTelegramWebAppUrl(event.id);
+      const linkUrl = generateTelegramWebAppUrl(updatedEvent.id);
       const success = await copyToClipboard(linkUrl);
       
       if (success) {
@@ -182,10 +205,10 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
             isScrolled ? 'h-24' : 'h-64'
           }`}
         >
-          {event.image_url ? (
+          {updatedEvent.image_url ? (
             <img 
-              src={event.image_url} 
-              alt={event.title}
+              src={updatedEvent.image_url} 
+              alt={updatedEvent.title}
               className={`w-full h-full object-cover transition-all duration-300 ${
                 isScrolled ? 'object-top' : 'object-center'
               }`}
@@ -193,7 +216,7 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
           ) : (
             <div 
               className="w-full h-full"
-              style={{ background: getEventImage(event.image_url) }}
+              style={{ background: getEventImage(updatedEvent.image_url) }}
             />
           )}
           
@@ -209,26 +232,26 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
           {!isScrolled && (
             <div className="absolute top-4 left-4">
               <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                event.status === 'active' 
+                updatedEvent.status === 'active' 
                   ? 'bg-green-100 text-green-800' 
                   : 'bg-gray-100 text-gray-600'
               }`}>
-                {event.status === 'active' ? 'Активно' : 'Завершено'}
+                {updatedEvent.status === 'active' ? 'Активно' : 'Завершено'}
               </span>
             </div>
           )}
 
           {/* Цена - скрывается при скролле */}
-          {!isScrolled && (event.price > 0 || event.price_per_person) && (
+          {!isScrolled && (updatedEvent.price > 0 || updatedEvent.price_per_person) && (
             <div className="absolute bottom-4 right-4">
               <div className="bg-black/70 text-white px-3 py-2 rounded-lg">
-                {event.price_per_person ? (
+                {updatedEvent.price_per_person ? (
                   <div className="text-sm">
-                    <div className="font-bold">{event.price_per_person}₽</div>
+                    <div className="font-bold">{updatedEvent.price_per_person}₽</div>
                     <div className="text-xs opacity-75">за человека</div>
                   </div>
                 ) : (
-                  <div className="font-bold">{event.price}₽</div>
+                  <div className="font-bold">{updatedEvent.price}₽</div>
                 )}
               </div>
             </div>
@@ -247,7 +270,7 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
           {isScrolled && (
             <div className="absolute bottom-2 left-4 right-16">
               <h1 className="text-white font-bold text-lg truncate drop-shadow-lg">
-                {event.title}
+                {updatedEvent.title}
               </h1>
             </div>
           )}
@@ -265,39 +288,39 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
             {/* Заголовок */}
             <div className="mb-6">
               <h1 className="text-2xl font-bold text-gray-900 mb-2">
-                {event.title}
+                {updatedEvent.title}
               </h1>
               
               {/* Основная информация */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                 {/* Дата и время */}
-                <div className="flex items-center text-gray-600">
-                  <Calendar className="w-5 h-5 mr-3 flex-shrink-0" />
-                  <div>
-                    <div className="font-medium">{formatDate(event.date)}</div>
-                    {event.event_time && (
-                      <div className="text-sm text-gray-500">в {formatTime(event.event_time)}</div>
-                    )}
+                                  <div className="flex items-center text-gray-600">
+                    <Calendar className="w-5 h-5 mr-3 flex-shrink-0" />
+                    <div>
+                      <div className="font-medium">{formatDate(updatedEvent.date)}</div>
+                      {updatedEvent.event_time && (
+                        <div className="text-sm text-gray-500">в {formatTime(updatedEvent.event_time)}</div>
+                      )}
+                    </div>
                   </div>
-                </div>
 
                 {/* Место */}
-                {event.location && (
+                {updatedEvent.location && (
                   <div className="flex items-center text-gray-600">
                     <MapPin className="w-5 h-5 mr-3 flex-shrink-0" />
                     <div>
                       <div className="font-medium">Место проведения</div>
-                      <div className="text-sm">{event.location}</div>
+                      <div className="text-sm">{updatedEvent.location}</div>
                     </div>
                   </div>
                 )}
 
                 {/* Участники */}
                 <EventParticipants
-                  eventId={event.id}
-                  currentParticipants={event.current_participants}
-                  maxParticipants={event.max_participants}
-                  organizerTelegramId={event.created_by}
+                  eventId={updatedEvent.id}
+                  currentParticipants={updatedEvent.current_participants}
+                  maxParticipants={updatedEvent.max_participants}
+                  organizerTelegramId={updatedEvent.created_by}
                 />
 
                 {/* Организатор */}
@@ -312,13 +335,13 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
             </div>
 
             {/* Описание */}
-            {event.description && (
+            {updatedEvent.description && (
               <div className="mb-6">
                 <h2 className="text-lg font-semibold text-gray-900 mb-3">
                   Описание
                 </h2>
                 <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">
-                  {event.description}
+                  {updatedEvent.description}
                 </p>
               </div>
             )}
@@ -352,11 +375,12 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
 
             {/* Кнопки откликов */}
             <EventResponseButtons
-              event={event}
+              event={updatedEvent}
               currentUserId={currentUserId}
               userFirstName={userFirstName}
               userLastName={userLastName}
               userUsername={userUsername}
+              onResponseChange={handleResponseChange}
               className="mb-6"
             />
 

@@ -50,6 +50,8 @@ export async function respondToEvent(
   responseStatus: ResponseStatus
 ): Promise<{ success: boolean; error?: string }> {
   try {
+    console.log('Responding to event:', { eventId, userTelegramId, responseStatus });
+    
     const responseData: EventResponseInsert = {
       event_id: eventId,
       user_telegram_id: userTelegramId,
@@ -59,18 +61,22 @@ export async function respondToEvent(
       response_status: responseStatus
     };
 
+    console.log('Response data:', responseData);
+
     // Используем upsert для добавления или обновления
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from('event_responses')
       .upsert(responseData, {
         onConflict: 'event_id,user_telegram_id'
-      });
+      })
+      .select();
 
     if (error) {
       console.error('Error responding to event:', error);
       return { success: false, error: error.message };
     }
 
+    console.log('Response saved successfully:', data);
     return { success: true };
   } catch (error) {
     console.error('Error responding to event:', error);
@@ -302,5 +308,73 @@ export function getResponseButtonClass(
       }`;
     default:
       return `${baseClasses} bg-gray-100 text-gray-700 hover:bg-gray-200`;
+  }
+}
+
+/**
+ * Обновляет информацию о мероприятии из базы данных
+ */
+export async function refreshEventData(eventId: string): Promise<any | null> {
+  try {
+    const { data, error } = await supabase
+      .from('events')
+      .select('*')
+      .eq('id', eventId)
+      .single();
+
+    if (error) {
+      console.error('Error refreshing event data:', error);
+      return null;
+    }
+
+    return data;
+  } catch (error) {
+    console.error('Error refreshing event data:', error);
+    return null;
+  }
+}
+
+/**
+ * Проверяет, существует ли таблица event_responses и доступна ли она
+ */
+export async function checkEventResponsesTable(): Promise<{
+  exists: boolean;
+  error?: string;
+  canInsert?: boolean;
+}> {
+  try {
+    // Пытаемся выполнить простой SELECT запрос
+    const { data, error } = await supabase
+      .from('event_responses')
+      .select('id')
+      .limit(1);
+
+    if (error) {
+      console.error('Event responses table check failed:', error);
+      
+      // Проверяем, существует ли таблица
+      if (error.message.includes('relation') && error.message.includes('does not exist')) {
+        return { 
+          exists: false, 
+          error: 'Таблица event_responses не создана. Выполните SQL из ADD_EVENT_RESPONSES.sql' 
+        };
+      }
+      
+      return { 
+        exists: true, 
+        error: `Ошибка доступа к таблице: ${error.message}`,
+        canInsert: false
+      };
+    }
+
+    console.log('Event responses table exists and is accessible');
+    return { exists: true, canInsert: true };
+    
+  } catch (error) {
+    console.error('Error checking event_responses table:', error);
+    return { 
+      exists: false, 
+      error: `Неизвестная ошибка: ${String(error)}` 
+    };
   }
 } 
