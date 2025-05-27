@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { EventService } from '@/services/eventService';
 import type { DatabaseEvent, CreateEventData } from '@/types/database';
-import { Calendar, MapPin, FileText, Image, Users, DollarSign, X } from 'lucide-react';
+import { Calendar, MapPin, FileText, Image, Users, X } from 'lucide-react';
 
 interface EditEventFormProps {
   event: DatabaseEvent;
@@ -22,9 +22,6 @@ export const EditEventForm: React.FC<EditEventFormProps> = ({
     date: new Date(event.date).toISOString().slice(0, 16), // Корректное преобразование в формат datetime-local
     location: event.location || '',
     max_participants: event.max_participants || undefined,
-
-    price: event.price || undefined,
-    price_per_person: event.price_per_person || undefined,
     host_id: event.host_id || undefined
   });
 
@@ -77,9 +74,6 @@ export const EditEventForm: React.FC<EditEventFormProps> = ({
         event_time: eventTime, // добавляем обновленное время
         location: formData.location || null,
         max_participants: formData.max_participants || null,
-
-        price: formData.price || 0,
-        price_per_person: formData.price_per_person || null,
         host_id: formData.host_id || null,
         updated_at: new Date().toISOString()
       });
@@ -227,39 +221,7 @@ export const EditEventForm: React.FC<EditEventFormProps> = ({
           </p>
         </div>
 
-        {/* Цена */}
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="flex items-center text-sm font-medium text-gray-700 mb-2">
-              <DollarSign className="w-4 h-4 mr-2" />
-              Общая цена (₽)
-            </label>
-            <input
-              type="number"
-              name="price"
-              value={formData.price || ''}
-              onChange={handleInputChange}
-              min="0"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              placeholder="0"
-            />
-          </div>
-          <div>
-            <label className="flex items-center text-sm font-medium text-gray-700 mb-2">
-              <DollarSign className="w-4 h-4 mr-2" />
-              Цена за человека (₽)
-            </label>
-            <input
-              type="number"
-              name="price_per_person"
-              value={formData.price_per_person || ''}
-              onChange={handleInputChange}
-              min="0"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              placeholder="100"
-            />
-          </div>
-        </div>
+
 
         {/* Ошибка */}
         {error && (

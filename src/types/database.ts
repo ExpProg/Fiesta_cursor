@@ -30,8 +30,6 @@ export interface Database {
           event_date?: string;
           location_filter?: string;
           category_filter?: string;
-          min_price?: number;
-          max_price?: number;
           limit_count?: number;
           offset_count?: number;
         };
@@ -114,8 +112,6 @@ export interface DatabaseEvent {
   location: string | null;
   max_participants: number | null;
   current_participants: number;
-  price: number;
-  price_per_person: number | null;
   created_by: number; // telegram_id создателя
   host_id: string | null;
   created_at: string;
@@ -133,8 +129,6 @@ export interface DatabaseEventInsert {
   location?: string | null;
   max_participants?: number | null;
   current_participants?: number;
-  price?: number;
-  price_per_person?: number | null;
   created_by: number;
   host_id?: string | null;
   created_at?: string;
@@ -151,8 +145,6 @@ export interface DatabaseEventUpdate {
   location?: string | null;
   max_participants?: number | null;
   current_participants?: number;
-  price?: number;
-  price_per_person?: number | null;
   host_id?: string | null;
   status?: 'active' | 'cancelled' | 'completed' | 'draft';
   updated_at?: string;
@@ -177,7 +169,6 @@ export interface SearchEventResult {
   location: string;
   max_participants: number;
   current_participants: number;
-  price_per_person: number;
   image_url: string | null;
   category: string | null;
   tags: string[] | null;
@@ -215,8 +206,6 @@ export interface CreateEventData {
   date: string; // ISO string format - изменено с event_date на date
   location?: string;
   max_participants?: number;
-  price?: number;
-  price_per_person?: number;
   host_id?: string;
 }
 
@@ -231,8 +220,7 @@ export interface SearchEventsParams {
   date?: string;
   location?: string;
   category?: string;
-  minPrice?: number;
-  maxPrice?: number;
+
   limit?: number;
   offset?: number;
 }
@@ -342,7 +330,6 @@ export interface ValidationSchema {
     description: { min: 10; max: 2000 };
     location: { min: 3; max: 200 };
     maxParticipants: { min: 1; max: 10000 };
-    pricePerPerson: { min: 0; max: 100000 };
   };
   user: {
     firstName: { min: 1; max: 50 };

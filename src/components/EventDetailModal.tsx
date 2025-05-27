@@ -3,13 +3,9 @@ import type { DatabaseEvent, ResponseStatus } from '@/types/database';
 import { 
   Calendar, 
   MapPin, 
-  Users, 
-  Clock, 
   User, 
-  DollarSign, 
   X,
   Share2,
-  Heart,
   MessageCircle,
   Copy,
   Check
@@ -237,21 +233,7 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
             </div>
           )}
 
-          {/* Цена - скрывается при скролле */}
-          {!isScrolled && (updatedEvent.price > 0 || updatedEvent.price_per_person) && (
-            <div className="absolute bottom-4 right-4">
-              <div className="bg-black/70 text-white px-3 py-2 rounded-lg">
-                {updatedEvent.price_per_person ? (
-                  <div className="text-sm">
-                    <div className="font-bold">{updatedEvent.price_per_person}₽</div>
-                    <div className="text-xs opacity-75">за человека</div>
-                  </div>
-                ) : (
-                  <div className="font-bold">{updatedEvent.price}₽</div>
-                )}
-              </div>
-            </div>
-          )}
+
 
 
 

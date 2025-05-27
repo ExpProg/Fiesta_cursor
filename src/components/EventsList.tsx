@@ -173,14 +173,7 @@ export const EventsList: React.FC<EventsListProps> = ({
                 </span>
               </div>
 
-              {/* Цена */}
-              {event.price > 0 && (
-                <div className="absolute bottom-3 right-3">
-                  <span className="bg-black/70 text-white px-2 py-1 rounded-lg text-sm font-medium">
-                    {event.price}₽
-                  </span>
-                </div>
-              )}
+
             </div>
 
             {/* Информация о мероприятии */}

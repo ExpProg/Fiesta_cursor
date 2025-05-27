@@ -70,8 +70,6 @@ export class EventService {
         max_participants: eventData.max_participants || null,
   
         current_participants: 0,
-        price: eventData.price || 0,
-        price_per_person: eventData.price_per_person || null,
         created_by: createdBy,
         host_id: eventData.host_id || null,
         status: 'active'
@@ -321,9 +319,7 @@ export class EventService {
       errors.push('Максимальное количество участников должно быть больше 0');
     }
 
-    if (eventData.price !== undefined && eventData.price < 0) {
-      errors.push('Цена не может быть отрицательной');
-    }
+
 
     return {
       isValid: errors.length === 0,
