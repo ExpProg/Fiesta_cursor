@@ -23,7 +23,6 @@ import { useTelegram } from './TelegramProvider';
 interface EventDetailModalProps {
   event: DatabaseEvent;
   onClose: () => void;
-  onBook?: (eventId: string) => void;
   onEdit?: (event: DatabaseEvent) => void;
   onDelete?: (eventId: string) => void;
   currentUserId?: number; // telegram_id текущего пользователя
@@ -35,7 +34,6 @@ interface EventDetailModalProps {
 export const EventDetailModal: React.FC<EventDetailModalProps> = ({ 
   event, 
   onClose, 
-  onBook, 
   onEdit,
   onDelete,
   currentUserId,
@@ -101,8 +99,6 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
     return gradients[Math.floor(Math.random() * gradients.length)];
   };
 
-  const isEventFull = updatedEvent.max_participants && updatedEvent.current_participants >= updatedEvent.max_participants;
-  const spotsLeft = updatedEvent.max_participants ? updatedEvent.max_participants - updatedEvent.current_participants : null;
   const isCreator = currentUserId && updatedEvent.created_by === currentUserId;
 
   // Определяем, настроен ли Telegram бот
@@ -257,14 +253,7 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
             </div>
           )}
 
-          {/* Индикатор заполненности - скрывается при скролле */}
-          {!isScrolled && isEventFull && (
-            <div className="absolute bottom-4 left-4">
-              <span className="bg-red-500 text-white px-3 py-1 rounded-full text-sm font-medium">
-                Мест нет
-              </span>
-            </div>
-          )}
+
 
           {/* Заголовок при скролле */}
           {isScrolled && (
@@ -409,25 +398,7 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
                 </>
               )}
 
-              {/* Основная кнопка записи (только для не-создателей) */}
-              {!isCreator && (
-                <button
-                  onClick={() => onBook && onBook(event.id)}
-                  disabled={isEventFull || event.status !== 'active'}
-                  className={`w-full py-3 px-4 rounded-lg font-medium transition-colors ${
-                    isEventFull || event.status !== 'active'
-                      ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                      : 'bg-blue-600 hover:bg-blue-700 text-white'
-                  }`}
-                >
-                  {isEventFull 
-                    ? '🚫 Мест нет' 
-                    : event.status !== 'active'
-                    ? '⏸️ Мероприятие неактивно'
-                    : '🎟️ Записаться на мероприятие'
-                  }
-                </button>
-              )}
+
 
               {/* Дополнительные действия */}
               <div className="grid grid-cols-3 gap-3">
