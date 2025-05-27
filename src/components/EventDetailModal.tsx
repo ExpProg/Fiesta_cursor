@@ -8,7 +8,9 @@ import {
   Share2,
   MessageCircle,
   Copy,
-  Check
+  Check,
+  Edit,
+  Trash2
 } from 'lucide-react';
 import { shareEvent, generateEventShareUrl, copyToClipboard, generateTelegramWebAppUrl } from '@/utils/sharing';
 import { refreshEventData } from '@/utils/eventResponses';
@@ -212,13 +214,42 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
             />
           )}
           
-          {/* Кнопка закрытия */}
-          <button
-            onClick={onClose}
-            className="absolute top-4 right-4 bg-black/50 text-white p-2 rounded-full hover:bg-black/70 transition-colors"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          {/* Кнопки управления */}
+          <div className="absolute top-4 right-4 flex gap-2">
+            {/* Кнопки для создателя */}
+            {isCreator && (
+              <>
+                <button
+                  onClick={() => onEdit && onEdit(event)}
+                  className="bg-black/50 text-white p-2 rounded-full hover:bg-orange-600 transition-colors"
+                  title="Редактировать мероприятие"
+                >
+                  <Edit className="w-4 h-4" />
+                </button>
+                
+                <button
+                  onClick={() => {
+                    if (window.confirm('Вы уверены, что хотите удалить это мероприятие? Это действие нельзя отменить.')) {
+                      onDelete && onDelete(event.id);
+                    }
+                  }}
+                  className="bg-black/50 text-white p-2 rounded-full hover:bg-red-600 transition-colors"
+                  title="Удалить мероприятие"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </>
+            )}
+            
+            {/* Кнопка закрытия */}
+            <button
+              onClick={onClose}
+              className="bg-black/50 text-white p-2 rounded-full hover:bg-black/70 transition-colors"
+              title="Закрыть"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
 
           {/* Статус мероприятия - скрывается при скролле */}
           {!isScrolled && (
@@ -233,13 +264,9 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
             </div>
           )}
 
-
-
-
-
           {/* Заголовок при скролле */}
           {isScrolled && (
-            <div className="absolute bottom-2 left-4 right-16">
+            <div className="absolute bottom-2 left-4 right-32">
               <h1 className="text-white font-bold text-lg truncate drop-shadow-lg">
                 {updatedEvent.title}
               </h1>
@@ -352,31 +379,6 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
 
             {/* Кнопки действий */}
             <div className="space-y-3">
-              {/* Кнопка редактирования для создателя */}
-              {isCreator && (
-                <>
-                  <button
-                    onClick={() => onEdit && onEdit(event)}
-                    className="w-full py-3 px-4 rounded-lg font-medium transition-colors bg-orange-600 hover:bg-orange-700 text-white"
-                  >
-                    ✏️ Редактировать мероприятие
-                  </button>
-                  
-                  <button
-                    onClick={() => {
-                      if (window.confirm('Вы уверены, что хотите удалить это мероприятие? Это действие нельзя отменить.')) {
-                        onDelete && onDelete(event.id);
-                      }
-                    }}
-                    className="w-full py-3 px-4 rounded-lg font-medium transition-colors bg-red-600 hover:bg-red-700 text-white"
-                  >
-                    🗑️ Удалить мероприятие
-                  </button>
-                </>
-              )}
-
-
-
               {/* Дополнительные действия */}
               <div className="grid grid-cols-3 gap-3">
                 <button 
