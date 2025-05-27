@@ -17,6 +17,7 @@ import { refreshEventData } from '@/utils/eventResponses';
 import { EventParticipants } from './EventParticipants';
 import { EventResponseButtons } from './EventResponseButtons';
 import { useTelegram } from './TelegramProvider';
+import { supabase } from '@/hooks/useSupabase';
 
 interface EventDetailModalProps {
   event: DatabaseEvent;
@@ -46,11 +47,48 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
   const [isCopyingLink, setIsCopyingLink] = useState(false);
   const [copyLinkSuccess, setCopyLinkSuccess] = useState(false);
   const [updatedEvent, setUpdatedEvent] = useState<DatabaseEvent>(event);
+  const [organizerInfo, setOrganizerInfo] = useState<{
+    first_name: string;
+    last_name: string | null;
+    username: string | null;
+  } | null>(null);
+  const [loadingOrganizer, setLoadingOrganizer] = useState(false);
   
   // Обновляем локальное состояние мероприятия при изменении props
   useEffect(() => {
     setUpdatedEvent(event);
   }, [event]);
+
+  // Загружаем информацию об организаторе
+  useEffect(() => {
+    const fetchOrganizerInfo = async () => {
+      if (!updatedEvent.created_by) return;
+      
+      setLoadingOrganizer(true);
+      try {
+        const { data, error } = await supabase
+          .from('users')
+          .select('first_name, last_name, username')
+          .eq('telegram_id', updatedEvent.created_by)
+          .single();
+
+        if (error) {
+          console.error('Error fetching organizer info:', error);
+          return;
+        }
+
+        if (data) {
+          setOrganizerInfo(data);
+        }
+      } catch (error) {
+        console.error('Error fetching organizer info:', error);
+      } finally {
+        setLoadingOrganizer(false);
+      }
+    };
+
+    fetchOrganizerInfo();
+  }, [updatedEvent.created_by]);
 
   // Обработчик изменения отклика - обновляет данные мероприятия из БД
   const handleResponseChange = async (newResponse: ResponseStatus | null) => {
@@ -326,7 +364,15 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
                   <User className="w-5 h-5 mr-3 flex-shrink-0" />
                   <div>
                     <div className="font-medium">Организатор</div>
-                    <div className="text-sm">ID: {event.created_by}</div>
+                    <div className="text-sm">
+                      {loadingOrganizer ? (
+                        'Загрузка...'
+                      ) : organizerInfo ? (
+                        `${organizerInfo.first_name}${organizerInfo.last_name ? ` ${organizerInfo.last_name}` : ''}${organizerInfo.username ? ` (@${organizerInfo.username})` : ''}`
+                      ) : (
+                        `ID: ${event.created_by}`
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
