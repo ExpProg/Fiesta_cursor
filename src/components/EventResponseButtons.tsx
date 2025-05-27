@@ -41,10 +41,10 @@ export const EventResponseButtons: React.FC<EventResponseButtonsProps> = ({
 
   // Загружаем текущий статус отклика пользователя
   useEffect(() => {
-    if (currentUserId && !isCreator) {
+    if (currentUserId) {
       loadUserResponse();
     }
-  }, [currentUserId, event.id, isCreator]);
+  }, [currentUserId, event.id]);
 
   const loadUserResponse = async () => {
     if (!currentUserId) return;
@@ -115,10 +115,7 @@ export const EventResponseButtons: React.FC<EventResponseButtonsProps> = ({
     userResponse
   );
 
-  // Если пользователь - создатель, не показываем кнопки
-  if (isCreator) {
-    return null;
-  }
+  // Организатор тоже может откликнуться на своё мероприятие
 
   // Если нет ID пользователя, показываем заглушку
   if (!currentUserId) {
@@ -138,18 +135,30 @@ export const EventResponseButtons: React.FC<EventResponseButtonsProps> = ({
       {/* Текущий статус отклика */}
       {userResponse && (
         <div className="mb-3 p-3 bg-blue-50 rounded-lg">
-          <div className="flex items-center">
-            <div className="w-2 h-2 bg-blue-500 rounded-full mr-2"></div>
-            <span className="text-blue-700 text-sm font-medium">
-              Ваш отклик: {getResponseStatusText(userResponse)}
-            </span>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center">
+              <div className="w-2 h-2 bg-blue-500 rounded-full mr-2"></div>
+              <span className="text-blue-700 text-sm font-medium">
+                Ваш отклик: {getResponseStatusText(userResponse)}
+              </span>
+            </div>
+            {isCreator && (
+              <span className="text-xs text-blue-600">👑</span>
+            )}
           </div>
         </div>
       )}
 
       {/* Кнопки откликов */}
       <div className="space-y-3">
-        <h3 className="font-medium text-gray-900">Идёте на мероприятие?</h3>
+        <div className="flex items-center justify-between">
+          <h3 className="font-medium text-gray-900">Идёте на мероприятие?</h3>
+          {isCreator && (
+            <span className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded-full">
+              👑 Организатор
+            </span>
+          )}
+        </div>
         
         <div className="grid grid-cols-2 gap-3">
           {/* Кнопка "Буду" */}

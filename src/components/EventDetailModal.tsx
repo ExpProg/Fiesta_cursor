@@ -297,6 +297,7 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
                   eventId={event.id}
                   currentParticipants={event.current_participants}
                   maxParticipants={event.max_participants}
+                  organizerTelegramId={event.created_by}
                 />
 
                 {/* Организатор */}

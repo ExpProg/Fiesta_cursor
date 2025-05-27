@@ -11,6 +11,7 @@ interface EventParticipantsProps {
   eventId: string;
   currentParticipants: number;
   maxParticipants: number | null;
+  organizerTelegramId?: number; // ID создателя мероприятия
   className?: string;
 }
 
@@ -18,6 +19,7 @@ export const EventParticipants: React.FC<EventParticipantsProps> = ({
   eventId,
   currentParticipants,
   maxParticipants,
+  organizerTelegramId,
   className = ''
 }) => {
   const [participants, setParticipants] = useState<EventParticipant[]>([]);
@@ -104,39 +106,58 @@ export const EventParticipants: React.FC<EventParticipantsProps> = ({
                 Список участников ({participants.length})
               </h4>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {participants.map((participant, index) => (
-                  <div
-                    key={`${participant.telegram_id}-${index}`}
-                    className="flex items-center p-2 bg-gray-50 rounded-lg"
-                  >
-                    {/* Аватар участника */}
-                    <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center mr-3 flex-shrink-0">
-                      <span className="text-blue-600 font-medium text-sm">
-                        {participant.first_name.charAt(0).toUpperCase()}
-                      </span>
-                    </div>
-
-                    {/* Информация об участнике */}
-                    <div className="flex-1 min-w-0">
-                      <div className="font-medium text-gray-900 truncate">
-                        {participant.display_name || formatParticipantName(participant.first_name, participant.last_name)}
+                {participants.map((participant, index) => {
+                  const isOrganizer = organizerTelegramId === participant.telegram_id;
+                  return (
+                    <div
+                      key={`${participant.telegram_id}-${index}`}
+                      className={`flex items-center p-2 rounded-lg ${
+                        isOrganizer ? 'bg-blue-50 border border-blue-200' : 'bg-gray-50'
+                      }`}
+                    >
+                      {/* Аватар участника */}
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center mr-3 flex-shrink-0 ${
+                        isOrganizer ? 'bg-blue-200' : 'bg-blue-100'
+                      }`}>
+                        <span className={`font-medium text-sm ${
+                          isOrganizer ? 'text-blue-700' : 'text-blue-600'
+                        }`}>
+                          {participant.first_name.charAt(0).toUpperCase()}
+                        </span>
                       </div>
-                      {participant.username && (
-                        <div className="text-xs text-gray-500 truncate">
-                          @{participant.username}
-                        </div>
-                      )}
-                    </div>
 
-                    {/* Время отклика */}
-                    <div className="text-xs text-gray-400 ml-2 flex-shrink-0">
-                      {new Date(participant.responded_at).toLocaleDateString('ru-RU', {
-                        day: '2-digit',
-                        month: '2-digit'
-                      })}
+                      {/* Информация об участнике */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center">
+                          <div className="font-medium text-gray-900 truncate">
+                            {participant.display_name || formatParticipantName(participant.first_name, participant.last_name)}
+                          </div>
+                          {isOrganizer && (
+                            <span className="ml-2 text-xs text-blue-600">👑</span>
+                          )}
+                        </div>
+                        {participant.username && (
+                          <div className="text-xs text-gray-500 truncate">
+                            @{participant.username}
+                          </div>
+                        )}
+                        {isOrganizer && (
+                          <div className="text-xs text-blue-600 font-medium">
+                            Организатор
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Время отклика */}
+                      <div className="text-xs text-gray-400 ml-2 flex-shrink-0">
+                        {new Date(participant.responded_at).toLocaleDateString('ru-RU', {
+                          day: '2-digit',
+                          month: '2-digit'
+                        })}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           ) : (
