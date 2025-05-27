@@ -22,7 +22,7 @@ export const EditEventForm: React.FC<EditEventFormProps> = ({
     date: new Date(event.date).toISOString().slice(0, 16), // Корректное преобразование в формат datetime-local
     location: event.location || '',
     max_participants: event.max_participants || undefined,
-    max_guests: event.max_guests || undefined,
+
     price: event.price || undefined,
     price_per_person: event.price_per_person || undefined,
     host_id: event.host_id || undefined
@@ -77,7 +77,7 @@ export const EditEventForm: React.FC<EditEventFormProps> = ({
         event_time: eventTime, // добавляем обновленное время
         location: formData.location || null,
         max_participants: formData.max_participants || null,
-        max_guests: formData.max_guests || null,
+
         price: formData.price || 0,
         price_per_person: formData.price_per_person || null,
         host_id: formData.host_id || null,
@@ -207,38 +207,24 @@ export const EditEventForm: React.FC<EditEventFormProps> = ({
           />
         </div>
 
-        {/* Участники */}
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="flex items-center text-sm font-medium text-gray-700 mb-2">
-              <Users className="w-4 h-4 mr-2" />
-              Максимум участников
-            </label>
-            <input
-              type="number"
-              name="max_participants"
-              value={formData.max_participants || ''}
-              onChange={handleInputChange}
-              min="1"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              placeholder="10"
-            />
-          </div>
-          <div>
-            <label className="flex items-center text-sm font-medium text-gray-700 mb-2">
-              <Users className="w-4 h-4 mr-2" />
-              Максимум гостей
-            </label>
-            <input
-              type="number"
-              name="max_guests"
-              value={formData.max_guests || ''}
-              onChange={handleInputChange}
-              min="1"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              placeholder="20"
-            />
-          </div>
+        {/* Максимум участников */}
+        <div>
+          <label className="flex items-center text-sm font-medium text-gray-700 mb-2">
+            <Users className="w-4 h-4 mr-2" />
+            Максимум участников
+          </label>
+          <input
+            type="number"
+            name="max_participants"
+            value={formData.max_participants || ''}
+            onChange={handleInputChange}
+            min="1"
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            placeholder="10"
+          />
+          <p className="text-xs text-gray-500 mt-1">
+            Оставьте пустым для неограниченного количества участников
+          </p>
         </div>
 
         {/* Цена */}

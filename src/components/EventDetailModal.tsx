@@ -353,12 +353,7 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
                     {new Date(event.updated_at).toLocaleDateString('ru-RU')}
                   </span>
                 </div>
-                {event.max_guests && event.max_guests !== event.max_participants && (
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Максимум гостей:</span>
-                    <span className="font-medium">{event.max_guests}</span>
-                  </div>
-                )}
+
               </div>
             </div>
 

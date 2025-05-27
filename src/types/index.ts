@@ -16,8 +16,8 @@ export interface Party {
   date: string;
   time: string;
   location: string;
-  max_guests: number;
-  current_guests: number;
+  max_participants: number;
+  current_participants: number;
   price_per_person: number;
   image_url?: string;
   host_id: string;
@@ -56,7 +56,7 @@ export interface PartyFormData {
   date: string;
   time: string;
   location: string;
-  max_guests: number;
+  max_participants: number;
   price_per_person: number;
   image_url?: string;
 }

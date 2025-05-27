@@ -125,7 +125,7 @@ export interface DatabaseEvent {
   event_time: string | null; // TIME - поле времени в формате HH:MM:SS
   location: string | null;
   max_participants: number | null;
-  max_guests: number | null;
+
   current_participants: number;
   price: number;
   price_per_person: number | null;
@@ -145,7 +145,6 @@ export interface DatabaseEventInsert {
   event_time?: string | null; // TIME - поле времени в формате HH:MM:SS
   location?: string | null;
   max_participants?: number | null;
-  max_guests?: number | null;
   current_participants?: number;
   price?: number;
   price_per_person?: number | null;
@@ -164,7 +163,6 @@ export interface DatabaseEventUpdate {
   event_time?: string | null; // TIME - поле времени в формате HH:MM:SS
   location?: string | null;
   max_participants?: number | null;
-  max_guests?: number | null;
   current_participants?: number;
   price?: number;
   price_per_person?: number | null;
@@ -303,8 +301,8 @@ export interface SearchEventResult {
   date: string;
   event_time: string;
   location: string;
-  max_guests: number;
-  current_guests: number;
+  max_participants: number;
+  current_participants: number;
   price_per_person: number;
   image_url: string | null;
   category: string | null;
@@ -358,7 +356,6 @@ export interface CreateEventData {
   date: string; // ISO string format - изменено с event_date на date
   location?: string;
   max_participants?: number;
-  max_guests?: number;
   price?: number;
   price_per_person?: number;
   host_id?: string;

@@ -68,7 +68,7 @@ export class EventService {
         event_time: eventTime, // добавляем время из даты
         location: eventData.location || null, // обеспечиваем null вместо undefined
         max_participants: eventData.max_participants || null,
-        max_guests: eventData.max_guests || null,
+  
         current_participants: 0,
         price: eventData.price || 0,
         price_per_person: eventData.price_per_person || null,

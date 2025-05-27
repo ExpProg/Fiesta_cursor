@@ -107,7 +107,7 @@ export class BookingService {
       // Сначала проверяем доступность места
       const { data: event } = await supabase
         .from('events')
-        .select('max_guests, current_guests, price_per_person')
+        .select('max_participants, current_participants, price_per_person')
         .eq('id', bookingData.event_id)
         .single();
 
@@ -118,7 +118,7 @@ export class BookingService {
         };
       }
 
-      const availableSpots = event.max_guests - event.current_guests;
+      const availableSpots = event.max_participants - event.current_participants;
       if (availableSpots < bookingData.guests_count) {
         return { 
           data: null, 
@@ -348,7 +348,7 @@ export class BookingService {
       // Получаем данные события для расчета новой стоимости
       const { data: event } = await supabase
         .from('events')
-        .select('price_per_person, max_guests, current_guests')
+        .select('price_per_person, max_participants, current_participants')
         .eq('id', booking.event_id)
         .single();
 
