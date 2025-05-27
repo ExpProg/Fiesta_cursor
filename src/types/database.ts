@@ -12,23 +12,15 @@ export interface Database {
         Insert: DatabaseEventInsert;
         Update: DatabaseEventUpdate;
       };
-      bookings: {
-        Row: DatabaseBooking;
-        Insert: DatabaseBookingInsert;
-        Update: DatabaseBookingUpdate;
-      };
-      payments: {
-        Row: DatabasePayment;
-        Insert: DatabasePaymentInsert;
-        Update: DatabasePaymentUpdate;
+      event_responses: {
+        Row: EventResponse;
+        Insert: EventResponseInsert;
+        Update: EventResponseUpdate;
       };
     };
     Views: {
       events_with_host: {
         Row: EventWithHost;
-      };
-      bookings_with_details: {
-        Row: BookingWithDetails;
       };
     };
     Functions: {
@@ -53,17 +45,13 @@ export interface Database {
       };
     };
     Enums: {
-      booking_status: BookingStatus;
-      payment_status: PaymentStatus;
-      payment_method: PaymentMethod;
+      response_status: ResponseStatus;
     };
   };
 }
 
 // Enum типы
-export type BookingStatus = 'pending' | 'confirmed' | 'cancelled' | 'completed';
-export type PaymentStatus = 'pending' | 'completed' | 'failed' | 'refunded';
-export type PaymentMethod = 'card' | 'telegram_stars' | 'wallet';
+export type ResponseStatus = 'attending' | 'not_attending' | 'maybe';
 
 // Таблица users
 export interface DatabaseUser {
@@ -125,7 +113,6 @@ export interface DatabaseEvent {
   event_time: string | null; // TIME - поле времени в формате HH:MM:SS
   location: string | null;
   max_participants: number | null;
-
   current_participants: number;
   price: number;
   price_per_person: number | null;
@@ -171,104 +158,6 @@ export interface DatabaseEventUpdate {
   updated_at?: string;
 }
 
-// Таблица bookings
-export interface DatabaseBooking {
-  id: string;
-  event_id: string;
-  user_id: string;
-  guests_count: number;
-  total_amount: number;
-  status: BookingStatus;
-  special_requests: string | null;
-  booking_code: string;
-  confirmed_at: string | null;
-  cancelled_at: string | null;
-  cancellation_reason: string | null;
-  metadata: Record<string, any>;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface DatabaseBookingInsert {
-  id?: string;
-  event_id: string;
-  user_id: string;
-  guests_count: number;
-  total_amount: number;
-  status?: BookingStatus;
-  special_requests?: string | null;
-  booking_code?: string;
-  confirmed_at?: string | null;
-  cancelled_at?: string | null;
-  cancellation_reason?: string | null;
-  metadata?: Record<string, any>;
-  created_at?: string;
-  updated_at?: string;
-}
-
-export interface DatabaseBookingUpdate {
-  guests_count?: number;
-  total_amount?: number;
-  status?: BookingStatus;
-  special_requests?: string | null;
-  confirmed_at?: string | null;
-  cancelled_at?: string | null;
-  cancellation_reason?: string | null;
-  metadata?: Record<string, any>;
-  updated_at?: string;
-}
-
-// Таблица payments
-export interface DatabasePayment {
-  id: string;
-  booking_id: string;
-  amount: number;
-  currency: string;
-  status: PaymentStatus;
-  payment_method: PaymentMethod;
-  stripe_payment_intent_id: string | null;
-  telegram_payment_charge_id: string | null;
-  wallet_transaction_hash: string | null;
-  payment_data: Record<string, any>;
-  failure_reason: string | null;
-  refund_amount: number;
-  refunded_at: string | null;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface DatabasePaymentInsert {
-  id?: string;
-  booking_id: string;
-  amount: number;
-  currency?: string;
-  status?: PaymentStatus;
-  payment_method: PaymentMethod;
-  stripe_payment_intent_id?: string | null;
-  telegram_payment_charge_id?: string | null;
-  wallet_transaction_hash?: string | null;
-  payment_data?: Record<string, any>;
-  failure_reason?: string | null;
-  refund_amount?: number;
-  refunded_at?: string | null;
-  created_at?: string;
-  updated_at?: string;
-}
-
-export interface DatabasePaymentUpdate {
-  amount?: number;
-  currency?: string;
-  status?: PaymentStatus;
-  stripe_payment_intent_id?: string | null;
-  telegram_payment_charge_id?: string | null;
-  wallet_transaction_hash?: string | null;
-  payment_data?: Record<string, any>;
-  failure_reason?: string | null;
-  refund_amount?: number;
-  refunded_at?: string | null;
-  updated_at?: string;
-}
-
 // Представления (Views)
 export interface EventWithHost extends DatabaseEvent {
   host_first_name: string;
@@ -276,21 +165,6 @@ export interface EventWithHost extends DatabaseEvent {
   host_username: string | null;
   host_avatar_url: string | null;
   host_is_verified: boolean;
-}
-
-export interface BookingWithDetails extends DatabaseBooking {
-  event_title: string;
-  event_date: string;
-  event_time: string;
-  event_location: string;
-  event_image_url: string | null;
-  user_first_name: string;
-  user_last_name: string | null;
-  user_username: string | null;
-  user_avatar_url: string | null;
-  host_first_name: string;
-  host_last_name: string | null;
-  host_username: string | null;
 }
 
 // Результаты функций
@@ -316,11 +190,9 @@ export interface SearchEventResult {
 
 export interface UserStats {
   total_events_hosted: number;
-  total_bookings_made: number;
-  total_amount_spent: number;
-  total_amount_earned: number;
+  total_events_attended: number;
   upcoming_events: number;
-  upcoming_bookings: number;
+  upcoming_participations: number;
 }
 
 // Прикладные типы для компонентов
@@ -333,19 +205,6 @@ export interface Event extends Omit<DatabaseEvent, 'created_at' | 'updated_at' |
   created_at: Date;
   updated_at: Date;
   date: Date;
-}
-
-export interface Booking extends Omit<DatabaseBooking, 'created_at' | 'updated_at' | 'confirmed_at' | 'cancelled_at'> {
-  created_at: Date;
-  updated_at: Date;
-  confirmed_at: Date | null;
-  cancelled_at: Date | null;
-}
-
-export interface Payment extends Omit<DatabasePayment, 'created_at' | 'updated_at' | 'refunded_at'> {
-  created_at: Date;
-  updated_at: Date;
-  refunded_at: Date | null;
 }
 
 // Форматы для создания/обновления
@@ -364,38 +223,6 @@ export interface CreateEventData {
 export interface UpdateEventData extends Partial<CreateEventData> {
   is_active?: boolean;
   is_featured?: boolean;
-}
-
-export interface CreateBookingData {
-  event_id: string;
-  guests_count: number;
-  special_requests?: string;
-}
-
-export interface UpdateBookingData {
-  guests_count?: number;
-  total_amount?: number;
-  status?: BookingStatus;
-  special_requests?: string;
-  cancellation_reason?: string;
-}
-
-export interface CreatePaymentData {
-  booking_id: string;
-  amount: number;
-  payment_method: PaymentMethod;
-  currency?: string;
-  payment_data?: Record<string, any>;
-}
-
-export interface UpdatePaymentData {
-  status?: PaymentStatus;
-  stripe_payment_intent_id?: string;
-  telegram_payment_charge_id?: string;
-  wallet_transaction_hash?: string;
-  payment_data?: Record<string, any>;
-  failure_reason?: string;
-  refund_amount?: number;
 }
 
 // Поисковые параметры
@@ -442,9 +269,8 @@ export interface RealtimeEvent<T = any> {
   commit_timestamp: string;
 }
 
-export interface BookingRealtimeEvent extends RealtimeEvent<DatabaseBooking> {}
-export interface PaymentRealtimeEvent extends RealtimeEvent<DatabasePayment> {}
 export interface EventRealtimeEvent extends RealtimeEvent<DatabaseEvent> {}
+export interface EventResponseRealtimeEvent extends RealtimeEvent<EventResponse> {}
 
 // Типы для подписок
 export interface SubscriptionOptions {
@@ -515,12 +341,8 @@ export interface ValidationSchema {
     title: { min: 3; max: 100 };
     description: { min: 10; max: 2000 };
     location: { min: 3; max: 200 };
-    maxGuests: { min: 1; max: 10000 };
+    maxParticipants: { min: 1; max: 10000 };
     pricePerPerson: { min: 0; max: 100000 };
-  };
-  booking: {
-    guestsCount: { min: 1; max: 50 };
-    specialRequests: { max: 500 };
   };
   user: {
     firstName: { min: 1; max: 50 };
@@ -530,8 +352,6 @@ export interface ValidationSchema {
 }
 
 // Таблица event_responses - отклики на мероприятия
-export type ResponseStatus = 'attending' | 'not_attending' | 'maybe';
-
 export interface EventResponse {
   id: string;
   event_id: string;

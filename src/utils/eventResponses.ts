@@ -2,7 +2,7 @@
  * Утилиты для работы с откликами на мероприятия
  */
 
-import { supabase } from '@/services/supabase';
+import { supabase } from '@/hooks/useSupabase';
 import type { 
   EventResponse, 
   EventResponseInsert, 

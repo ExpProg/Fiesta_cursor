@@ -1,16 +1,5 @@
 import { z } from 'zod';
 
-// Схема валидации для бронирования
-export const bookingFormSchema = z.object({
-  guests_count: z
-    .number()
-    .min(1, 'Количество гостей должно быть не менее 1')
-    .max(20, 'Максимальное количество гостей - 20'),
-  special_requests: z
-    .string()
-    .max(500, 'Особые пожелания не должны превышать 500 символов')
-    .optional(),
-});
 
 // Схема валидации для создания вечеринки
 export const partyFormSchema = z.object({
@@ -70,6 +59,6 @@ export const userProfileSchema = z.object({
 });
 
 // Типы для форм на основе схем
-export type BookingFormData = z.infer<typeof bookingFormSchema>;
+
 export type PartyFormData = z.infer<typeof partyFormSchema>;
 export type UserProfileData = z.infer<typeof userProfileSchema>; 
