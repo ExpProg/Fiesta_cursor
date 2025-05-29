@@ -12,7 +12,7 @@ import { useTelegramTheme } from '@/hooks/useTelegramTheme';
 import { useEventSharing } from '@/hooks/useEventSharing';
 import { CreateEventForm } from './components/CreateEventForm';
 import { EventsList } from './components/EventsList';
-import { EventDetailModal } from './components/EventDetailModal';
+import { EventPage } from './components/EventPage';
 import { EditEventForm } from './components/EditEventForm';
 import { UserService } from '@/services/userService';
 import type { DatabaseUser, DatabaseEvent } from '@/types/database';
@@ -233,125 +233,15 @@ function AppContent() {
 
   return (
     <div className="min-h-screen">
-      <header className="bg-white shadow-sm border-b border-gray-200">
-        <div className="max-w-6xl mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <h1 className="text-xl font-bold">🎉 Fiesta</h1>
-            
-            <div className="flex items-center space-x-3">
-              <TelegramUserInfo />
-              
-              {/* Бургер-меню справа от аватарки */}
-              <div className="relative menu-container">
-                <button 
-                  className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
-                  onClick={() => {
-                    setShowMenu(!showMenu);
-                    impactOccurred('light');
-                  }}
-                >
-                  <span className="text-lg">☰</span>
-                </button>
-                
-                {/* Выпадающее меню */}
-                {showMenu && (
-                  <div className="absolute top-full right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg py-2 z-50 min-w-48">
-                    <button
-                      className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
-                      onClick={() => {
-                        console.log('📋 Мои мероприятия');
-                        setShowMenu(false);
-                        impactOccurred('light');
-                        // TODO: Реализовать показ мероприятий пользователя
-                        alert('Мои мероприятия - в разработке!');
-                      }}
-                    >
-                      📋 Мои мероприятия
-                    </button>
-                    <button
-                      className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
-                      onClick={() => {
-                        console.log('📦 Архив');
-                        setShowMenu(false);
-                        impactOccurred('light');
-                        // TODO: Реализовать показ архива мероприятий
-                        alert('Архив - в разработке!');
-                      }}
-                    >
-                      📦 Архив
-                    </button>
-                    <hr className="my-1 border-gray-200" />
-                    <button
-                      className="w-full text-left px-4 py-2 text-sm text-green-700 hover:bg-green-50 transition-colors font-medium"
-                      onClick={() => {
-                        setShowCreateEvent(true);
-                        setShowMenu(false);
-                        impactOccurred('light');
-                      }}
-                    >
-                      ➕ Создать мероприятие
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      </header>
-
-      <main className="max-w-6xl mx-auto">
-        <div className="p-4">
-          {/* Список доступных мероприятий */}
-          <div className="mb-4">
-            <EventsList 
-              key={refreshTrigger}
-              title="Мероприятия"
-              limit={8}
-              showUpcoming={true}
-              onEventClick={(event) => {
-                setSelectedEvent(event);
-                impactOccurred('light');
-              }}
-            />
-          </div>
-
-          {/* Debug информация только в режиме разработки */}
-          {import.meta.env.MODE === 'development' && (
-            <DebugInfo className="mt-4" />
-          )}
-        </div>
-      </main>
-
-      {/* Модальное окно создания мероприятия */}
-      {showCreateEvent && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
-            <CreateEventForm
-              onSuccess={(eventId) => {
-                console.log('✅ Event created with ID:', eventId);
-                setShowCreateEvent(false);
-                impactOccurred('medium');
-                // Обновляем список мероприятий
-                setRefreshTrigger(prev => prev + 1);
-              }}
-              onCancel={() => {
-                setShowCreateEvent(false);
-                impactOccurred('light');
-              }}
-            />
-          </div>
-        </div>
-      )}
-
-      {/* Модальное окно детальной информации о мероприятии */}
-      {selectedEvent && (
-        <EventDetailModal
+      {/* Если выбрано мероприятие, показываем полноэкранную страницу */}
+      {selectedEvent ? (
+        <EventPage
           event={selectedEvent}
           currentUserId={telegramUser?.id}
           userFirstName={telegramUser?.first_name}
           userLastName={telegramUser?.last_name}
           userUsername={telegramUser?.username}
-          onClose={() => {
+          onBack={() => {
             setSelectedEvent(null);
             impactOccurred('light');
           }}
@@ -384,6 +274,118 @@ function AppContent() {
             }
           }}
         />
+      ) : (
+        <>
+          <header className="bg-white shadow-sm border-b border-gray-200">
+            <div className="max-w-6xl mx-auto px-4 py-4">
+              <div className="flex items-center justify-between">
+                <h1 className="text-xl font-bold">🎉 Fiesta</h1>
+                
+                <div className="flex items-center space-x-3">
+                  <TelegramUserInfo />
+                  
+                  {/* Бургер-меню справа от аватарки */}
+                  <div className="relative menu-container">
+                    <button 
+                      className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+                      onClick={() => {
+                        setShowMenu(!showMenu);
+                        impactOccurred('light');
+                      }}
+                    >
+                      <span className="text-lg">☰</span>
+                    </button>
+                    
+                    {/* Выпадающее меню */}
+                    {showMenu && (
+                      <div className="absolute top-full right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg py-2 z-50 min-w-48">
+                        <button
+                          className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+                          onClick={() => {
+                            console.log('📋 Мои мероприятия');
+                            setShowMenu(false);
+                            impactOccurred('light');
+                            // TODO: Реализовать показ мероприятий пользователя
+                            alert('Мои мероприятия - в разработке!');
+                          }}
+                        >
+                          📋 Мои мероприятия
+                        </button>
+                        <button
+                          className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+                          onClick={() => {
+                            console.log('📦 Архив');
+                            setShowMenu(false);
+                            impactOccurred('light');
+                            // TODO: Реализовать показ архива мероприятий
+                            alert('Архив - в разработке!');
+                          }}
+                        >
+                          📦 Архив
+                        </button>
+                        <hr className="my-1 border-gray-200" />
+                        <button
+                          className="w-full text-left px-4 py-2 text-sm text-green-700 hover:bg-green-50 transition-colors font-medium"
+                          onClick={() => {
+                            setShowCreateEvent(true);
+                            setShowMenu(false);
+                            impactOccurred('light');
+                          }}
+                        >
+                          ➕ Создать мероприятие
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </header>
+
+          <main className="max-w-6xl mx-auto">
+            <div className="p-4">
+              {/* Список доступных мероприятий */}
+              <div className="mb-4">
+                <EventsList 
+                  key={refreshTrigger}
+                  title="Мероприятия"
+                  limit={8}
+                  showUpcoming={true}
+                  onEventClick={(event) => {
+                    setSelectedEvent(event);
+                    impactOccurred('light');
+                  }}
+                />
+              </div>
+
+              {/* Debug информация только в режиме разработки */}
+              {import.meta.env.MODE === 'development' && (
+                <DebugInfo className="mt-4" />
+              )}
+            </div>
+          </main>
+        </>
+      )}
+
+      {/* Модальное окно создания мероприятия */}
+      {showCreateEvent && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+            <CreateEventForm
+              onSuccess={(eventId) => {
+                console.log('✅ Event created with ID:', eventId);
+                setShowCreateEvent(false);
+                impactOccurred('medium');
+                // Обновляем список мероприятий
+                setRefreshTrigger(prev => prev + 1);
+              }}
+              onCancel={() => {
+                setShowCreateEvent(false);
+                impactOccurred('light');
+              }}
+            />
+          </div>
+        </div>
       )}
 
       {/* Модальное окно редактирования мероприятия */}
