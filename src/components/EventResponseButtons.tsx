@@ -160,24 +160,19 @@ export const EventResponseButtons: React.FC<EventResponseButtonsProps> = ({
 
       {/* Если у пользователя есть отклик и не показываем опции изменения */}
       {userResponse && !tableError && !showChangeOptions && (
-        <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+        <div className="bg-green-50 border border-green-200 rounded-lg p-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center">
-              <div className="w-3 h-3 bg-green-500 rounded-full mr-3"></div>
-              <div>
-                <div className="font-medium text-green-800">
-                  {userResponse === 'attending' ? 'Вы идёте на мероприятие!' : 
-                   userResponse === 'not_attending' ? 'Вы не идёте на мероприятие' : 
-                   'Возможно пойдёте'}
-                </div>
-                <div className="text-sm text-green-600">
-                  Ваш отклик: {getResponseStatusText(userResponse)}
-                </div>
-              </div>
+              <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
+              <span className="text-sm font-medium text-green-800">
+                {userResponse === 'attending' ? 'Вы идёте на мероприятие' : 
+                 userResponse === 'not_attending' ? 'Вы не идёте на мероприятие' : 
+                 'Возможно пойдёте'}
+              </span>
             </div>
             <button
               onClick={() => setShowChangeOptions(true)}
-              className="text-sm text-green-700 hover:text-green-800 underline"
+              className="text-xs text-green-700 hover:text-green-800 underline"
             >
               Изменить
             </button>
