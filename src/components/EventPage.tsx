@@ -52,6 +52,7 @@ export const EventPage: React.FC<EventPageProps> = ({
     username: string | null;
   } | null>(null);
   const [loadingOrganizer, setLoadingOrganizer] = useState(false);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
   
   // Обновляем локальное состояние мероприятия при изменении props
   useEffect(() => {
@@ -100,6 +101,9 @@ export const EventPage: React.FC<EventPageProps> = ({
         setUpdatedEvent(refreshedEvent);
         console.log('Event data refreshed, new participant count:', refreshedEvent.current_participants);
       }
+      
+      // Триггерим обновление списка участников
+      setRefreshTrigger(prev => prev + 1);
     } catch (error) {
       console.error('Failed to refresh event data:', error);
     }
@@ -308,6 +312,7 @@ export const EventPage: React.FC<EventPageProps> = ({
               currentParticipants={updatedEvent.current_participants}
               maxParticipants={updatedEvent.max_participants}
               organizerTelegramId={updatedEvent.created_by}
+              refreshTrigger={refreshTrigger}
             />
 
             {/* Организатор */}

@@ -13,6 +13,7 @@ interface EventParticipantsProps {
   maxParticipants: number | null;
   organizerTelegramId?: number; // ID создателя мероприятия
   className?: string;
+  refreshTrigger?: number; // Для принудительного обновления
 }
 
 export const EventParticipants: React.FC<EventParticipantsProps> = ({
@@ -20,18 +21,26 @@ export const EventParticipants: React.FC<EventParticipantsProps> = ({
   currentParticipants,
   maxParticipants,
   organizerTelegramId,
-  className = ''
+  className = '',
+  refreshTrigger
 }) => {
   const [allResponses, setAllResponses] = useState<EventParticipant[]>([]);
   const [showParticipants, setShowParticipants] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  // Загружаем участников при открытии списка
+  // Загружаем участников при открытии списка или изменении refreshTrigger
   useEffect(() => {
-    if (showParticipants && allResponses.length === 0) {
+    if (showParticipants) {
       loadAllResponses();
     }
-  }, [showParticipants, eventId]);
+  }, [showParticipants, eventId, refreshTrigger]);
+
+  // Также перезагружаем при изменении refreshTrigger даже если список закрыт
+  useEffect(() => {
+    if (refreshTrigger && allResponses.length > 0) {
+      loadAllResponses();
+    }
+  }, [refreshTrigger]);
 
   const loadAllResponses = async () => {
     setLoading(true);
@@ -49,10 +58,17 @@ export const EventParticipants: React.FC<EventParticipantsProps> = ({
         display_name: formatParticipantName(response.user_first_name, response.user_last_name)
       }));
       
-      // Сортируем: сначала идущие, потом отказавшиеся
+      // Сортируем: сначала организатор, потом идущие, потом отказавшиеся
       const sorted = participants.sort((a, b) => {
+        // Организатор всегда первый
+        if (a.telegram_id === organizerTelegramId && b.telegram_id !== organizerTelegramId) return -1;
+        if (a.telegram_id !== organizerTelegramId && b.telegram_id === organizerTelegramId) return 1;
+        
+        // Среди остальных: сначала идущие, потом отказавшиеся
         if (a.response_status === 'attending' && b.response_status !== 'attending') return -1;
         if (a.response_status !== 'attending' && b.response_status === 'attending') return 1;
+        
+        // В рамках одного статуса сортируем по времени отклика
         return new Date(a.responded_at).getTime() - new Date(b.responded_at).getTime();
       });
       
