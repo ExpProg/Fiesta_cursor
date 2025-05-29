@@ -317,6 +317,17 @@ export const EventPage: React.FC<EventPageProps> = ({
             </div>
           </div>
 
+          {/* Кнопки откликов - перенесены в верхнюю часть для быстрого доступа */}
+          <EventResponseButtons
+            event={updatedEvent}
+            currentUserId={currentUserId}
+            userFirstName={userFirstName}
+            userLastName={userLastName}
+            userUsername={userUsername}
+            onResponseChange={handleResponseChange}
+            className="mb-8"
+          />
+
           {/* Описание */}
           {updatedEvent.description && (
             <div className="mb-8">
@@ -328,17 +339,6 @@ export const EventPage: React.FC<EventPageProps> = ({
               </p>
             </div>
           )}
-
-          {/* Кнопки откликов */}
-          <EventResponseButtons
-            event={updatedEvent}
-            currentUserId={currentUserId}
-            userFirstName={userFirstName}
-            userLastName={userLastName}
-            userUsername={userUsername}
-            onResponseChange={handleResponseChange}
-            className="mb-8"
-          />
 
           {/* Дополнительные действия */}
           <div className="border-t pt-6">
