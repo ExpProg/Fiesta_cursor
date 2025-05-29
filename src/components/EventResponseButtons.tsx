@@ -160,11 +160,29 @@ export const EventResponseButtons: React.FC<EventResponseButtonsProps> = ({
 
       {/* Если у пользователя есть отклик и не показываем опции изменения */}
       {userResponse && !tableError && !showChangeOptions && (
-        <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+        <div className={`border rounded-lg p-3 ${
+          userResponse === 'attending' 
+            ? 'bg-green-50 border-green-200' 
+            : userResponse === 'not_attending'
+            ? 'bg-red-50 border-red-200'
+            : 'bg-yellow-50 border-yellow-200'
+        }`}>
           <div className="flex items-center justify-between">
             <div className="flex items-center">
-              <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
-              <span className="text-sm font-medium text-green-800">
+              <div className={`w-2 h-2 rounded-full mr-2 ${
+                userResponse === 'attending' 
+                  ? 'bg-green-500' 
+                  : userResponse === 'not_attending'
+                  ? 'bg-red-500'
+                  : 'bg-yellow-500'
+              }`}></div>
+              <span className={`text-sm font-medium ${
+                userResponse === 'attending' 
+                  ? 'text-green-800' 
+                  : userResponse === 'not_attending'
+                  ? 'text-red-800'
+                  : 'text-yellow-800'
+              }`}>
                 {userResponse === 'attending' ? 'Вы идёте на мероприятие' : 
                  userResponse === 'not_attending' ? 'Вы не идёте на мероприятие' : 
                  'Возможно пойдёте'}
@@ -172,7 +190,13 @@ export const EventResponseButtons: React.FC<EventResponseButtonsProps> = ({
             </div>
             <button
               onClick={() => setShowChangeOptions(true)}
-              className="text-xs text-green-700 hover:text-green-800 underline"
+              className={`text-xs underline hover:no-underline ${
+                userResponse === 'attending' 
+                  ? 'text-green-700 hover:text-green-800' 
+                  : userResponse === 'not_attending'
+                  ? 'text-red-700 hover:text-red-800'
+                  : 'text-yellow-700 hover:text-yellow-800'
+              }`}
             >
               Изменить
             </button>
