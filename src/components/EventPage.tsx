@@ -216,7 +216,7 @@ export const EventPage: React.FC<EventPageProps> = ({
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header с изображением */}
-      <div className="relative h-80">
+      <div className="relative h-48">
         {updatedEvent.image_url ? (
           <img 
             src={updatedEvent.image_url} 
@@ -233,7 +233,7 @@ export const EventPage: React.FC<EventPageProps> = ({
         {/* Overlay для лучшей читаемости */}
         <div className="absolute inset-0 bg-black/30" />
         
-        {/* Навигация и управление */}
+        {/* Навигация */}
         <div className="absolute top-4 left-4 right-4 flex justify-between items-start">
           {/* Кнопка назад */}
           <button
@@ -243,34 +243,6 @@ export const EventPage: React.FC<EventPageProps> = ({
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
-
-          {/* Кнопки управления */}
-          <div className="flex gap-2">
-            {/* Кнопки для создателя */}
-            {isCreator && (
-              <>
-                <button
-                  onClick={() => onEdit && onEdit(event)}
-                  className="bg-black/50 text-white p-3 rounded-full hover:bg-orange-600 transition-colors"
-                  title="Редактировать мероприятие"
-                >
-                  <Edit className="w-5 h-5" />
-                </button>
-                
-                <button
-                  onClick={() => {
-                    if (window.confirm('Вы уверены, что хотите удалить это мероприятие? Это действие нельзя отменить.')) {
-                      onDelete && onDelete(event.id);
-                    }
-                  }}
-                  className="bg-black/50 text-white p-3 rounded-full hover:bg-red-600 transition-colors"
-                  title="Удалить мероприятие"
-                >
-                  <Trash2 className="w-5 h-5" />
-                </button>
-              </>
-            )}
-          </div>
         </div>
 
         {/* Статус мероприятия */}
@@ -373,7 +345,7 @@ export const EventPage: React.FC<EventPageProps> = ({
             <h3 className="text-lg font-semibold text-gray-900 mb-4">
               Дополнительные действия
             </h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
               <button 
                 onClick={handleCopyLink}
                 disabled={isCopyingLink}
@@ -425,6 +397,33 @@ export const EventPage: React.FC<EventPageProps> = ({
                 Задать вопрос
               </button>
             </div>
+
+            {/* Кнопки управления для создателя */}
+            {isCreator && (
+              <div className="flex gap-3 justify-center">
+                <button
+                  onClick={() => onEdit && onEdit(event)}
+                  className="flex items-center justify-center py-2 px-4 bg-orange-100 hover:bg-orange-200 text-orange-700 rounded-lg transition-colors"
+                  title="Редактировать мероприятие"
+                >
+                  <Edit className="w-4 h-4 mr-2" />
+                  Редактировать
+                </button>
+                
+                <button
+                  onClick={() => {
+                    if (window.confirm('Вы уверены, что хотите удалить это мероприятие? Это действие нельзя отменить.')) {
+                      onDelete && onDelete(event.id);
+                    }
+                  }}
+                  className="flex items-center justify-center py-2 px-4 bg-red-100 hover:bg-red-200 text-red-700 rounded-lg transition-colors"
+                  title="Удалить мероприятие"
+                >
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Удалить
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Дополнительная информация */}
