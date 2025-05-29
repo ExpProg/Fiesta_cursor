@@ -14,6 +14,7 @@ import { CreateEventForm } from './components/CreateEventForm';
 import { EventsList } from './components/EventsList';
 import { EventPage } from './components/EventPage';
 import { EditEventForm } from './components/EditEventForm';
+import { EditEventPage } from './components/EditEventPage';
 import { UserService } from '@/services/userService';
 import type { DatabaseUser, DatabaseEvent } from '@/types/database';
 
@@ -233,8 +234,27 @@ function AppContent() {
 
   return (
     <div className="min-h-screen bg-white text-gray-900">
-      {/* Если выбрано мероприятие, показываем полноэкранную страницу */}
-      {selectedEvent ? (
+      {/* Если редактируем мероприятие, показываем страницу редактирования */}
+      {editingEvent ? (
+        <EditEventPage
+          event={editingEvent}
+          onBack={() => {
+            setSelectedEvent(editingEvent);
+            setEditingEvent(null);
+            impactOccurred('light');
+          }}
+          onSuccess={(eventId) => {
+            console.log('✅ Event updated with ID:', eventId);
+            // Показываем страницу мероприятия после редактирования
+            setSelectedEvent(editingEvent);
+            setEditingEvent(null);
+            impactOccurred('medium');
+            // Обновляем список мероприятий
+            setRefreshTrigger(prev => prev + 1);
+          }}
+        />
+      ) : selectedEvent ? (
+        /* Если выбрано мероприятие, показываем полноэкранную страницу */
         <EventPage
           event={selectedEvent}
           currentUserId={telegramUser?.id}
@@ -275,6 +295,7 @@ function AppContent() {
           }}
         />
       ) : (
+        /* Основной интерфейс со списком мероприятий */
         <>
           <header className="bg-white shadow-sm border-b border-gray-200">
             <div className="max-w-6xl mx-auto px-4 py-4">
@@ -381,28 +402,6 @@ function AppContent() {
               }}
               onCancel={() => {
                 setShowCreateEvent(false);
-                impactOccurred('light');
-              }}
-            />
-          </div>
-        </div>
-      )}
-
-      {/* Модальное окно редактирования мероприятия */}
-      {editingEvent && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white text-gray-900 rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
-            <EditEventForm
-              event={editingEvent}
-              onSuccess={(eventId) => {
-                console.log('✅ Event updated with ID:', eventId);
-                setEditingEvent(null);
-                impactOccurred('medium');
-                // Обновляем список мероприятий
-                setRefreshTrigger(prev => prev + 1);
-              }}
-              onCancel={() => {
-                setEditingEvent(null);
                 impactOccurred('light');
               }}
             />

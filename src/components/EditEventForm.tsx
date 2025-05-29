@@ -7,12 +7,16 @@ interface EditEventFormProps {
   event: DatabaseEvent;
   onSuccess: (eventId: string) => void;
   onCancel: () => void;
+  onFormChange?: (formData: any) => void;
+  className?: string;
 }
 
 export const EditEventForm: React.FC<EditEventFormProps> = ({ 
   event, 
   onSuccess, 
-  onCancel 
+  onCancel,
+  onFormChange,
+  className = ''
 }) => {
   // Инициализируем форму данными существующего мероприятия
   const [formData, setFormData] = useState<CreateEventData>({
@@ -31,15 +35,19 @@ export const EditEventForm: React.FC<EditEventFormProps> = ({
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
+    const newFormData = {
+      ...formData,
       [name]: value
-    }));
+    };
+    setFormData(newFormData);
 
     // Обновление превью изображения
     if (name === 'image_url') {
       setImagePreview(value || null);
     }
+
+    // Уведомляем родительский компонент об изменениях
+    onFormChange?.(newFormData);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -94,7 +102,7 @@ export const EditEventForm: React.FC<EditEventFormProps> = ({
   };
 
   return (
-    <div className="p-6">
+    <div className={`p-6 ${className}`}>
       {/* Заголовок */}
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-xl font-bold text-gray-900">
@@ -220,8 +228,6 @@ export const EditEventForm: React.FC<EditEventFormProps> = ({
             Оставьте пустым для неограниченного количества участников
           </p>
         </div>
-
-
 
         {/* Ошибка */}
         {error && (

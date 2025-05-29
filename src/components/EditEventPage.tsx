@@ -1,0 +1,105 @@
+import React, { useState, useEffect } from 'react';
+import { ArrowLeft } from 'lucide-react';
+import { EditEventForm } from './EditEventForm';
+import type { DatabaseEvent } from '@/types/database';
+
+interface EditEventPageProps {
+  event: DatabaseEvent;
+  onBack: () => void;
+  onSuccess: (eventId: string) => void;
+}
+
+export const EditEventPage: React.FC<EditEventPageProps> = ({
+  event,
+  onBack,
+  onSuccess
+}) => {
+  const [hasChanges, setHasChanges] = useState(false);
+  const [originalData, setOriginalData] = useState<any>(null);
+
+  useEffect(() => {
+    // Сохраняем оригинальные данные для сравнения
+    setOriginalData({
+      title: event.title,
+      description: event.description,
+      image_url: event.image_url,
+      date: event.date,
+      event_time: event.event_time,
+      location: event.location,
+      max_participants: event.max_participants
+    });
+  }, [event]);
+
+  const handleBack = () => {
+    if (hasChanges) {
+      const confirmed = window.confirm(
+        'У вас есть несохраненные изменения. Вы уверены, что хотите покинуть страницу без сохранения?'
+      );
+      if (!confirmed) {
+        return;
+      }
+    }
+    onBack();
+  };
+
+  const handleFormChange = (formData: any) => {
+    if (!originalData) return;
+    
+    // Проверяем, есть ли изменения
+    const hasDataChanges = 
+      formData.title !== originalData.title ||
+      formData.description !== originalData.description ||
+      formData.image_url !== originalData.image_url ||
+      formData.date !== originalData.date ||
+      formData.event_time !== originalData.event_time ||
+      formData.location !== originalData.location ||
+      formData.max_participants !== originalData.max_participants;
+    
+    setHasChanges(hasDataChanges);
+  };
+
+  const handleSuccess = (eventId: string) => {
+    setHasChanges(false);
+    onSuccess(eventId);
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-50 text-gray-900">
+      {/* Header */}
+      <div className="bg-white shadow-sm border-b border-gray-200">
+        <div className="max-w-4xl mx-auto px-4 py-4">
+          <div className="flex items-center">
+            <button
+              onClick={handleBack}
+              className="mr-4 p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+              title="Назад к мероприятию"
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </button>
+            <div>
+              <h1 className="text-xl font-bold text-gray-900">
+                Редактирование мероприятия
+              </h1>
+              <p className="text-sm text-gray-600">
+                {event.title}
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Content */}
+      <div className="max-w-4xl mx-auto px-4 py-6">
+        <div className="bg-white rounded-xl shadow-lg">
+          <EditEventForm
+            event={event}
+            onSuccess={handleSuccess}
+            onCancel={handleBack}
+            onFormChange={handleFormChange}
+            className="border-0 shadow-none"
+          />
+        </div>
+      </div>
+    </div>
+  );
+}; 
