@@ -230,7 +230,7 @@ export const EventsList: React.FC<EventsListProps> = ({
                   {/* Кнопка карты - только если есть ссылка */}
                   {event.map_url && (
                     <button
-                      className="bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-3 rounded-lg transition-colors duration-200 flex items-center justify-center"
+                      className="bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-3 rounded-lg transition-colors duration-200 flex items-center justify-center gap-1"
                       onClick={(e) => {
                         e.stopPropagation();
                         if (event.map_url) {
@@ -239,7 +239,7 @@ export const EventsList: React.FC<EventsListProps> = ({
                       }}
                       title="Открыть на карте"
                     >
-                      🗺️
+                      🗺️ на карте
                     </button>
                   )}
                 </div>
