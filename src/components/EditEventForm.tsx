@@ -252,7 +252,7 @@ export const EditEventForm: React.FC<EditEventFormProps> = ({
             disabled={loading}
             className="flex-1 px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50"
           >
-            {loading ? '⏳ Сохранение...' : '💾 Сохранить изменения'}
+            {loading ? '⏳ Сохранение...' : '💾 Сохранить'}
           </button>
         </div>
       </form>
