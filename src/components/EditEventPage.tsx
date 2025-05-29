@@ -30,6 +30,11 @@ export const EditEventPage: React.FC<EditEventPageProps> = ({
     });
   }, [event]);
 
+  useEffect(() => {
+    // Прокручиваем наверх при открытии страницы
+    window.scrollTo(0, 0);
+  }, []);
+
   const handleBack = () => {
     if (hasChanges) {
       const confirmed = window.confirm(
