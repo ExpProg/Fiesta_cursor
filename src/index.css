@@ -2,18 +2,18 @@
 @tailwind components;
 @tailwind utilities;
 
-@layer base {
-  /* Принудительная светлая тема - переопределяем все CSS переменные Telegram */
-  :root {
-    --tg-theme-bg-color: #ffffff !important;
-    --tg-theme-text-color: #111827 !important;
-    --tg-theme-secondary-bg-color: #f9fafb !important;
-    --tg-theme-hint-color: #6b7280 !important;
-    --tg-theme-link-color: #3b82f6 !important;
-    --tg-theme-button-color: #3b82f6 !important;
-    --tg-theme-button-text-color: #ffffff !important;
-  }
+/* Принудительная светлая тема - переопределяем все CSS переменные Telegram */
+:root {
+  --tg-theme-bg-color: #ffffff !important;
+  --tg-theme-text-color: #111827 !important;
+  --tg-theme-secondary-bg-color: #f9fafb !important;
+  --tg-theme-hint-color: #6b7280 !important;
+  --tg-theme-link-color: #3b82f6 !important;
+  --tg-theme-button-color: #3b82f6 !important;
+  --tg-theme-button-text-color: #ffffff !important;
+}
 
+@layer base {
   html {
     font-family: 'Inter', system-ui, sans-serif;
   }
@@ -23,6 +23,39 @@
     /* Принудительно переопределяем Telegram переменные для светлой темы */
     background-color: #ffffff !important;
     color: #111827 !important;
+  }
+
+  /* Принудительные стили для всех форм и инпутов */
+  input, textarea, select {
+    background-color: #ffffff !important;
+    color: #111827 !important;
+    border-color: #d1d5db !important;
+  }
+
+  input:focus, textarea:focus, select:focus {
+    background-color: #ffffff !important;
+    color: #111827 !important;
+    border-color: #3b82f6 !important;
+    outline: none !important;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5) !important;
+  }
+
+  input::placeholder, textarea::placeholder {
+    color: #9ca3af !important;
+  }
+
+  /* Специальные стили для специфических типов инпутов */
+  input[type="datetime-local"], 
+  input[type="date"], 
+  input[type="time"], 
+  input[type="number"],
+  input[type="url"],
+  input[type="email"],
+  input[type="text"] {
+    background-color: #ffffff !important;
+    color: #111827 !important;
+    -webkit-appearance: none !important;
+    appearance: none !important;
   }
 
   /* Telegram WebApp specific styles */
@@ -47,6 +80,8 @@
 
   .input {
     @apply w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-telegram-blue/50 focus:border-telegram-blue transition-colors duration-200;
+    background-color: #ffffff !important;
+    color: #111827 !important;
   }
 
   .label {
