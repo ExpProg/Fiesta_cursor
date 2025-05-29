@@ -345,66 +345,66 @@ export const EventPage: React.FC<EventPageProps> = ({
             </div>
           )}
 
-          {/* Дополнительные действия */}
-          <div className="border-t pt-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">
-              Дополнительные действия
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-              <button 
-                onClick={handleCopyLink}
-                disabled={isCopyingLink}
-                className="flex items-center justify-center py-3 px-4 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors disabled:opacity-50"
-              >
-                {copyLinkSuccess ? (
-                  <>
-                    <Check className="w-5 h-5 mr-2 text-green-600" />
-                    Скопировано
-                  </>
-                ) : isCopyingLink ? (
-                  <>
-                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-gray-600 mr-2"></div>
-                    Копирую...
-                  </>
-                ) : (
-                  <>
-                    <Copy className="w-5 h-5 mr-2" />
-                    Скопировать ссылку
-                  </>
-                )}
-              </button>
-              
-              <button 
-                onClick={handleShare}
-                disabled={isSharing}
-                className="flex items-center justify-center py-3 px-4 bg-blue-100 hover:bg-blue-200 rounded-lg transition-colors disabled:opacity-50"
-              >
-                {shareSuccess ? (
-                  <>
-                    <Check className="w-5 h-5 mr-2 text-green-600" />
-                    Отправлено
-                  </>
-                ) : isSharing ? (
-                  <>
-                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600 mr-2"></div>
-                    Отправляю...
-                  </>
-                ) : (
-                  <>
-                    <Share2 className="w-5 h-5 mr-2" />
-                    Поделиться
-                  </>
-                )}
-              </button>
-              
-              <button className="flex items-center justify-center py-3 px-4 bg-green-100 hover:bg-green-200 rounded-lg transition-colors">
-                <MessageCircle className="w-5 h-5 mr-2" />
-                Задать вопрос
-              </button>
-            </div>
+          {/* Дополнительные действия - только для организатора */}
+          {isCreator && (
+            <div className="border-t pt-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                Дополнительные действия
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <button 
+                  onClick={handleCopyLink}
+                  disabled={isCopyingLink}
+                  className="flex items-center justify-center py-3 px-4 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors disabled:opacity-50"
+                >
+                  {copyLinkSuccess ? (
+                    <>
+                      <Check className="w-5 h-5 mr-2 text-green-600" />
+                      Скопировано
+                    </>
+                  ) : isCopyingLink ? (
+                    <>
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-gray-600 mr-2"></div>
+                      Копирую...
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-5 h-5 mr-2" />
+                      Скопировать ссылку
+                    </>
+                  )}
+                </button>
+                
+                <button 
+                  onClick={handleShare}
+                  disabled={isSharing}
+                  className="flex items-center justify-center py-3 px-4 bg-blue-100 hover:bg-blue-200 rounded-lg transition-colors disabled:opacity-50"
+                >
+                  {shareSuccess ? (
+                    <>
+                      <Check className="w-5 h-5 mr-2 text-green-600" />
+                      Отправлено
+                    </>
+                  ) : isSharing ? (
+                    <>
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600 mr-2"></div>
+                      Отправляю...
+                    </>
+                  ) : (
+                    <>
+                      <Share2 className="w-5 h-5 mr-2" />
+                      Поделиться
+                    </>
+                  )}
+                </button>
+                
+                <button className="flex items-center justify-center py-3 px-4 bg-green-100 hover:bg-green-200 rounded-lg transition-colors">
+                  <MessageCircle className="w-5 h-5 mr-2" />
+                  Задать вопрос
+                </button>
+              </div>
 
-            {/* Кнопки управления для создателя */}
-            {isCreator && (
+              {/* Кнопки управления для создателя */}
               <div className="flex gap-3 justify-center">
                 <button
                   onClick={() => onEdit && onEdit(event)}
@@ -428,8 +428,8 @@ export const EventPage: React.FC<EventPageProps> = ({
                   Удалить
                 </button>
               </div>
-            )}
-          </div>
+            </div>
+          )}
 
           {/* Дополнительная информация */}
           <div className="border-t mt-6 pt-6">
