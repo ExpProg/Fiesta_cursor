@@ -232,7 +232,7 @@ function AppContent() {
   }
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen bg-white text-gray-900">
       {/* Если выбрано мероприятие, показываем полноэкранную страницу */}
       {selectedEvent ? (
         <EventPage
@@ -370,7 +370,7 @@ function AppContent() {
       {/* Модальное окно создания мероприятия */}
       {showCreateEvent && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+          <div className="bg-white text-gray-900 rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
             <CreateEventForm
               onSuccess={(eventId) => {
                 console.log('✅ Event created with ID:', eventId);
@@ -391,7 +391,7 @@ function AppContent() {
       {/* Модальное окно редактирования мероприятия */}
       {editingEvent && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+          <div className="bg-white text-gray-900 rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
             <EditEventForm
               event={editingEvent}
               onSuccess={(eventId) => {

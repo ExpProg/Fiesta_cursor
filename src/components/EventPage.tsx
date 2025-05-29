@@ -218,7 +218,7 @@ export const EventPage: React.FC<EventPageProps> = ({
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 text-gray-900">
       {/* Header с изображением */}
       <div className="relative h-48">
         {updatedEvent.image_url ? (

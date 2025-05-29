@@ -3,14 +3,26 @@
 @tailwind utilities;
 
 @layer base {
+  /* Принудительная светлая тема - переопределяем все CSS переменные Telegram */
+  :root {
+    --tg-theme-bg-color: #ffffff !important;
+    --tg-theme-text-color: #111827 !important;
+    --tg-theme-secondary-bg-color: #f9fafb !important;
+    --tg-theme-hint-color: #6b7280 !important;
+    --tg-theme-link-color: #3b82f6 !important;
+    --tg-theme-button-color: #3b82f6 !important;
+    --tg-theme-button-text-color: #ffffff !important;
+  }
+
   html {
     font-family: 'Inter', system-ui, sans-serif;
   }
   
   body {
-    @apply text-gray-900 antialiased;
-    background-color: var(--tg-theme-bg-color, #ffffff);
-    color: var(--tg-theme-text-color, #000000);
+    @apply text-gray-900 antialiased bg-white;
+    /* Принудительно переопределяем Telegram переменные для светлой темы */
+    background-color: #ffffff !important;
+    color: #111827 !important;
   }
 
   /* Telegram WebApp specific styles */
