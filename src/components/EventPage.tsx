@@ -53,7 +53,13 @@ export const EventPage: React.FC<EventPageProps> = ({
   } | null>(null);
   const [loadingOrganizer, setLoadingOrganizer] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [showParticipants, setShowParticipants] = useState(false);
   
+  useEffect(() => {
+    // Прокручиваем наверх при открытии страницы
+    window.scrollTo(0, 0);
+  }, []);
+
   // Обновляем локальное состояние мероприятия при изменении props
   useEffect(() => {
     setUpdatedEvent(event);
