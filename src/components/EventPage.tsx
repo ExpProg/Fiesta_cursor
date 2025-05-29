@@ -300,7 +300,19 @@ export const EventPage: React.FC<EventPageProps> = ({
                 <MapPin className="w-6 h-6 mr-4 flex-shrink-0 text-red-600" />
                 <div>
                   <div className="font-medium text-lg">Место проведения</div>
-                  <div className="text-gray-500">{updatedEvent.location}</div>
+                  {updatedEvent.map_url ? (
+                    <a
+                      href={updatedEvent.map_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer transition-colors"
+                      title="Открыть на карте"
+                    >
+                      {updatedEvent.location} 🗺️
+                    </a>
+                  ) : (
+                    <div className="text-gray-500">{updatedEvent.location}</div>
+                  )}
                 </div>
               </div>
             )}

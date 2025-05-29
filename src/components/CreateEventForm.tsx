@@ -23,6 +23,7 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({
     image_url: '',
     date: '',
     location: '',
+    map_url: '',
     max_participants: undefined
   });
 
@@ -128,6 +129,7 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({
         image_url: '',
         date: '',
         location: '',
+        map_url: '',
         max_participants: undefined
       });
 
@@ -148,6 +150,7 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({
       image_url: '',
       date: '',
       location: '',
+      map_url: '',
       max_participants: undefined
     });
     setErrors([]);
@@ -332,6 +335,25 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({
           </p>
         </div>
 
+        {/* Ссылка на карту */}
+        <div>
+          <label htmlFor="map_url" className="block text-sm font-medium text-gray-700 mb-2">
+            Ссылка на карту
+          </label>
+          <input
+            type="url"
+            id="map_url"
+            name="map_url"
+            value={formData.map_url}
+            onChange={handleInputChange}
+            placeholder="https://yandex.ru/maps/-/... или https://maps.google.com/..."
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          />
+          <p className="text-xs text-gray-500 mt-1">
+            Ссылка на Яндекс.Карты, Google Maps или другой картографический сервис
+          </p>
+        </div>
+
         {/* Максимальное количество участников */}
         <div>
           <label htmlFor="max_participants" className="block text-sm font-medium text-gray-700 mb-2">
@@ -352,8 +374,6 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({
             Максимальное количество участников (необязательно)
           </p>
         </div>
-
-
 
         {/* Кнопки */}
         <div className="flex space-x-3 pt-4">

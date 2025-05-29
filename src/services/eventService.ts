@@ -69,6 +69,7 @@ export class EventService {
         date: eventData.date,
         event_time: eventTime, // добавляем время из даты
         location: eventData.location || null, // обеспечиваем null вместо undefined
+        map_url: eventData.map_url || null, // добавляем ссылку на карту
         max_participants: eventData.max_participants || null,
   
         current_participants: 0,

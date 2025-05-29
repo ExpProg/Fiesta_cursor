@@ -111,6 +111,7 @@ export interface DatabaseEvent {
   date: string; // TIMESTAMP WITH TIME ZONE - изменено с event_date на date
   event_time: string | null; // TIME - поле времени в формате HH:MM:SS
   location: string | null;
+  map_url: string | null; // Ссылка на карту (Яндекс, Google Maps и т.д.)
   max_participants: number | null;
   current_participants: number;
   created_by: number; // telegram_id создателя
@@ -129,6 +130,7 @@ export interface DatabaseEventInsert {
   date: string; // изменено с event_date на date
   event_time?: string | null; // TIME - поле времени в формате HH:MM:SS
   location?: string | null;
+  map_url?: string | null; // Ссылка на карту (Яндекс, Google Maps и т.д.)
   max_participants?: number | null;
   current_participants?: number;
   created_by: number;
@@ -146,6 +148,7 @@ export interface DatabaseEventUpdate {
   date?: string; // изменено с event_date на date
   event_time?: string | null; // TIME - поле времени в формате HH:MM:SS
   location?: string | null;
+  map_url?: string | null; // Ссылка на карту (Яндекс, Google Maps и т.д.)
   max_participants?: number | null;
   current_participants?: number;
   host_id?: string | null;
@@ -209,6 +212,7 @@ export interface CreateEventData {
   gradient_background?: string; // Градиент для фона если нет изображения
   date: string; // ISO string format - изменено с event_date на date
   location?: string;
+  map_url?: string; // Ссылка на карту (Яндекс, Google Maps и т.д.)
   max_participants?: number;
   host_id?: string;
 }

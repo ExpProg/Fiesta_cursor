@@ -26,6 +26,7 @@ export const EditEventPage: React.FC<EditEventPageProps> = ({
       date: event.date,
       event_time: event.event_time,
       location: event.location,
+      map_url: event.map_url,
       max_participants: event.max_participants
     });
   }, [event]);
@@ -58,6 +59,7 @@ export const EditEventPage: React.FC<EditEventPageProps> = ({
       formData.date !== originalData.date ||
       formData.event_time !== originalData.event_time ||
       formData.location !== originalData.location ||
+      formData.map_url !== originalData.map_url ||
       formData.max_participants !== originalData.max_participants;
     
     setHasChanges(hasDataChanges);

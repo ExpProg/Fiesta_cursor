@@ -25,6 +25,7 @@ export const EditEventForm: React.FC<EditEventFormProps> = ({
     image_url: event.image_url || '',
     date: new Date(event.date).toISOString().slice(0, 16), // Корректное преобразование в формат datetime-local
     location: event.location || '',
+    map_url: event.map_url || '',
     max_participants: event.max_participants || undefined,
     host_id: event.host_id || undefined
   });
@@ -81,6 +82,7 @@ export const EditEventForm: React.FC<EditEventFormProps> = ({
         date: formData.date,
         event_time: eventTime, // добавляем обновленное время
         location: formData.location || null,
+        map_url: formData.map_url || null,
         max_participants: formData.max_participants || null,
         host_id: formData.host_id || null,
         updated_at: new Date().toISOString()
@@ -209,6 +211,25 @@ export const EditEventForm: React.FC<EditEventFormProps> = ({
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             placeholder="Например: ул. Пушкина, д. 1"
           />
+        </div>
+
+        {/* Ссылка на карту */}
+        <div>
+          <label className="flex items-center text-sm font-medium text-gray-700 mb-2">
+            <MapPin className="w-4 h-4 mr-2" />
+            Ссылка на карту
+          </label>
+          <input
+            type="url"
+            name="map_url"
+            value={formData.map_url}
+            onChange={handleInputChange}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            placeholder="https://yandex.ru/maps/-/... или https://maps.google.com/..."
+          />
+          <p className="text-xs text-gray-500 mt-1">
+            Ссылка на Яндекс.Карты, Google Maps или другой картографический сервис
+          </p>
         </div>
 
         {/* Максимум участников */}
