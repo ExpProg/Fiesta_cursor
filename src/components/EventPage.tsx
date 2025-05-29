@@ -267,6 +267,17 @@ export const EventPage: React.FC<EventPageProps> = ({
       {/* Контент */}
       <div className="max-w-4xl mx-auto px-4 py-6">
         <div className="bg-white rounded-xl shadow-lg p-6">
+          {/* Кнопки откликов - в самом верху для максимально быстрого доступа */}
+          <EventResponseButtons
+            event={updatedEvent}
+            currentUserId={currentUserId}
+            userFirstName={userFirstName}
+            userLastName={userLastName}
+            userUsername={userUsername}
+            onResponseChange={handleResponseChange}
+            className="mb-8"
+          />
+
           {/* Основная информация */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
             {/* Дата и время */}
@@ -316,17 +327,6 @@ export const EventPage: React.FC<EventPageProps> = ({
               </div>
             </div>
           </div>
-
-          {/* Кнопки откликов - перенесены в верхнюю часть для быстрого доступа */}
-          <EventResponseButtons
-            event={updatedEvent}
-            currentUserId={currentUserId}
-            userFirstName={userFirstName}
-            userLastName={userLastName}
-            userUsername={userUsername}
-            onResponseChange={handleResponseChange}
-            className="mb-8"
-          />
 
           {/* Описание */}
           {updatedEvent.description && (
