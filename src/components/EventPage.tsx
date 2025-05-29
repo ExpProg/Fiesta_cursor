@@ -308,7 +308,7 @@ export const EventPage: React.FC<EventPageProps> = ({
                       className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer transition-colors"
                       title="Открыть на карте"
                     >
-                      {updatedEvent.location} 🗺️
+                      {updatedEvent.location}
                     </a>
                   ) : (
                     <div className="text-gray-500">{updatedEvent.location}</div>
