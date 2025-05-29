@@ -95,7 +95,6 @@ export const EventParticipants: React.FC<EventParticipantsProps> = ({
           <button
             onClick={() => setShowParticipants(!showParticipants)}
             className="flex items-center px-2 py-1 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-            title={showParticipants ? "Скрыть список" : "Показать список"}
           >
             {showParticipants ? (
               <EyeOff className="w-4 h-4" />
