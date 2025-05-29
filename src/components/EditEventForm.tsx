@@ -103,18 +103,20 @@ export const EditEventForm: React.FC<EditEventFormProps> = ({
 
   return (
     <div className={`p-6 ${className}`}>
-      {/* Заголовок */}
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-xl font-bold text-gray-900">
-          ✏️ Редактировать мероприятие
-        </h2>
-        <button
-          onClick={onCancel}
-          className="p-2 text-gray-400 hover:text-gray-600 transition-colors"
-        >
-          <X className="w-5 h-5" />
-        </button>
-      </div>
+      {/* Заголовок отображается только если форма не используется на отдельной странице */}
+      {!className.includes('border-0') && (
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-xl font-bold text-gray-900">
+            ✏️ Редактировать мероприятие
+          </h2>
+          <button
+            onClick={onCancel}
+            className="p-2 text-gray-400 hover:text-gray-600 transition-colors"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+      )}
 
       {/* Форма */}
       <form onSubmit={handleSubmit} className="space-y-4">
