@@ -5,7 +5,6 @@ import {
   MapPin, 
   User, 
   Share2,
-  MessageCircle,
   Copy,
   Check,
   Edit,
@@ -362,7 +361,7 @@ export const EventPage: React.FC<EventPageProps> = ({
               <h3 className="text-lg font-semibold text-gray-900 mb-4">
                 Дополнительные действия
               </h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                 <button 
                   onClick={handleCopyLink}
                   disabled={isCopyingLink}
@@ -407,11 +406,6 @@ export const EventPage: React.FC<EventPageProps> = ({
                       Поделиться
                     </>
                   )}
-                </button>
-                
-                <button className="flex items-center justify-center py-3 px-4 bg-green-100 hover:bg-green-200 rounded-lg transition-colors">
-                  <MessageCircle className="w-5 h-5 mr-2" />
-                  Задать вопрос
                 </button>
               </div>
 
