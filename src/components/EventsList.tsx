@@ -214,17 +214,35 @@ export const EventsList: React.FC<EventsListProps> = ({
                 </div>
               </div>
 
-              {/* Кнопка действия */}
+              {/* Кнопки действий */}
               <div className="mt-4 pt-4 border-t border-gray-100">
-                <button 
-                  className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onEventClick && onEventClick(event);
-                  }}
-                >
-                  Подробнее
-                </button>
+                <div className="flex gap-2">
+                  <button 
+                    className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onEventClick && onEventClick(event);
+                    }}
+                  >
+                    Подробнее
+                  </button>
+                  
+                  {/* Кнопка карты - только если есть ссылка */}
+                  {event.map_url && (
+                    <button
+                      className="bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-3 rounded-lg transition-colors duration-200 flex items-center justify-center"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (event.map_url) {
+                          window.open(event.map_url, '_blank', 'noopener,noreferrer');
+                        }
+                      }}
+                      title="Открыть на карте"
+                    >
+                      🗺️
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           </div>
