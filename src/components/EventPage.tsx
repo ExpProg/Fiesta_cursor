@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { shareEvent, copyToClipboard, generateTelegramWebAppUrl } from '@/utils/sharing';
 import { refreshEventData } from '@/utils/eventResponses';
+import { getEventGradient } from '@/utils/gradients';
 import { EventParticipants } from './EventParticipants';
 import { EventResponseButtons } from './EventResponseButtons';
 import { useTelegram } from './TelegramProvider';
@@ -130,18 +131,10 @@ export const EventPage: React.FC<EventPageProps> = ({
     return timeString.slice(0, 5); // HH:MM
   };
 
-  const getEventImage = (imageUrl: string | null) => {
-    if (imageUrl) return imageUrl;
-    // Fallback градиенты для разных мероприятий
-    const gradients = [
-      'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-      'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
-      'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
-      'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
-      'linear-gradient(135deg, #fa709a 0%, #fee140 100%)',
-      'linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)'
-    ];
-    return gradients[Math.floor(Math.random() * gradients.length)];
+  const getEventImage = (event: DatabaseEvent) => {
+    if (event.image_url) return event.image_url;
+    // Используем сохраненный градиент или генерируем детерминированный
+    return getEventGradient(event);
   };
 
   const isCreator = currentUserId && updatedEvent.created_by === currentUserId;
@@ -236,7 +229,7 @@ export const EventPage: React.FC<EventPageProps> = ({
         ) : (
           <div 
             className="w-full h-full"
-            style={{ background: getEventImage(updatedEvent.image_url) }}
+            style={{ background: getEventImage(updatedEvent) }}
           />
         )}
         

@@ -107,6 +107,7 @@ export interface DatabaseEvent {
   title: string;
   description: string | null;
   image_url: string | null;
+  gradient_background: string | null; // Градиент для фона если нет изображения
   date: string; // TIMESTAMP WITH TIME ZONE - изменено с event_date на date
   event_time: string | null; // TIME - поле времени в формате HH:MM:SS
   location: string | null;
@@ -124,6 +125,7 @@ export interface DatabaseEventInsert {
   title: string;
   description?: string | null;
   image_url?: string | null;
+  gradient_background?: string | null; // Градиент для фона если нет изображения
   date: string; // изменено с event_date на date
   event_time?: string | null; // TIME - поле времени в формате HH:MM:SS
   location?: string | null;
@@ -140,6 +142,7 @@ export interface DatabaseEventUpdate {
   title?: string;
   description?: string | null;
   image_url?: string | null;
+  gradient_background?: string | null; // Градиент для фона если нет изображения
   date?: string; // изменено с event_date на date
   event_time?: string | null; // TIME - поле времени в формате HH:MM:SS
   location?: string | null;
@@ -203,6 +206,7 @@ export interface CreateEventData {
   title: string;
   description?: string;
   image_url?: string;
+  gradient_background?: string; // Градиент для фона если нет изображения
   date: string; // ISO string format - изменено с event_date на date
   location?: string;
   max_participants?: number;

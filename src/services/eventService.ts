@@ -1,4 +1,5 @@
 import { supabase } from '@/hooks/useSupabase';
+import { generateRandomGradient } from '@/utils/gradients';
 import type { 
   DatabaseEvent, 
   DatabaseEventInsert, 
@@ -64,6 +65,7 @@ export class EventService {
         title: eventData.title,
         description: eventData.description || null,
         image_url: eventData.image_url || null,
+        gradient_background: eventData.image_url ? null : generateRandomGradient(),
         date: eventData.date,
         event_time: eventTime, // добавляем время из даты
         location: eventData.location || null, // обеспечиваем null вместо undefined

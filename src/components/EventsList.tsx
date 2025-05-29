@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { EventService } from '@/services/eventService';
+import { getEventGradient } from '@/utils/gradients';
 import type { DatabaseEvent } from '@/types/database';
 import { Calendar, MapPin, Users, Star, Clock } from 'lucide-react';
 
@@ -65,18 +66,10 @@ export const EventsList: React.FC<EventsListProps> = ({
     return timeString.slice(0, 5); // HH:MM
   };
 
-  const getEventImage = (imageUrl: string | null) => {
-    if (imageUrl) return imageUrl;
-    // Fallback градиенты для разных мероприятий
-    const gradients = [
-      'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-      'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
-      'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
-      'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
-      'linear-gradient(135deg, #fa709a 0%, #fee140 100%)',
-      'linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)'
-    ];
-    return gradients[Math.floor(Math.random() * gradients.length)];
+  const getEventImage = (event: DatabaseEvent) => {
+    if (event.image_url) return event.image_url;
+    // Используем сохраненный градиент или генерируем детерминированный
+    return getEventGradient(event);
   };
 
   if (loading) {
@@ -158,7 +151,7 @@ export const EventsList: React.FC<EventsListProps> = ({
               ) : (
                 <div 
                   className="w-full h-full group-hover:scale-105 transition-transform duration-300"
-                  style={{ background: getEventImage(event.image_url) }}
+                  style={{ background: getEventImage(event) }}
                 />
               )}
               
