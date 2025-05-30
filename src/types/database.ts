@@ -59,6 +59,12 @@ export interface DatabaseUser {
   last_name: string | null;
   username: string | null;
   language_code: string | null;
+  avatar_url: string | null;
+  phone: string | null;
+  email: string | null;
+  bio: string | null;
+  is_premium: boolean;
+  is_verified: boolean;
   created_at: string;
   updated_at: string;
 }

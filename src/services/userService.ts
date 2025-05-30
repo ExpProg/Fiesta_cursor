@@ -65,6 +65,70 @@ export class UserService {
   }
 
   /**
+   * Получить пользователя по Telegram username
+   */
+  static async getByUsername(username: string): Promise<ApiResponse<DatabaseUser>> {
+    try {
+      // Убираем @ если он есть
+      const cleanUsername = username.replace('@', '').toLowerCase().trim();
+      
+      if (!cleanUsername) {
+        return { 
+          data: null, 
+          error: { message: 'Username не может быть пустым' } 
+        };
+      }
+
+      console.log(`🔍 UserService.getByUsername searching for username: ${cleanUsername}`);
+      
+      const { data, error } = await supabase
+        .from('users')
+        .select('*')
+        .ilike('username', cleanUsername) // case-insensitive поиск
+        .single();
+
+      if (error && error.code !== 'PGRST116') { // PGRST116 = no rows returned
+        console.error('❌ Supabase error in getByUsername:', error);
+        throw error;
+      }
+
+      if (error && error.code === 'PGRST116') {
+        console.log(`ℹ️ No user found with username: ${cleanUsername}`);
+        return { data: null, error: null };
+      }
+
+      if (data) {
+        console.log(`✅ Found user with username: ${cleanUsername}, telegram_id: ${data.telegram_id}`);
+      }
+
+      return { data, error: null };
+    } catch (error) {
+      console.error('❌ Error fetching user by username:', error);
+      
+      let errorMessage = 'Неизвестная ошибка при поиске пользователя по username';
+      
+      if (error && typeof error === 'object') {
+        if ('message' in error && typeof error.message === 'string') {
+          errorMessage = error.message;
+        } else if ('error' in error && typeof error.error === 'string') {
+          errorMessage = error.error;
+        } else if ('details' in error && typeof error.details === 'string') {
+          errorMessage = error.details;
+        } else {
+          errorMessage = JSON.stringify(error);
+        }
+      } else if (typeof error === 'string') {
+        errorMessage = error;
+      }
+      
+      return { 
+        data: null, 
+        error: { message: `Не удалось найти пользователя: ${errorMessage}` } 
+      };
+    }
+  }
+
+  /**
    * Получить пользователя по ID
    */
   static async getById(id: string): Promise<ApiResponse<DatabaseUser>> {

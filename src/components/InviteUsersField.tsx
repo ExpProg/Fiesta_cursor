@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { Plus, X, Users, UserCheck, Phone } from 'lucide-react';
+import { Plus, X, Users, UserCheck, Phone, Search } from 'lucide-react';
 import { useTelegramWebApp } from '@/hooks/useTelegramWebApp';
 import { useYandexMetrika } from '@/hooks/useYandexMetrika';
+import { UserService } from '@/services/userService';
 import type { InvitedUser } from '@/types/database';
 
 interface InviteUsersFieldProps {
@@ -20,6 +21,7 @@ export const InviteUsersField: React.FC<InviteUsersFieldProps> = ({
   const { switchInlineQuery } = useTelegramWebApp();
   const { reachGoal } = useYandexMetrika();
   const [showAddForm, setShowAddForm] = useState(false);
+  const [isSearchingUser, setIsSearchingUser] = useState(false);
   const [newUser, setNewUser] = useState({
     telegram_id: '',
     first_name: '',
@@ -143,6 +145,54 @@ export const InviteUsersField: React.FC<InviteUsersFieldProps> = ({
     }
   };
 
+  // Обработчик поиска пользователя по username
+  const handleSearchByUsername = async () => {
+    if (!newUser.username.trim()) {
+      alert('Введите username пользователя');
+      return;
+    }
+
+    setIsSearchingUser(true);
+    reachGoal('invite_users_search_by_username_attempt');
+
+    try {
+      const result = await UserService.getByUsername(newUser.username);
+      
+      if (result.error) {
+        console.error('Error searching user:', result.error);
+        alert(`Ошибка поиска: ${result.error.message}`);
+        reachGoal('invite_users_search_by_username_error');
+        return;
+      }
+
+      if (!result.data) {
+        alert(`Пользователь с username @${newUser.username} не найден в базе данных. Попробуйте добавить вручную или попросите пользователя сначала зайти в приложение.`);
+        reachGoal('invite_users_search_by_username_not_found');
+        return;
+      }
+
+      // Пользователь найден - автозаполняем поля
+      setNewUser({
+        telegram_id: result.data.telegram_id.toString(),
+        first_name: result.data.first_name,
+        last_name: result.data.last_name || '',
+        username: result.data.username || ''
+      });
+
+      reachGoal('invite_users_search_by_username_success', {
+        found_user_id: result.data.telegram_id
+      });
+
+      alert(`✅ Пользователь найден: ${result.data.first_name} ${result.data.last_name || ''}`);
+    } catch (error) {
+      console.error('Exception searching user:', error);
+      alert('Произошла ошибка при поиске пользователя');
+      reachGoal('invite_users_search_by_username_error');
+    } finally {
+      setIsSearchingUser(false);
+    }
+  };
+
   const formatUserDisplay = (user: InvitedUser): string => {
     let display = user.first_name;
     if (user.last_name) {
@@ -256,13 +306,31 @@ export const InviteUsersField: React.FC<InviteUsersFieldProps> = ({
               <label className="block text-xs font-medium text-gray-700 mb-1">
                 Username
               </label>
-              <input
-                type="text"
-                value={newUser.username}
-                onChange={(e) => setNewUser({ ...newUser, username: e.target.value.replace('@', '') })}
-                placeholder="username (без @)"
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={newUser.username}
+                  onChange={(e) => setNewUser({ ...newUser, username: e.target.value.replace('@', '') })}
+                  placeholder="username (без @)"
+                  className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+                <button
+                  type="button"
+                  onClick={handleSearchByUsername}
+                  disabled={isSearchingUser || !newUser.username.trim()}
+                  className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  title="Найти пользователя по username"
+                >
+                  {isSearchingUser ? (
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                  ) : (
+                    <Search className="w-4 h-4" />
+                  )}
+                </button>
+              </div>
+              <p className="text-xs text-gray-500 mt-1">
+                Найдите пользователя по username и автозаполните поля
+              </p>
             </div>
 
             <div className="flex gap-2 pt-2">
@@ -288,6 +356,16 @@ export const InviteUsersField: React.FC<InviteUsersFieldProps> = ({
         </div>
       ) : (
         <div className="space-y-2">
+          {/* Кнопка поиска по username */}
+          <button
+            type="button"
+            onClick={() => setShowAddForm(true)}
+            className="w-full flex items-center justify-center py-3 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            <Search className="w-5 h-5 mr-2" />
+            Найти по username
+          </button>
+          
           {/* Кнопка отправки приглашений из контактов */}
           <button
             type="button"
@@ -305,7 +383,7 @@ export const InviteUsersField: React.FC<InviteUsersFieldProps> = ({
             className="w-full flex items-center justify-center py-3 px-4 border-2 border-dashed border-gray-300 rounded-lg text-gray-600 hover:border-blue-500 hover:text-blue-600 transition-colors"
           >
             <Plus className="w-5 h-5 mr-2" />
-            Добавить пользователя вручную
+            Добавить вручную (Telegram ID)
           </button>
         </div>
       )}
@@ -318,8 +396,15 @@ export const InviteUsersField: React.FC<InviteUsersFieldProps> = ({
         <p>• <strong>Только приглашенные</strong> увидят это частное мероприятие</p>
         
         <p className="mt-2">💡 <strong>Способы добавления пользователей:</strong></p>
+        <p>• <strong>Найти по username</strong> - автоматический поиск в базе данных</p>
         <p>• <strong>Ссылка-приглашение</strong> - создайте ссылку для отправки друзьям</p>
         <p>• <strong>Вручную</strong> - введите Telegram ID пользователя</p>
+        
+        <p className="mt-2">🔍 <strong>Поиск по username:</strong></p>
+        <p>• Введите username без символа @</p>
+        <p>• Система найдет пользователя в базе данных</p>
+        <p>• Автоматически заполнит все поля</p>
+        <p>• Пользователь должен ранее заходить в приложение</p>
         
         <p className="mt-2">📱 <strong>Как найти Telegram ID:</strong></p>
         <p>• Напишите боту @userinfobot</p>
