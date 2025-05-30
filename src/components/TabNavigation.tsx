@@ -14,10 +14,10 @@ interface TabNavigationProps {
 }
 
 const tabs: Tab[] = [
-  { id: 'all', label: 'Все', icon: '📋' },
-  { id: 'available', label: 'Доступные', icon: '✅' },
-  { id: 'my', label: 'Мои', icon: '👤' },
-  { id: 'archive', label: 'Архив', icon: '📦' }
+  { id: 'all', label: 'Все', icon: '' },
+  { id: 'available', label: 'Доступные', icon: '' },
+  { id: 'my', label: 'Мои', icon: '' },
+  { id: 'archive', label: 'Архив', icon: '' }
 ];
 
 export const TabNavigation: React.FC<TabNavigationProps> = ({
@@ -66,8 +66,7 @@ export const TabNavigation: React.FC<TabNavigationProps> = ({
                 outline: 'none'
               }}
             >
-              <span className="mr-1 text-base">{tab.icon}</span>
-              <span className="text-xs font-semibold">{tab.label}</span>
+              <span className="text-sm font-semibold">{tab.label}</span>
             </button>
           ))}
         </div>
