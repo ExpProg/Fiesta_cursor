@@ -180,7 +180,8 @@ export function getEventIdFromTelegramStart(): string | null {
  * Генерирует текст для шаринга
  */
 export function generateShareText(eventData: ShareData): string {
-  const url = generateEventShareUrl(eventData.eventId);
+  // Используем Telegram Mini App ссылку для более нативного опыта
+  const url = generateTelegramWebAppUrl(eventData.eventId);
   
   let text = `🎉 ${eventData.title}\n\n`;
   
@@ -201,15 +202,16 @@ export function generateShareText(eventData: ShareData): string {
  * Открывает нативный шаринг (если доступен) или копирует в буфер
  */
 export async function shareEvent(eventData: ShareData): Promise<{ success: boolean; method: 'native' | 'clipboard' | 'telegram' }> {
-  const shareText = generateShareText(eventData);
-  const shareUrl = generateEventShareUrl(eventData.eventId);
+  // Используем Telegram Mini App ссылку для поделиться
+  const shareUrl = generateTelegramWebAppUrl(eventData.eventId);
+  const shareText = `🎉 ${eventData.title}\n\n${eventData.description ? eventData.description.substring(0, 100) + (eventData.description.length > 100 ? '...' : '') + '\n\n' : ''}Присоединяйся: ${shareUrl}`;
   
   // Проверяем, доступен ли нативный шаринг в Telegram
   if (typeof window !== 'undefined' && 'Telegram' in window) {
     try {
       const telegram = (window as any).Telegram?.WebApp;
       if (telegram?.openLink) {
-        // Используем Telegram шаринг
+        // Используем Telegram шаринг с Mini App ссылкой
         const telegramShareUrl = `https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(eventData.title)}`;
         telegram.openLink(telegramShareUrl);
         return { success: true, method: 'telegram' };
