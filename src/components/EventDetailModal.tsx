@@ -167,13 +167,19 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
         let message = '';
         switch (result.method) {
           case 'telegram':
-            message = 'Ссылка отправлена в Telegram!';
+            message = 'Отправлено через Telegram!';
+            break;
+          case 'telegram_copy':
+            message = 'Ссылка скопирована для отправки в Telegram!';
             break;
           case 'native':
             message = 'Ссылка отправлена!';
             break;
           case 'clipboard':
             message = 'Ссылка скопирована в буфер обмена!';
+            break;
+          default:
+            message = 'Готово!';
             break;
         }
         

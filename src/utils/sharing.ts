@@ -201,27 +201,76 @@ export function generateShareText(eventData: ShareData): string {
 /**
  * Открывает нативный шаринг (если доступен) или копирует в буфер
  */
-export async function shareEvent(eventData: ShareData): Promise<{ success: boolean; method: 'native' | 'clipboard' | 'telegram' }> {
+export async function shareEvent(eventData: ShareData): Promise<{ success: boolean; method: 'native' | 'clipboard' | 'telegram' | 'telegram_copy' }> {
   // Используем Telegram Mini App ссылку для поделиться
   const shareUrl = generateTelegramWebAppUrl(eventData.eventId);
   const shareText = `🎉 ${eventData.title}\n\n${eventData.description ? eventData.description.substring(0, 100) + (eventData.description.length > 100 ? '...' : '') + '\n\n' : ''}Присоединяйся: ${shareUrl}`;
   
-  // Проверяем, доступен ли нативный шаринг в Telegram
+  // Проверяем, доступен ли Telegram WebApp API
   if (typeof window !== 'undefined' && 'Telegram' in window) {
     try {
       const telegram = (window as any).Telegram?.WebApp;
-      if (telegram?.openLink) {
-        // Используем Telegram шаринг с Mini App ссылкой
-        const telegramShareUrl = `https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(eventData.title)}`;
-        telegram.openLink(telegramShareUrl);
-        return { success: true, method: 'telegram' };
+      
+      // Метод 1: Попробуем Web Share API прямо в Telegram (может работать лучше)
+      if (navigator.share) {
+        try {
+          await navigator.share({
+            title: eventData.title,
+            text: eventData.description || 'Присоединяйся к мероприятию!',
+            url: shareUrl
+          });
+          return { success: true, method: 'telegram' };
+        } catch (shareError) {
+          console.log('Web Share API failed in Telegram, trying other methods:', shareError);
+        }
       }
+      
+      // Метод 2: Попробуем использовать switchInlineQuery для более нативного опыта
+      if (telegram?.switchInlineQuery) {
+        try {
+          // Отправляем через inline query - остается в Telegram
+          const inlineMessage = `${eventData.title} - ${shareUrl}`;
+          telegram.switchInlineQuery(inlineMessage, ['users']);
+          return { success: true, method: 'telegram' };
+        } catch (inlineError) {
+          console.log('Inline query failed, trying other methods:', inlineError);
+        }
+      }
+      
+      // Метод 3: Попробуем отправить данные боту для дальнейшего шаринга
+      if (telegram?.sendData) {
+        try {
+          const shareData = JSON.stringify({
+            action: 'share_event',
+            event_id: eventData.eventId,
+            title: eventData.title,
+            url: shareUrl
+          });
+          telegram.sendData(shareData);
+          return { success: true, method: 'telegram' };
+        } catch (sendDataError) {
+          console.log('SendData failed, trying other methods:', sendDataError);
+        }
+      }
+      
+      // Метод 4: Если все не работает, копируем в буфер обмена и показываем уведомление
+      const copied = await copyToClipboard(shareText);
+      if (copied && telegram?.showAlert) {
+        telegram.showAlert('📋 Ссылка скопирована в буфер обмена! Теперь вы можете вставить её в любой чат Telegram.');
+        return { success: true, method: 'telegram_copy' };
+      }
+      
+      // Fallback: если ничего не работает, но мы в Telegram
+      if (copied) {
+        return { success: true, method: 'telegram_copy' };
+      }
+      
     } catch (error) {
       console.error('Telegram sharing failed:', error);
     }
   }
   
-  // Проверяем Web Share API
+  // Проверяем Web Share API (для мобильных устройств вне Telegram)
   if (navigator.share) {
     try {
       await navigator.share({
@@ -236,7 +285,7 @@ export async function shareEvent(eventData: ShareData): Promise<{ success: boole
     }
   }
   
-  // Fallback - копирование в буфер обмена
+  // Последний fallback - просто копирование в буфер обмена
   const copied = await copyToClipboard(shareText);
   return { success: copied, method: 'clipboard' };
 }
