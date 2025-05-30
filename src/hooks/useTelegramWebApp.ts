@@ -100,6 +100,10 @@ export interface UseTelegramWebAppReturn {
   openLink: (url: string, options?: { tryInstantView?: boolean }) => void;
   openTelegramLink: (url: string) => void;
   switchInlineQuery: (query: string, chooseChatTypes?: string[]) => void;
+  
+  // Методы для запроса разрешений
+  requestContact: () => Promise<boolean>;
+  requestWriteAccess: () => Promise<boolean>;
 }
 
 export const useTelegramWebApp = (): UseTelegramWebAppReturn => {
@@ -718,6 +722,49 @@ export const useTelegramWebApp = (): UseTelegramWebAppReturn => {
     }
   }, []);
 
+  // Методы для запроса разрешений
+  const requestContact = useCallback(async (): Promise<boolean> => {
+    try {
+      // @ts-ignore
+      if (typeof window !== 'undefined' && window.Telegram?.WebApp?.requestContact) {
+        return new Promise((resolve) => {
+          // @ts-ignore
+          window.Telegram.WebApp.requestContact((success: boolean) => {
+            resolve(success);
+          });
+        });
+      } else {
+        console.log('requestContact not available - development mode');
+        // В режиме разработки возвращаем true для тестирования
+        return Promise.resolve(true);
+      }
+    } catch (e) {
+      console.warn('Failed to request contact:', e);
+      return Promise.resolve(false);
+    }
+  }, []);
+
+  const requestWriteAccess = useCallback(async (): Promise<boolean> => {
+    try {
+      // @ts-ignore
+      if (typeof window !== 'undefined' && window.Telegram?.WebApp?.requestWriteAccess) {
+        return new Promise((resolve) => {
+          // @ts-ignore
+          window.Telegram.WebApp.requestWriteAccess((success: boolean) => {
+            resolve(success);
+          });
+        });
+      } else {
+        console.log('requestWriteAccess not available - development mode');
+        // В режиме разработки возвращаем true для тестирования
+        return Promise.resolve(true);
+      }
+    } catch (e) {
+      console.warn('Failed to request write access:', e);
+      return Promise.resolve(false);
+    }
+  }, []);
+
   const isVersionAtLeast = useCallback((version: string): boolean => {
     return checkVersion(platformInfo.version, version);
   }, [platformInfo.version]);
@@ -796,5 +843,9 @@ export const useTelegramWebApp = (): UseTelegramWebAppReturn => {
     openLink,
     openTelegramLink,
     switchInlineQuery,
+    
+    // Методы для запроса разрешений
+    requestContact,
+    requestWriteAccess,
   };
 }; 
