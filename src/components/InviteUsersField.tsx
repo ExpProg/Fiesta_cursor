@@ -17,7 +17,7 @@ export const InviteUsersField: React.FC<InviteUsersFieldProps> = ({
   isPrivate,
   className = ''
 }) => {
-  const { requestContact, user: currentUser } = useTelegramWebApp();
+  const { requestContact, switchInlineQuery, user: currentUser } = useTelegramWebApp();
   const { reachGoal } = useYandexMetrika();
   const [showAddForm, setShowAddForm] = useState(false);
   const [isRequestingContact, setIsRequestingContact] = useState(false);
@@ -106,27 +106,61 @@ export const InviteUsersField: React.FC<InviteUsersFieldProps> = ({
     }
   };
 
-  const handleInviteFromContacts = () => {
+  const handleInviteFromContacts = async () => {
     try {
       reachGoal('invite_users_share_invitation_attempt');
       
-      // Используем switchInlineQuery для отправки приглашения в любой чат
-      // Пользователь сможет выбрать контакт из своих чатов
+      console.log('=== Диагностика Telegram WebApp ===');
+      console.log('window:', typeof window);
+      console.log('window.Telegram:', typeof window !== 'undefined' ? window.Telegram : 'undefined');
+      console.log('window.Telegram.WebApp:', typeof window !== 'undefined' && window.Telegram ? window.Telegram.WebApp : 'undefined');
+      // @ts-ignore
+      console.log('switchInlineQuery:', typeof window !== 'undefined' && window.Telegram?.WebApp ? window.Telegram.WebApp.switchInlineQuery : 'undefined');
+      
+      // Проверяем доступность Telegram WebApp API
+      if (typeof window === 'undefined' || !window.Telegram?.WebApp) {
+        throw new Error('Telegram WebApp недоступен');
+      }
+      
+      // @ts-ignore
+      if (!window.Telegram.WebApp.switchInlineQuery) {
+        throw new Error('switchInlineQuery функция недоступна в данной версии Telegram');
+      }
+      
+      // Формируем сообщение приглашения
       const inviteMessage = '🎉 Приглашаю тебя на мероприятие! Присоединяйся через бота.';
       
-      // Вызываем inline query для отправки приглашения
-      // Пользователь сможет выбрать контакт и отправить ему приглашение
-      if (typeof window !== 'undefined' && (window as any).Telegram?.WebApp?.switchInlineQuery) {
-        (window as any).Telegram.WebApp.switchInlineQuery(inviteMessage, ['users']);
-        reachGoal('invite_users_share_invitation_success');
-      } else {
-        // Fallback для режима разработки
-        alert('Функция отправки приглашений доступна только в Telegram WebApp');
-      }
+      console.log('Вызываем switchInlineQuery с параметрами:', inviteMessage, ['users']);
+      
+      // Вызываем switchInlineQuery напрямую
+      // @ts-ignore
+      window.Telegram.WebApp.switchInlineQuery(inviteMessage, ['users']);
+      
+      reachGoal('invite_users_share_invitation_success');
+      
+      // Показываем уведомление об успехе
+      alert('Выберите контакт для отправки приглашения');
+      
     } catch (error) {
-      console.error('Error sharing invitation:', error);
+      console.error('=== Ошибка sharing invitation ===');
+      console.error('Error object:', error);
+      console.error('Error message:', error instanceof Error ? error.message : 'Unknown error');
+      console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace');
+      
       reachGoal('invite_users_share_invitation_error');
-      alert('Произошла ошибка при отправке приглашения');
+      
+      // Более детальная обработка ошибок
+      if (error instanceof Error) {
+        if (error.message.includes('Telegram WebApp недоступен')) {
+          alert('Функция отправки приглашений доступна только в Telegram. Попробуйте добавить пользователей вручную или поделиться ссылкой на мероприятие.');
+        } else if (error.message.includes('switchInlineQuery функция недоступна')) {
+          alert('Функция отправки приглашений недоступна в данной версии Telegram. Попробуйте обновить Telegram или добавить пользователей вручную.');
+        } else {
+          alert(`Ошибка: ${error.message}`);
+        }
+      } else {
+        alert('Произошла ошибка при отправке приглашения. Попробуйте добавить пользователей вручную.');
+      }
     }
   };
 
@@ -328,8 +362,12 @@ export const InviteUsersField: React.FC<InviteUsersFieldProps> = ({
       <div className="mt-3 text-xs text-gray-500">
         <p>💡 <strong>Способы добавления пользователей:</strong></p>
         <p>• <strong>Поделиться контактом</strong> - добавьте себя в список приглашенных</p>
-        <p>• <strong>Пригласить из контактов</strong> - отправьте приглашение любому контакту в Telegram</p>
+        <p>• <strong>Пригласить из контактов</strong> - откроется выбор контактов в Telegram для отправки приглашения</p>
         <p>• <strong>Вручную</strong> - введите Telegram ID пользователя</p>
+        <p className="mt-2"><strong>💡 Если "Пригласить из контактов" не работает:</strong></p>
+        <p>• Убедитесь, что используете актуальную версию Telegram</p>
+        <p>• Функция доступна только в официальном Telegram WebApp</p>
+        <p>• Как альтернатива - добавьте пользователей вручную по Telegram ID</p>
         <p className="mt-2"><strong>Как узнать Telegram ID:</strong></p>
         <p>• Напишите боту @userinfobot в Telegram</p>
         <p>• Или найдите ID в настройках некоторых Telegram клиентов</p>
