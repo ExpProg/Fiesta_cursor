@@ -21,6 +21,7 @@ export const InviteUsersField: React.FC<InviteUsersFieldProps> = ({
   const { switchInlineQuery } = useTelegramWebApp();
   const { reachGoal } = useYandexMetrika();
   const [showAddForm, setShowAddForm] = useState(false);
+  const [showSearchForm, setShowSearchForm] = useState(false);
   const [isSearchingUser, setIsSearchingUser] = useState(false);
   const [newUser, setNewUser] = useState({
     telegram_id: '',
@@ -53,13 +54,9 @@ export const InviteUsersField: React.FC<InviteUsersFieldProps> = ({
     onInvitedUsersChange([...invitedUsers, invitedUser]);
     
     // Сбрасываем форму
-    setNewUser({
-      telegram_id: '',
-      first_name: '',
-      last_name: '',
-      username: ''
-    });
+    resetForm();
     setShowAddForm(false);
+    setShowSearchForm(false);
   };
 
   const handleRemoveUser = (telegramId: number) => {
@@ -148,7 +145,6 @@ export const InviteUsersField: React.FC<InviteUsersFieldProps> = ({
   // Обработчик поиска пользователя по username
   const handleSearchByUsername = async () => {
     if (!newUser.username.trim()) {
-      alert('Введите username пользователя');
       return;
     }
 
@@ -160,13 +156,11 @@ export const InviteUsersField: React.FC<InviteUsersFieldProps> = ({
       
       if (result.error) {
         console.error('Error searching user:', result.error);
-        alert(`Ошибка поиска: ${result.error.message}`);
         reachGoal('invite_users_search_by_username_error');
         return;
       }
 
       if (!result.data) {
-        alert(`Пользователь с username @${newUser.username} не найден в базе данных. Попробуйте добавить вручную или попросите пользователя сначала зайти в приложение.`);
         reachGoal('invite_users_search_by_username_not_found');
         return;
       }
@@ -182,15 +176,21 @@ export const InviteUsersField: React.FC<InviteUsersFieldProps> = ({
       reachGoal('invite_users_search_by_username_success', {
         found_user_id: result.data.telegram_id
       });
-
-      alert(`✅ Пользователь найден: ${result.data.first_name} ${result.data.last_name || ''}`);
     } catch (error) {
       console.error('Exception searching user:', error);
-      alert('Произошла ошибка при поиске пользователя');
       reachGoal('invite_users_search_by_username_error');
     } finally {
       setIsSearchingUser(false);
     }
+  };
+
+  const resetForm = () => {
+    setNewUser({
+      telegram_id: '',
+      first_name: '',
+      last_name: '',
+      username: ''
+    });
   };
 
   const formatUserDisplay = (user: InvitedUser): string => {
@@ -254,6 +254,89 @@ export const InviteUsersField: React.FC<InviteUsersFieldProps> = ({
         </div>
       )}
 
+      {/* Форма поиска по username */}
+      {showSearchForm ? (
+        <div className="border border-blue-200 rounded-lg p-4 bg-blue-50 mb-3">
+          <h4 className="font-medium text-blue-800 mb-3 flex items-center">
+            <Search className="w-4 h-4 mr-2" />
+            Поиск пользователя по username
+          </h4>
+          
+          <div className="space-y-3">
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">
+                Username пользователя
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={newUser.username}
+                  onChange={(e) => setNewUser({ ...newUser, username: e.target.value.replace('@', '') })}
+                  placeholder="Введите username (без @)"
+                  className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleSearchByUsername();
+                    }
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={handleSearchByUsername}
+                  disabled={isSearchingUser || !newUser.username.trim()}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  {isSearchingUser ? (
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                  ) : (
+                    'Найти'
+                  )}
+                </button>
+              </div>
+              <p className="text-xs text-blue-600 mt-1">
+                Мы найдем пользователя в базе данных и автоматически заполним все поля
+              </p>
+            </div>
+
+            {/* Показываем найденные данные */}
+            {newUser.telegram_id && newUser.first_name && (
+              <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
+                <p className="text-sm font-medium text-green-800 mb-2">✅ Пользователь найден:</p>
+                <div className="text-sm text-green-700 space-y-1">
+                  <p><strong>Имя:</strong> {newUser.first_name} {newUser.last_name}</p>
+                  <p><strong>Username:</strong> @{newUser.username}</p>
+                  <p><strong>Telegram ID:</strong> {newUser.telegram_id}</p>
+                </div>
+              </div>
+            )}
+
+            <div className="flex gap-2 pt-2">
+              {newUser.telegram_id && newUser.first_name ? (
+                <button
+                  type="button"
+                  onClick={handleAddUser}
+                  className="flex-1 bg-green-600 text-white py-2 px-3 rounded-lg text-sm font-medium hover:bg-green-700 transition-colors"
+                >
+                  Добавить пользователя
+                </button>
+              ) : null}
+              
+              <button
+                type="button"
+                onClick={() => {
+                  setShowSearchForm(false);
+                  resetForm();
+                }}
+                className="px-3 py-2 text-gray-600 bg-gray-200 rounded-lg text-sm font-medium hover:bg-gray-300 transition-colors"
+              >
+                Отмена
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       {/* Форма добавления нового пользователя */}
       {showAddForm ? (
         <div className="border border-gray-200 rounded-lg p-4 bg-gray-50 mb-3">
@@ -306,31 +389,13 @@ export const InviteUsersField: React.FC<InviteUsersFieldProps> = ({
               <label className="block text-xs font-medium text-gray-700 mb-1">
                 Username
               </label>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={newUser.username}
-                  onChange={(e) => setNewUser({ ...newUser, username: e.target.value.replace('@', '') })}
-                  placeholder="username (без @)"
-                  className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                />
-                <button
-                  type="button"
-                  onClick={handleSearchByUsername}
-                  disabled={isSearchingUser || !newUser.username.trim()}
-                  className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                  title="Найти пользователя по username"
-                >
-                  {isSearchingUser ? (
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                  ) : (
-                    <Search className="w-4 h-4" />
-                  )}
-                </button>
-              </div>
-              <p className="text-xs text-gray-500 mt-1">
-                Найдите пользователя по username и автозаполните поля
-              </p>
+              <input
+                type="text"
+                value={newUser.username}
+                onChange={(e) => setNewUser({ ...newUser, username: e.target.value.replace('@', '') })}
+                placeholder="username (без @)"
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
             </div>
 
             <div className="flex gap-2 pt-2">
@@ -345,7 +410,7 @@ export const InviteUsersField: React.FC<InviteUsersFieldProps> = ({
                 type="button"
                 onClick={() => {
                   setShowAddForm(false);
-                  setNewUser({ telegram_id: '', first_name: '', last_name: '', username: '' });
+                  resetForm();
                 }}
                 className="px-3 py-2 text-gray-600 bg-gray-200 rounded-lg text-sm font-medium hover:bg-gray-300 transition-colors"
               >
