@@ -339,26 +339,22 @@ export class EventService {
     }
 
     // Валидация для частных мероприятий
-    if (eventData.is_private) {
-      if (!eventData.invited_users || eventData.invited_users.length === 0) {
-        errors.push('Для частного мероприятия необходимо добавить хотя бы одного приглашенного пользователя');
-      } else {
-        // Проверяем каждого приглашенного пользователя
-        eventData.invited_users.forEach((user, index) => {
-          if (!user.telegram_id || user.telegram_id <= 0) {
-            errors.push(`Приглашенный пользователь #${index + 1}: некорректный Telegram ID`);
-          }
-          if (!user.first_name || user.first_name.trim().length === 0) {
-            errors.push(`Приглашенный пользователь #${index + 1}: имя обязательно`);
-          }
-        });
-
-        // Проверяем на дублирующиеся Telegram ID
-        const telegramIds = eventData.invited_users.map(user => user.telegram_id);
-        const uniqueIds = new Set(telegramIds);
-        if (telegramIds.length !== uniqueIds.size) {
-          errors.push('Найдены дублирующиеся Telegram ID в списке приглашенных');
+    if (eventData.is_private && eventData.invited_users && eventData.invited_users.length > 0) {
+      // Проверяем каждого приглашенного пользователя только если они добавлены
+      eventData.invited_users.forEach((user, index) => {
+        if (!user.telegram_id || user.telegram_id <= 0) {
+          errors.push(`Приглашенный пользователь #${index + 1}: некорректный Telegram ID`);
         }
+        if (!user.first_name || user.first_name.trim().length === 0) {
+          errors.push(`Приглашенный пользователь #${index + 1}: имя обязательно`);
+        }
+      });
+
+      // Проверяем на дублирующиеся Telegram ID
+      const telegramIds = eventData.invited_users.map(user => user.telegram_id);
+      const uniqueIds = new Set(telegramIds);
+      if (telegramIds.length !== uniqueIds.size) {
+        errors.push('Найдены дублирующиеся Telegram ID в списке приглашенных');
       }
     }
 
