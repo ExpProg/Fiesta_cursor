@@ -11,6 +11,7 @@ import { TestMode } from '@/components/TestMode';
 import { useTelegramTheme } from '@/hooks/useTelegramTheme';
 import { useEventSharing } from '@/hooks/useEventSharing';
 import { CreateEventForm } from './components/CreateEventForm';
+import { CreateEventPage } from './components/CreateEventPage';
 import { EventsList } from './components/EventsList';
 import { EventPage } from './components/EventPage';
 import { EditEventForm } from './components/EditEventForm';
@@ -234,8 +235,23 @@ function AppContent() {
 
   return (
     <div className="min-h-screen bg-white text-gray-900">
-      {/* Если редактируем мероприятие, показываем страницу редактирования */}
-      {editingEvent ? (
+      {/* Если создаём мероприятие, показываем страницу создания */}
+      {showCreateEvent ? (
+        <CreateEventPage
+          onBack={() => {
+            setShowCreateEvent(false);
+            impactOccurred('light');
+          }}
+          onSuccess={(eventId) => {
+            console.log('✅ Event created with ID:', eventId);
+            setShowCreateEvent(false);
+            impactOccurred('medium');
+            // Обновляем список мероприятий
+            setRefreshTrigger(prev => prev + 1);
+          }}
+        />
+      ) : editingEvent ? (
+        /* Если редактируем мероприятие, показываем страницу редактирования */
         <EditEventPage
           event={editingEvent}
           onBack={() => {
@@ -386,27 +402,6 @@ function AppContent() {
             </div>
           </main>
         </>
-      )}
-
-      {/* Модальное окно создания мероприятия */}
-      {showCreateEvent && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white text-gray-900 rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
-            <CreateEventForm
-              onSuccess={(eventId) => {
-                console.log('✅ Event created with ID:', eventId);
-                setShowCreateEvent(false);
-                impactOccurred('medium');
-                // Обновляем список мероприятий
-                setRefreshTrigger(prev => prev + 1);
-              }}
-              onCancel={() => {
-                setShowCreateEvent(false);
-                impactOccurred('light');
-              }}
-            />
-          </div>
-        </div>
       )}
     </div>
   );

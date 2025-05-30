@@ -6,12 +6,14 @@ import type { CreateEventData } from '@/types/database';
 interface CreateEventFormProps {
   onSuccess?: (eventId: string) => void;
   onCancel?: () => void;
+  onFormChange?: () => void;
   className?: string;
 }
 
 export const CreateEventForm: React.FC<CreateEventFormProps> = ({
   onSuccess,
   onCancel,
+  onFormChange,
   className = ''
 }) => {
   const { user: telegramUser, impactOccurred } = useTelegram();
@@ -43,6 +45,9 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({
         (value === '' ? undefined : Number(value)) : 
         value
     }));
+
+    // Уведомляем родительский компонент об изменениях
+    onFormChange?.();
 
     // Очищаем ошибки при изменении полей
     if (errors.length > 0) {
@@ -193,14 +198,17 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({
 
   return (
     <div className={`bg-white rounded-lg shadow-lg p-6 ${className}`}>
-      <div className="mb-6">
-        <h2 className="text-xl font-bold text-gray-800 mb-2">
-          🎊 Создать мероприятие
-        </h2>
-        <p className="text-gray-600 text-sm">
-          Заполните информацию о вашем мероприятии
-        </p>
-      </div>
+      {/* Заголовок отображается только если форма не используется на отдельной странице */}
+      {!className.includes('border-0') && (
+        <div className="mb-6">
+          <h2 className="text-xl font-bold text-gray-800 mb-2">
+            🎊 Создать мероприятие
+          </h2>
+          <p className="text-gray-600 text-sm">
+            Заполните информацию о вашем мероприятии
+          </p>
+        </div>
+      )}
 
       {/* Отображение ошибок */}
       {errors.length > 0 && (
