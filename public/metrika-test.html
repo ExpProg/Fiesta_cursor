@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Тест Яндекс.Метрики в Telegram WebApp</title>
+    
+    <!-- Telegram Web App Script -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    
+    <!-- Yandex.Metrika counter -->
+    <script type="text/javascript">
+       (function(m,e,t,r,i,k,a){m[i]=m[i]||function(){(m[i].a=m[i].a||[]).push(arguments)};
+       m[i].l=1*new Date();
+       for (var j = 0; j < document.scripts.length; j++) {if (document.scripts[j].src === r) { return; }}
+       k=e.createElement(t),a=e.getElementsByTagName(t)[0],k.async=1,k.src=r,a.parentNode.insertBefore(k,a)})
+       (window, document, "script", "https://mc.yandex.ru/metrika/tag.js", "ym");
+
+       ym(102291721, "init", {
+            clickmap:true,
+            trackLinks:true,
+            accurateTrackBounce:true,
+            webvisor:true
+       });
+    </script>
+    
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+        .success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .info { background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            margin: 5px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        button:hover { background: #0056b3; }
+        #log {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 10px;
+            margin-top: 20px;
+            border-radius: 5px;
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Тест Яндекс.Метрики в Telegram WebApp</h1>
+        
+        <div id="telegram-status" class="status info">
+            Проверка Telegram WebApp...
+        </div>
+        
+        <div id="metrika-status" class="status info">
+            Проверка Яндекс.Метрики...
+        </div>
+        
+        <div class="test-section">
+            <h3>📊 Тесты событий</h3>
+            <button onclick="testGoal()">Тест Goal</button>
+            <button onclick="testHit()">Тест Hit</button>
+            <button onclick="testUserParams()">Тест UserParams</button>
+            <button onclick="testError()">Тест Ошибки</button>
+        </div>
+        
+        <div class="test-section">
+            <h3>📱 Информация о среде</h3>
+            <div id="environment-info"></div>
+        </div>
+        
+        <div id="log"></div>
+    </div>
+
+    <!-- Yandex.Metrika noscript -->
+    <noscript><div><img src="https://mc.yandex.ru/watch/102291721" style="position:absolute; left:-9999px;" alt="" /></div></noscript>
+
+    <script>
+        const log = document.getElementById('log');
+        
+        function addLog(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const color = type === 'error' ? 'red' : type === 'success' ? 'green' : 'blue';
+            log.innerHTML += `<div style="color: ${color}">[${timestamp}] ${message}</div>`;
+            log.scrollTop = log.scrollHeight;
+            console.log(`[${timestamp}] ${message}`);
+        }
+
+        // Проверка Telegram WebApp
+        function checkTelegram() {
+            const telegramStatus = document.getElementById('telegram-status');
+            
+            if (typeof window.Telegram !== 'undefined' && window.Telegram.WebApp) {
+                telegramStatus.className = 'status success';
+                telegramStatus.textContent = '✅ Telegram WebApp доступен';
+                addLog('Telegram WebApp обнаружен', 'success');
+                
+                const webApp = window.Telegram.WebApp;
+                addLog(`Platform: ${webApp.platform}`);
+                addLog(`Version: ${webApp.version}`);
+                addLog(`User ID: ${webApp.initDataUnsafe?.user?.id || 'Не доступен'}`);
+                
+                // Расширяем WebApp
+                webApp.expand();
+                webApp.ready();
+            } else {
+                telegramStatus.className = 'status error';
+                telegramStatus.textContent = '❌ Telegram WebApp недоступен';
+                addLog('Telegram WebApp не обнаружен', 'error');
+            }
+        }
+
+        // Проверка Яндекс.Метрики
+        function checkMetrika() {
+            const metrikaStatus = document.getElementById('metrika-status');
+            
+            if (typeof window.ym === 'function') {
+                metrikaStatus.className = 'status success';
+                metrikaStatus.textContent = '✅ Яндекс.Метрика доступна';
+                addLog('Яндекс.Метрика инициализирована', 'success');
+                
+                // Отправляем тестовое событие инициализации
+                try {
+                    window.ym(102291721, 'reachGoal', 'metrika_test_init');
+                    addLog('Тестовое событие отправлено', 'success');
+                } catch (error) {
+                    addLog(`Ошибка отправки события: ${error.message}`, 'error');
+                }
+            } else {
+                metrikaStatus.className = 'status error';
+                metrikaStatus.textContent = '❌ Яндекс.Метрика недоступна';
+                addLog('Яндекс.Метрика не инициализирована', 'error');
+            }
+        }
+
+        // Показать информацию о среде
+        function showEnvironmentInfo() {
+            const envInfo = document.getElementById('environment-info');
+            const info = [
+                `User Agent: ${navigator.userAgent}`,
+                `Referrer: ${document.referrer || 'Нет'}`,
+                `Location: ${window.location.href}`,
+                `Screen: ${screen.width}x${screen.height}`,
+                `Viewport: ${window.innerWidth}x${window.innerHeight}`,
+                `Language: ${navigator.language}`,
+                `Platform: ${navigator.platform}`,
+                `Cookies enabled: ${navigator.cookieEnabled}`,
+                `Local Storage: ${typeof(Storage) !== "undefined" ? 'Доступен' : 'Недоступен'}`
+            ];
+            
+            envInfo.innerHTML = info.map(item => `<div style="margin: 5px 0; font-size: 12px;">${item}</div>`).join('');
+        }
+
+        // Тестовые функции
+        function testGoal() {
+            if (typeof window.ym === 'function') {
+                try {
+                    window.ym(102291721, 'reachGoal', 'test_goal_telegram', {
+                        test_param: 'telegram_webapp',
+                        timestamp: Date.now()
+                    });
+                    addLog('Goal отправлен: test_goal_telegram', 'success');
+                } catch (error) {
+                    addLog(`Ошибка Goal: ${error.message}`, 'error');
+                }
+            } else {
+                addLog('Яндекс.Метрика недоступна для Goal', 'error');
+            }
+        }
+
+        function testHit() {
+            if (typeof window.ym === 'function') {
+                try {
+                    window.ym(102291721, 'hit', '/test-page-telegram', {
+                        title: 'Test Page Telegram',
+                        referer: window.location.href
+                    });
+                    addLog('Hit отправлен: /test-page-telegram', 'success');
+                } catch (error) {
+                    addLog(`Ошибка Hit: ${error.message}`, 'error');
+                }
+            } else {
+                addLog('Яндекс.Метрика недоступна для Hit', 'error');
+            }
+        }
+
+        function testUserParams() {
+            if (typeof window.ym === 'function') {
+                try {
+                    const params = {
+                        telegram_user: window.Telegram?.WebApp?.initDataUnsafe?.user?.id || 'unknown',
+                        platform: window.Telegram?.WebApp?.platform || 'unknown',
+                        test_session: Date.now()
+                    };
+                    window.ym(102291721, 'userParams', params);
+                    addLog(`UserParams отправлены: ${JSON.stringify(params)}`, 'success');
+                } catch (error) {
+                    addLog(`Ошибка UserParams: ${error.message}`, 'error');
+                }
+            } else {
+                addLog('Яндекс.Метрика недоступна для UserParams', 'error');
+            }
+        }
+
+        function testError() {
+            addLog('Тестовая ошибка для проверки логирования', 'error');
+            if (typeof window.ym === 'function') {
+                try {
+                    // Намеренно вызываем ошибку
+                    window.ym(102291721, 'invalidMethod', 'test');
+                } catch (error) {
+                    addLog(`Ожидаемая ошибка: ${error.message}`, 'error');
+                }
+            }
+        }
+
+        // Инициализация при загрузке
+        window.addEventListener('load', function() {
+            addLog('Страница загружена');
+            
+            // Даем время на инициализацию скриптов
+            setTimeout(() => {
+                checkTelegram();
+                checkMetrika();
+                showEnvironmentInfo();
+            }, 1000);
+        });
+
+        // Перехват ошибок
+        window.addEventListener('error', function(event) {
+            addLog(`Глобальная ошибка: ${event.error?.message || event.message}`, 'error');
+        });
+    </script>
+</body>
+</html> 
