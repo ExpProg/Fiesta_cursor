@@ -41,7 +41,6 @@ function AppContent() {
   const [selectedEvent, setSelectedEvent] = useState<DatabaseEvent | null>(null);
   const [editingEvent, setEditingEvent] = useState<DatabaseEvent | null>(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
-  const [showMenu, setShowMenu] = useState(false);
 
   // Безопасные данные пользователя для отображения
   const safeUserData = {
@@ -111,23 +110,6 @@ function AppContent() {
 
     initializeUser();
   }, [isInitialized, telegramUser, impactOccurred]);
-
-  // Закрытие меню при клике вне его области
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (showMenu) {
-        const target = event.target as Element;
-        if (!target.closest('.menu-container')) {
-          setShowMenu(false);
-        }
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [showMenu]);
 
   // Автоматическое открытие события по ссылке
   useEffect(() => {
@@ -336,90 +318,42 @@ function AppContent() {
                 <div className="flex items-center space-x-3">
                   <TelegramUserInfo />
                   
-                  {/* Бургер-меню справа от аватарки */}
-                  <div className="relative menu-container">
-                    <button 
-                      className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
-                      onClick={() => {
-                        setShowMenu(!showMenu);
-                        impactOccurred('light');
-                      }}
-                    >
-                      <span className="text-lg">☰</span>
-                    </button>
-                    
-                    {/* Выпадающее меню */}
-                    {showMenu && (
-                      <div className="absolute top-full right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg py-2 z-50 min-w-48">
-                        <button
-                          className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
-                          onClick={() => {
-                            console.log('📋 Мои мероприятия');
-                            setShowMenu(false);
-                            impactOccurred('light');
-                            // TODO: Реализовать показ мероприятий пользователя
-                            alert('Мои мероприятия - в разработке!');
-                          }}
-                        >
-                          📋 Мои мероприятия
-                        </button>
-                        <button
-                          className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
-                          onClick={() => {
-                            console.log('📦 Архив');
-                            setShowMenu(false);
-                            impactOccurred('light');
-                            // TODO: Реализовать показ архива мероприятий
-                            alert('Архив - в разработке!');
-                          }}
-                        >
-                          📦 Архив
-                        </button>
-                        <hr className="my-1 border-gray-200" />
-                        <button
-                          className="w-full text-left px-4 py-2 text-sm text-green-700 hover:bg-green-50 transition-colors font-medium"
-                          onClick={() => {
-                            setShowCreateEvent(true);
-                            setShowMenu(false);
-                            reachGoal('create_event_start');
-                            impactOccurred('light');
-                          }}
-                        >
-                          ➕ Создать мероприятие
-                        </button>
-                      </div>
-                    )}
-                  </div>
+                  {/* Кнопка создания мероприятия */}
+                  <button
+                    className="bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200 flex items-center gap-2"
+                    onClick={() => {
+                      setShowCreateEvent(true);
+                      reachGoal('create_event_start');
+                      impactOccurred('light');
+                    }}
+                  >
+                    ➕ Создать
+                  </button>
                 </div>
               </div>
             </div>
           </header>
 
           <main className="max-w-6xl mx-auto">
-            <div className="p-4">
-              {/* Список доступных мероприятий */}
-              <div className="mb-4">
-                <EventsList 
-                  key={refreshTrigger}
-                  title="Мероприятия"
-                  limit={8}
-                  showUpcoming={true}
-                  onEventClick={(event) => {
-                    setSelectedEvent(event);
-                    reachGoal('event_view', { 
-                      event_id: event.id,
-                      event_title: event.title.substring(0, 50)
-                    });
-                    impactOccurred('light');
-                  }}
-                />
-              </div>
+            {/* Список мероприятий с вкладками */}
+            <EventsList 
+              key={refreshTrigger}
+              onEventClick={(event) => {
+                setSelectedEvent(event);
+                reachGoal('event_view', { 
+                  event_id: event.id,
+                  event_title: event.title.substring(0, 50)
+                });
+                impactOccurred('light');
+              }}
+            />
 
-              {/* Debug информация только в режиме разработки */}
-              {import.meta.env.MODE === 'development' && (
+            {/* Debug информация только в режиме разработки */}
+            {import.meta.env.MODE === 'development' && (
+              <div className="p-4">
                 <DebugInfo className="mt-4" />
-              )}
-            </div>
+              </div>
+            )}
           </main>
         </>
       )}

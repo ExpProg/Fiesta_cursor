@@ -322,8 +322,6 @@ export class EventService {
       errors.push('Максимальное количество участников должно быть больше 0');
     }
 
-
-
     return {
       isValid: errors.length === 0,
       errors
@@ -368,6 +366,174 @@ export class EventService {
     }
     
     return 'Неизвестная ошибка';
+  }
+
+  /**
+   * Получить все мероприятия
+   */
+  static async getAll(limit: number = 20): Promise<ApiResponse<DatabaseEvent[]>> {
+    try {
+      console.log('🔍 EventService.getAll fetching all events');
+      
+      const { data, error } = await supabase
+        .from('events')
+        .select('*')
+        .order('date', { ascending: true })
+        .limit(limit);
+
+      if (error) {
+        console.error('❌ Supabase error in getAll:', error);
+        throw error;
+      }
+
+      console.log(`✅ Found ${data?.length || 0} total events`);
+      return { data: data || [], error: null };
+    } catch (error) {
+      console.error('❌ Error fetching all events:', error);
+      return { 
+        data: null, 
+        error: { message: `Не удалось получить все мероприятия: ${this.getErrorMessage(error)}` } 
+      };
+    }
+  }
+
+  /**
+   * Получить доступные мероприятия (активные, в будущем, есть места)
+   */
+  static async getAvailable(limit: number = 20): Promise<ApiResponse<DatabaseEvent[]>> {
+    try {
+      console.log('🔍 EventService.getAvailable fetching available events');
+      
+      const { data, error } = await supabase
+        .from('events')
+        .select('*')
+        .eq('status', 'active')
+        .gte('date', new Date().toISOString())
+        .order('date', { ascending: true })
+        .limit(limit);
+
+      if (error) {
+        console.error('❌ Supabase error in getAvailable:', error);
+        throw error;
+      }
+
+      // Фильтруем мероприятия с доступными местами
+      const availableEvents = (data || []).filter(event => {
+        if (event.max_participants === null) return true; // Неограниченное количество
+        return event.current_participants < event.max_participants;
+      });
+
+      console.log(`✅ Found ${availableEvents.length} available events`);
+      return { data: availableEvents, error: null };
+    } catch (error) {
+      console.error('❌ Error fetching available events:', error);
+      return { 
+        data: null, 
+        error: { message: `Не удалось получить доступные мероприятия: ${this.getErrorMessage(error)}` } 
+      };
+    }
+  }
+
+  /**
+   * Получить мероприятия пользователя (на которые он откликнулся и которые еще не прошли)
+   */
+  static async getUserEvents(telegramId: number, limit: number = 20): Promise<ApiResponse<DatabaseEvent[]>> {
+    try {
+      console.log('🔍 EventService.getUserEvents fetching user events for:', telegramId);
+      
+      // Получаем ID событий, на которые пользователь откликнулся
+      const { data: responses, error: responsesError } = await supabase
+        .from('event_responses')
+        .select('event_id')
+        .eq('user_telegram_id', telegramId)
+        .eq('response_status', 'attending');
+
+      if (responsesError) {
+        console.error('❌ Supabase error getting user responses:', responsesError);
+        throw responsesError;
+      }
+
+      if (!responses || responses.length === 0) {
+        console.log('ℹ️ No user responses found');
+        return { data: [], error: null };
+      }
+
+      const eventIds = responses.map(r => r.event_id);
+
+      // Получаем сами события
+      const { data, error } = await supabase
+        .from('events')
+        .select('*')
+        .in('id', eventIds)
+        .gte('date', new Date().toISOString()) // Только будущие события
+        .order('date', { ascending: true })
+        .limit(limit);
+
+      if (error) {
+        console.error('❌ Supabase error in getUserEvents:', error);
+        throw error;
+      }
+
+      console.log(`✅ Found ${data?.length || 0} user events`);
+      return { data: data || [], error: null };
+    } catch (error) {
+      console.error('❌ Error fetching user events:', error);
+      return { 
+        data: null, 
+        error: { message: `Не удалось получить мероприятия пользователя: ${this.getErrorMessage(error)}` } 
+      };
+    }
+  }
+
+  /**
+   * Получить архивные мероприятия пользователя (прошедшие, на которые он откликнулся)
+   */
+  static async getUserArchive(telegramId: number, limit: number = 20): Promise<ApiResponse<DatabaseEvent[]>> {
+    try {
+      console.log('🔍 EventService.getUserArchive fetching archive events for:', telegramId);
+      
+      // Получаем ID событий, на которые пользователь откликнулся
+      const { data: responses, error: responsesError } = await supabase
+        .from('event_responses')
+        .select('event_id')
+        .eq('user_telegram_id', telegramId)
+        .eq('response_status', 'attending');
+
+      if (responsesError) {
+        console.error('❌ Supabase error getting user responses:', responsesError);
+        throw responsesError;
+      }
+
+      if (!responses || responses.length === 0) {
+        console.log('ℹ️ No user responses found for archive');
+        return { data: [], error: null };
+      }
+
+      const eventIds = responses.map(r => r.event_id);
+
+      // Получаем прошедшие события
+      const { data, error } = await supabase
+        .from('events')
+        .select('*')
+        .in('id', eventIds)
+        .lt('date', new Date().toISOString()) // Только прошедшие события
+        .order('date', { ascending: false }) // Сначала более свежие
+        .limit(limit);
+
+      if (error) {
+        console.error('❌ Supabase error in getUserArchive:', error);
+        throw error;
+      }
+
+      console.log(`✅ Found ${data?.length || 0} archive events`);
+      return { data: data || [], error: null };
+    } catch (error) {
+      console.error('❌ Error fetching archive events:', error);
+      return { 
+        data: null, 
+        error: { message: `Не удалось получить архив мероприятий: ${this.getErrorMessage(error)}` } 
+      };
+    }
   }
 }
 
