@@ -51,12 +51,34 @@ export const EventsList: React.FC<EventsListProps> = ({
 
   // Если выбрана вкладка "Приглашения", отображаем InvitationsList
   if (activeTab === 'invitations') {
-    return (
-      <div className="w-full">
-        <TabNavigation activeTab={activeTab} onTabChange={setActiveTab} />
-        <InvitationsList onEventClick={handleEventClick} />
-      </div>
-    );
+    try {
+      return (
+        <div className="w-full">
+          <TabNavigation activeTab={activeTab} onTabChange={setActiveTab} />
+          <InvitationsList onEventClick={handleEventClick} />
+        </div>
+      );
+    } catch (error) {
+      console.error('❌ Error rendering InvitationsList:', error);
+      return (
+        <div className="w-full">
+          <TabNavigation activeTab={activeTab} onTabChange={setActiveTab} />
+          <div className="p-6">
+            <h2 className="text-2xl font-bold text-gray-800 mb-6">Приглашения</h2>
+            <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
+              <div className="text-red-600 mb-2">⚠️ Ошибка компонента</div>
+              <div className="text-gray-600">Произошла ошибка при загрузке приглашений</div>
+              <button
+                onClick={() => window.location.reload()}
+                className="mt-4 bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors"
+              >
+                Обновить страницу
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
   }
 
   useEffect(() => {
