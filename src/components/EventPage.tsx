@@ -495,16 +495,15 @@ export const EventPage: React.FC<EventPageProps> = ({
               {/* Управление приглашениями для частных мероприятий */}
               {updatedEvent.is_private && (
                 <div className="mt-6 border-t pt-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <h4 className="text-lg font-semibold text-gray-900">Управление приглашениями</h4>
-                    <button
-                      onClick={() => setShowInviteManagement(!showInviteManagement)}
-                      className="flex items-center py-2 px-4 bg-purple-100 hover:bg-purple-200 text-purple-700 rounded-lg transition-colors"
-                    >
-                      <Lock className="w-4 h-4 mr-2" />
-                      {showInviteManagement ? 'Скрыть' : 'Пригласить пользователей'}
-                    </button>
-                  </div>
+                  <h4 className="text-lg font-semibold text-gray-900 mb-4">Управление приглашениями</h4>
+                  
+                  <button
+                    onClick={() => setShowInviteManagement(!showInviteManagement)}
+                    className="w-full flex items-center justify-center py-3 px-4 bg-purple-100 hover:bg-purple-200 text-purple-700 rounded-lg transition-colors mb-4"
+                  >
+                    <Lock className="w-4 h-4 mr-2" />
+                    {showInviteManagement ? 'Скрыть управление приглашениями' : 'Пригласить пользователей'}
+                  </button>
                   
                   {showInviteManagement && (
                     <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
