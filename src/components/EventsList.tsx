@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { EventService } from '@/services/eventService';
 import { getEventGradient } from '@/utils/gradients';
+import { useYandexMetrika } from '@/hooks/useYandexMetrika';
 import type { DatabaseEvent } from '@/types/database';
 import { Calendar, MapPin, Users, Star, Clock } from 'lucide-react';
 
@@ -19,6 +20,7 @@ export const EventsList: React.FC<EventsListProps> = ({
   showPopular = false,
   onEventClick
 }) => {
+  const { reachGoal } = useYandexMetrika();
   const [events, setEvents] = useState<DatabaseEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -234,6 +236,10 @@ export const EventsList: React.FC<EventsListProps> = ({
                       onClick={(e) => {
                         e.stopPropagation();
                         if (event.map_url) {
+                          reachGoal('map_click', {
+                            event_id: event.id,
+                            event_title: event.title.substring(0, 30)
+                          });
                           window.open(event.map_url, '_blank', 'noopener,noreferrer');
                         }
                       }}

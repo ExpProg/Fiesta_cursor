@@ -10,6 +10,7 @@ import { DebugInfo } from '@/components/DebugInfo';
 import { TestMode } from '@/components/TestMode';
 import { useTelegramTheme } from '@/hooks/useTelegramTheme';
 import { useEventSharing } from '@/hooks/useEventSharing';
+import { useYandexMetrika } from '@/hooks/useYandexMetrika';
 import { CreateEventForm } from './components/CreateEventForm';
 import { CreateEventPage } from './components/CreateEventPage';
 import { EventsList } from './components/EventsList';
@@ -31,6 +32,7 @@ function AppContent() {
   const { user: telegramUser, impactOccurred, isInitialized } = useTelegram();
   const { isDark } = useTelegramTheme();
   const { sharedEvent, isLoadingSharedEvent, sharedEventError, clearSharedEvent } = useEventSharing();
+  const { reachGoal, userParams } = useYandexMetrika();
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [user, setUser] = useState<DatabaseUser | null>(null);
@@ -70,6 +72,18 @@ function AppContent() {
         console.log('✅ User initialized successfully:', userData);
         
         setUser(userData);
+        
+        // Отправляем данные пользователя в Яндекс.Метрику
+        userParams({
+          telegram_id: telegramUser.id,
+          first_name: telegramUser.first_name,
+          username: telegramUser.username || 'no_username',
+          language_code: telegramUser.language_code || 'unknown'
+        });
+        
+        // Отмечаем успешную инициализацию
+        reachGoal('user_initialized');
+        
         // Добавляем тактильную обратную связь при успешной инициализации
         impactOccurred('light');
       } catch (err) {
@@ -245,6 +259,7 @@ function AppContent() {
           onSuccess={(eventId) => {
             console.log('✅ Event created with ID:', eventId);
             setShowCreateEvent(false);
+            reachGoal('event_created', { event_id: eventId });
             impactOccurred('medium');
             // Обновляем список мероприятий
             setRefreshTrigger(prev => prev + 1);
@@ -366,6 +381,7 @@ function AppContent() {
                           onClick={() => {
                             setShowCreateEvent(true);
                             setShowMenu(false);
+                            reachGoal('create_event_start');
                             impactOccurred('light');
                           }}
                         >
@@ -390,6 +406,10 @@ function AppContent() {
                   showUpcoming={true}
                   onEventClick={(event) => {
                     setSelectedEvent(event);
+                    reachGoal('event_view', { 
+                      event_id: event.id,
+                      event_title: event.title.substring(0, 50)
+                    });
                     impactOccurred('light');
                   }}
                 />

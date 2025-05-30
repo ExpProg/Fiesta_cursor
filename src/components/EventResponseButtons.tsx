@@ -4,6 +4,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Check, X, Clock } from 'lucide-react';
+import { useYandexMetrika } from '@/hooks/useYandexMetrika';
 import { 
   getUserResponseStatus, 
   respondToEvent, 
@@ -33,6 +34,7 @@ export const EventResponseButtons: React.FC<EventResponseButtonsProps> = ({
   onResponseChange,
   className = ''
 }) => {
+  const { reachGoal } = useYandexMetrika();
   const [userResponse, setUserResponse] = useState<ResponseStatus | null>(null);
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState<ResponseStatus | null>(null);
@@ -103,6 +105,13 @@ export const EventResponseButtons: React.FC<EventResponseButtonsProps> = ({
         setUserResponse(newStatus);
         setShowChangeOptions(false);
         onResponseChange?.(newStatus);
+        
+        // Отправляем событие в Яндекс.Метрику
+        reachGoal('event_response', {
+          event_id: event.id,
+          response_status: newStatus,
+          event_title: event.title.substring(0, 30)
+        });
         
         // Показываем успешное уведомление
         if (typeof window !== 'undefined' && 'Telegram' in window) {
