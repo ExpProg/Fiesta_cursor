@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, X, Users, UserCheck, Phone, Search } from 'lucide-react';
-import { useTelegramWebApp } from '@/hooks/useTelegramWebApp';
+import { X, Users, UserCheck, Search } from 'lucide-react';
 import { useYandexMetrika } from '@/hooks/useYandexMetrika';
 import { UserService } from '@/services/userService';
 import type { InvitedUser } from '@/types/database';
@@ -18,9 +17,7 @@ export const InviteUsersField: React.FC<InviteUsersFieldProps> = ({
   isPrivate,
   className = ''
 }) => {
-  const { switchInlineQuery } = useTelegramWebApp();
   const { reachGoal } = useYandexMetrika();
-  const [showAddForm, setShowAddForm] = useState(false);
   const [showSearchForm, setShowSearchForm] = useState(false);
   const [isSearchingUser, setIsSearchingUser] = useState(false);
   const [newUser, setNewUser] = useState({
@@ -55,91 +52,11 @@ export const InviteUsersField: React.FC<InviteUsersFieldProps> = ({
     
     // Сбрасываем форму
     resetForm();
-    setShowAddForm(false);
     setShowSearchForm(false);
   };
 
   const handleRemoveUser = (telegramId: number) => {
     onInvitedUsersChange(invitedUsers.filter(user => user.telegram_id !== telegramId));
-  };
-
-  const handleInviteFromContacts = async () => {
-    try {
-      reachGoal('invite_users_share_invitation_attempt');
-      
-      console.log('=== Диагностика Telegram WebApp ===');
-      console.log('window:', typeof window);
-      console.log('window.Telegram:', typeof window !== 'undefined' ? window.Telegram : 'undefined');
-      console.log('window.Telegram.WebApp:', typeof window !== 'undefined' && window.Telegram ? window.Telegram.WebApp : 'undefined');
-      // @ts-ignore
-      console.log('switchInlineQuery:', typeof window !== 'undefined' && window.Telegram?.WebApp ? window.Telegram.WebApp.switchInlineQuery : 'undefined');
-      
-      // Проверяем доступность Telegram WebApp API
-      if (typeof window === 'undefined' || !window.Telegram?.WebApp) {
-        throw new Error('Telegram WebApp недоступен');
-      }
-      
-      // @ts-ignore
-      if (!window.Telegram.WebApp.switchInlineQuery) {
-        throw new Error('switchInlineQuery функция недоступна в данной версии Telegram');
-      }
-      
-      // Формируем сообщение приглашения
-      const inviteMessage = '🎉 Приглашаю тебя на мероприятие! Присоединяйся через бота.';
-      
-      console.log('Вызываем switchInlineQuery с параметрами:', inviteMessage, ['users']);
-      
-      // Вызываем switchInlineQuery напрямую
-      // @ts-ignore
-      window.Telegram.WebApp.switchInlineQuery(inviteMessage, ['users']);
-      
-      reachGoal('invite_users_share_invitation_success');
-      
-      // Показываем уведомление об успехе
-      alert('Выберите контакт для отправки приглашения');
-      
-    } catch (error) {
-      console.error('=== Ошибка sharing invitation ===');
-      console.error('Error object:', error);
-      console.error('Error message:', error instanceof Error ? error.message : 'Unknown error');
-      console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace');
-      
-      reachGoal('invite_users_share_invitation_error');
-      
-      // Обрабатываем специфичную ошибку WebAppInlineModeDisabled
-      if (error instanceof Error && error.message.includes('WebAppInlineModeDisabled')) {
-        // Генерируем ссылку для ручной отправки
-        const botUsername = import.meta.env.VITE_TELEGRAM_BOT_USERNAME || 'your_bot'; 
-        const startParam = 'invite'; // Параметр для идентификации приглашения
-        const inviteLink = `https://t.me/${botUsername}?start=${startParam}`;
-        
-        // Копируем ссылку в буфер обмена
-        try {
-          await navigator.clipboard.writeText(inviteLink);
-          alert(`📋 Ссылка-приглашение скопирована в буфер обмена!\n\n${inviteLink}\n\nТеперь вы можете отправить её любому контакту в Telegram.`);
-          reachGoal('invite_users_link_copied_success');
-        } catch (clipboardError) {
-          // Если копирование не удалось, показываем ссылку для ручного копирования
-          alert(`📋 Скопируйте эту ссылку и отправьте её своим друзьям:\n\n${inviteLink}\n\n(Автоматическое копирование не поддерживается)`);
-          reachGoal('invite_users_link_shown');
-        }
-        
-        return;
-      }
-      
-      // Обработка других ошибок
-      if (error instanceof Error) {
-        if (error.message.includes('Telegram WebApp недоступен')) {
-          alert('Функция отправки приглашений доступна только в Telegram. Попробуйте добавить пользователей вручную или поделиться ссылкой на мероприятие.');
-        } else if (error.message.includes('switchInlineQuery функция недоступна')) {
-          alert('Функция отправки приглашений недоступна в данной версии Telegram. Попробуйте обновить Telegram или добавить пользователей вручную.');
-        } else {
-          alert(`Ошибка: ${error.message}`);
-        }
-      } else {
-        alert('Произошла ошибка при отправке приглашения. Попробуйте добавить пользователей вручную.');
-      }
-    }
   };
 
   // Обработчик поиска пользователя по username
@@ -312,15 +229,13 @@ export const InviteUsersField: React.FC<InviteUsersFieldProps> = ({
             )}
 
             <div className="flex gap-2 pt-2">
-              {newUser.telegram_id && newUser.first_name ? (
-                <button
-                  type="button"
-                  onClick={handleAddUser}
-                  className="flex-1 bg-green-600 text-white py-2 px-3 rounded-lg text-sm font-medium hover:bg-green-700 transition-colors"
-                >
-                  Добавить пользователя
-                </button>
-              ) : null}
+              <button
+                type="button"
+                onClick={handleAddUser}
+                className="flex-1 bg-green-600 text-white py-2 px-3 rounded-lg text-sm font-medium hover:bg-green-700 transition-colors"
+              >
+                Добавить пользователя
+              </button>
               
               <button
                 type="button"
@@ -337,91 +252,9 @@ export const InviteUsersField: React.FC<InviteUsersFieldProps> = ({
         </div>
       ) : null}
 
-      {/* Форма добавления нового пользователя */}
-      {showAddForm ? (
-        <div className="border border-gray-200 rounded-lg p-4 bg-gray-50 mb-3">
-          <div className="grid grid-cols-1 gap-3">
-            <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">
-                Telegram ID *
-              </label>
-              <input
-                type="number"
-                value={newUser.telegram_id}
-                onChange={(e) => setNewUser({ ...newUser, telegram_id: e.target.value })}
-                placeholder="123456789"
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
-              <p className="text-xs text-gray-500 mt-1">
-                Численный ID пользователя в Telegram
-              </p>
-            </div>
-
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">
-                  Имя *
-                </label>
-                <input
-                  type="text"
-                  value={newUser.first_name}
-                  onChange={(e) => setNewUser({ ...newUser, first_name: e.target.value })}
-                  placeholder="Иван"
-                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">
-                  Фамилия
-                </label>
-                <input
-                  type="text"
-                  value={newUser.last_name}
-                  onChange={(e) => setNewUser({ ...newUser, last_name: e.target.value })}
-                  placeholder="Иванов"
-                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">
-                Username
-              </label>
-              <input
-                type="text"
-                value={newUser.username}
-                onChange={(e) => setNewUser({ ...newUser, username: e.target.value.replace('@', '') })}
-                placeholder="username (без @)"
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
-            </div>
-
-            <div className="flex gap-2 pt-2">
-              <button
-                type="button"
-                onClick={handleAddUser}
-                className="flex-1 bg-blue-600 text-white py-2 px-3 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
-              >
-                Добавить
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setShowAddForm(false);
-                  resetForm();
-                }}
-                className="px-3 py-2 text-gray-600 bg-gray-200 rounded-lg text-sm font-medium hover:bg-gray-300 transition-colors"
-              >
-                Отмена
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : (
-        <div className="space-y-2">
-          {/* Кнопка поиска по username */}
+      {/* Кнопка поиска по username */}
+      {!showSearchForm && (
+        <div className="mb-3">
           <button
             type="button"
             onClick={() => setShowSearchForm(true)}
@@ -429,26 +262,6 @@ export const InviteUsersField: React.FC<InviteUsersFieldProps> = ({
           >
             <Search className="w-5 h-5 mr-2" />
             Найти по username
-          </button>
-          
-          {/* Кнопка отправки приглашений из контактов */}
-          <button
-            type="button"
-            onClick={handleInviteFromContacts}
-            className="w-full flex items-center justify-center py-3 px-4 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-          >
-            <Phone className="w-5 h-5 mr-2" />
-            Создать ссылку-приглашение
-          </button>
-          
-          {/* Кнопка ручного добавления */}
-          <button
-            type="button"
-            onClick={() => setShowAddForm(true)}
-            className="w-full flex items-center justify-center py-3 px-4 border-2 border-dashed border-gray-300 rounded-lg text-gray-600 hover:border-blue-500 hover:text-blue-600 transition-colors"
-          >
-            <Plus className="w-5 h-5 mr-2" />
-            Добавить вручную (Telegram ID)
           </button>
         </div>
       )}
@@ -460,27 +273,11 @@ export const InviteUsersField: React.FC<InviteUsersFieldProps> = ({
         <p>• <strong>Смогут принять или отклонить</strong> приглашение</p>
         <p>• <strong>Только приглашенные</strong> увидят это частное мероприятие</p>
         
-        <p className="mt-2">💡 <strong>Способы добавления пользователей:</strong></p>
-        <p>• <strong>Найти по username</strong> - автоматический поиск в базе данных</p>
-        <p>• <strong>Ссылка-приглашение</strong> - создайте ссылку для отправки друзьям</p>
-        <p>• <strong>Вручную</strong> - введите Telegram ID пользователя</p>
-        
         <p className="mt-2">🔍 <strong>Поиск по username:</strong></p>
         <p>• Введите username без символа @</p>
         <p>• Система найдет пользователя в базе данных</p>
         <p>• Автоматически заполнит все поля</p>
         <p>• Пользователь должен ранее заходить в приложение</p>
-        
-        <p className="mt-2">📱 <strong>Как найти Telegram ID:</strong></p>
-        <p>• Напишите боту @userinfobot</p>
-        <p>• Найдите в настройках Telegram (некоторые клиенты)</p>
-        <p>• Попросите друга проверить свой ID</p>
-        
-        <p className="mt-2">🔗 <strong>Как работает ссылка-приглашение:</strong></p>
-        <p>• Создается персональная ссылка на ваш бот</p>
-        <p>• Отправьте ее любому контакту в Telegram</p>
-        <p>• Получатель перейдет в бота и увидит мероприятие</p>
-        <p>• Автоматически добавится в список приглашенных</p>
       </div>
     </div>
   );
