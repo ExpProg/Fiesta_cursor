@@ -18,6 +18,7 @@ import { getEventGradient } from '@/utils/gradients';
 import { EventParticipants } from './EventParticipants';
 import { EventResponseButtons } from './EventResponseButtons';
 import { InviteUsersField } from './InviteUsersField';
+import { InvitationService } from '@/services/invitationService';
 import { useTelegram } from './TelegramProvider';
 import { useYandexMetrika } from '@/hooks/useYandexMetrika';
 import { supabase } from '@/hooks/useSupabase';
@@ -60,7 +61,11 @@ export const EventPage: React.FC<EventPageProps> = ({
   const [showParticipants, setShowParticipants] = useState(false);
   const [showInviteManagement, setShowInviteManagement] = useState(false);
   const [invitedUsers, setInvitedUsers] = useState<any[]>([]); // Будем загружать из БД
+  const [isSavingInvitations, setIsSavingInvitations] = useState(false);
   
+  // Определяем, является ли текущий пользователь создателем мероприятия
+  const isCreator = currentUserId && updatedEvent.created_by === currentUserId;
+
   useEffect(() => {
     // Прокручиваем наверх при открытии страницы
     window.scrollTo(0, 0);
@@ -112,6 +117,39 @@ export const EventPage: React.FC<EventPageProps> = ({
     fetchOrganizerInfo();
   }, [updatedEvent.created_by]);
 
+  // Загружаем существующие приглашения для частного мероприятия
+  useEffect(() => {
+    const fetchExistingInvitations = async () => {
+      if (!updatedEvent.is_private || !isCreator) return;
+      
+      try {
+        const { data, error } = await InvitationService.getEventInvitations(updatedEvent.id);
+        
+        if (error) {
+          console.error('Error fetching invitations:', error);
+          return;
+        }
+        
+        if (data) {
+          // Преобразуем приглашения в формат InvitedUser
+          const existingUsers = data.map(invitation => ({
+            telegram_id: invitation.invited_telegram_id,
+            first_name: invitation.invited_first_name,
+            last_name: invitation.invited_last_name,
+            username: invitation.invited_username
+          }));
+          
+          setInvitedUsers(existingUsers);
+          console.log('✅ Loaded existing invitations:', existingUsers.length);
+        }
+      } catch (error) {
+        console.error('Error fetching existing invitations:', error);
+      }
+    };
+
+    fetchExistingInvitations();
+  }, [updatedEvent.id, updatedEvent.is_private, isCreator]);
+
   // Обработчик изменения отклика - обновляет данные мероприятия из БД
   const handleResponseChange = async (newResponse: ResponseStatus | null) => {
     console.log('User response changed to:', newResponse);
@@ -151,8 +189,6 @@ export const EventPage: React.FC<EventPageProps> = ({
     // Используем сохраненный градиент или генерируем детерминированный
     return getEventGradient(event);
   };
-
-  const isCreator = currentUserId && updatedEvent.created_by === currentUserId;
 
   // Определяем, настроен ли Telegram бот
   const telegramBotUsername = import.meta.env.VITE_TELEGRAM_BOT_USERNAME;
@@ -272,6 +308,49 @@ export const EventPage: React.FC<EventPageProps> = ({
       alert('Произошла ошибка при копировании ссылки.');
     } finally {
       setIsCopyingLink(false);
+    }
+  };
+
+  // Обработчик изменения списка приглашенных - сохраняем в БД
+  const handleInvitedUsersChange = async (newInvitedUsers: any[]) => {
+    setInvitedUsers(newInvitedUsers);
+    
+    // Если мероприятие частное и пользователь - создатель, сохраняем приглашения
+    if (updatedEvent.is_private && isCreator && currentUserId) {
+      setIsSavingInvitations(true);
+      
+      try {
+        // Находим новых пользователей (которых еще нет в списке)
+        const existingUserIds = invitedUsers.map(user => user.telegram_id);
+        const newUsers = newInvitedUsers.filter(user => !existingUserIds.includes(user.telegram_id));
+        
+        // Добавляем новых пользователей в базу данных
+        for (const user of newUsers) {
+          const result = await InvitationService.addInvitation(
+            updatedEvent.id,
+            currentUserId,
+            user
+          );
+          
+          if (result.error) {
+            console.error('Error adding invitation:', result.error);
+            // Можно показать уведомление об ошибке
+          } else {
+            console.log('✅ Invitation added for user:', user.telegram_id);
+            
+            // Отслеживаем успешное добавление приглашения
+            reachGoal('invitation_added_success', {
+              event_id: updatedEvent.id,
+              invited_user_id: user.telegram_id,
+              event_title: updatedEvent.title.substring(0, 30)
+            });
+          }
+        }
+      } catch (error) {
+        console.error('Error saving invitations:', error);
+      } finally {
+        setIsSavingInvitations(false);
+      }
     }
   };
 
@@ -507,9 +586,16 @@ export const EventPage: React.FC<EventPageProps> = ({
                   
                   {showInviteManagement && (
                     <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                      {isSavingInvitations && (
+                        <div className="mb-3 p-2 bg-blue-50 border border-blue-200 rounded-lg flex items-center text-sm text-blue-700">
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></div>
+                          Сохранение приглашений...
+                        </div>
+                      )}
+                      
                       <InviteUsersField
                         invitedUsers={invitedUsers}
-                        onInvitedUsersChange={setInvitedUsers}
+                        onInvitedUsersChange={handleInvitedUsersChange}
                         isPrivate={true}
                       />
                     </div>
