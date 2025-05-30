@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import { EditEventForm } from './EditEventForm';
+import { useYandexMetrika } from '@/hooks/useYandexMetrika';
 import type { DatabaseEvent } from '@/types/database';
 
 interface EditEventPageProps {
@@ -14,6 +15,7 @@ export const EditEventPage: React.FC<EditEventPageProps> = ({
   onBack,
   onSuccess
 }) => {
+  const { reachGoal } = useYandexMetrika();
   const [hasChanges, setHasChanges] = useState(false);
   const [originalData, setOriginalData] = useState<any>(null);
 
@@ -29,7 +31,13 @@ export const EditEventPage: React.FC<EditEventPageProps> = ({
       map_url: event.map_url,
       max_participants: event.max_participants
     });
-  }, [event]);
+    
+    // Отслеживаем открытие страницы редактирования
+    reachGoal('edit_event_page_opened', { 
+      event_id: event.id,
+      event_title: event.title.substring(0, 30)
+    });
+  }, [event, reachGoal]);
 
   useEffect(() => {
     // Прокручиваем наверх при открытии страницы
@@ -42,8 +50,12 @@ export const EditEventPage: React.FC<EditEventPageProps> = ({
         'У вас есть несохраненные изменения. Вы уверены, что хотите покинуть страницу без сохранения?'
       );
       if (!confirmed) {
+        reachGoal('edit_event_cancel_declined');
         return;
       }
+      reachGoal('edit_event_cancelled_with_changes', { event_id: event.id });
+    } else {
+      reachGoal('edit_event_back_clicked', { event_id: event.id });
     }
     onBack();
   };
@@ -62,11 +74,20 @@ export const EditEventPage: React.FC<EditEventPageProps> = ({
       formData.map_url !== originalData.map_url ||
       formData.max_participants !== originalData.max_participants;
     
+    if (hasDataChanges && !hasChanges) {
+      // Первое изменение в форме
+      reachGoal('edit_event_form_first_change', { event_id: event.id });
+    }
+    
     setHasChanges(hasDataChanges);
   };
 
   const handleSuccess = (eventId: string) => {
     setHasChanges(false);
+    reachGoal('edit_event_form_submitted_success', { 
+      event_id: eventId,
+      original_event_id: event.id
+    });
     onSuccess(eventId);
   };
 

@@ -1,5 +1,6 @@
 import { supabase } from '@/hooks/useSupabase';
 import { generateRandomGradient } from '@/utils/gradients';
+import { InvitationService } from './invitationService';
 import type { 
   DatabaseEvent, 
   DatabaseEventInsert, 
@@ -71,11 +72,10 @@ export class EventService {
         location: eventData.location || null, // обеспечиваем null вместо undefined
         map_url: eventData.map_url || null, // добавляем ссылку на карту
         max_participants: eventData.max_participants || null,
-  
-        current_participants: 0,
         created_by: createdBy,
         host_id: eventData.host_id || null,
-        status: 'active'
+        status: 'active',
+        is_private: eventData.is_private || false
       };
 
       console.log('📝 Event data prepared with event_time:', { eventTime, newEvent });
@@ -89,6 +89,22 @@ export class EventService {
       if (error) {
         console.error('❌ Supabase error in create:', error);
         throw error;
+      }
+
+      // Если это частное мероприятие и есть приглашенные, создаем приглашения
+      if (eventData.is_private && eventData.invited_users && eventData.invited_users.length > 0) {
+        console.log('📧 Creating invitations for private event:', eventData.invited_users.length);
+        
+        const invitationResult = await InvitationService.createInvitations(
+          data.id,
+          createdBy,
+          eventData.invited_users
+        );
+
+        if (invitationResult.error) {
+          console.warn('⚠️ Error creating invitations:', invitationResult.error);
+          // Не останавливаем процесс создания мероприятия из-за ошибки приглашений
+        }
       }
 
       console.log('✅ Event created successfully:', data?.id);
@@ -320,6 +336,30 @@ export class EventService {
 
     if (eventData.max_participants !== undefined && eventData.max_participants < 1) {
       errors.push('Максимальное количество участников должно быть больше 0');
+    }
+
+    // Валидация для частных мероприятий
+    if (eventData.is_private) {
+      if (!eventData.invited_users || eventData.invited_users.length === 0) {
+        errors.push('Для частного мероприятия необходимо добавить хотя бы одного приглашенного пользователя');
+      } else {
+        // Проверяем каждого приглашенного пользователя
+        eventData.invited_users.forEach((user, index) => {
+          if (!user.telegram_id || user.telegram_id <= 0) {
+            errors.push(`Приглашенный пользователь #${index + 1}: некорректный Telegram ID`);
+          }
+          if (!user.first_name || user.first_name.trim().length === 0) {
+            errors.push(`Приглашенный пользователь #${index + 1}: имя обязательно`);
+          }
+        });
+
+        // Проверяем на дублирующиеся Telegram ID
+        const telegramIds = eventData.invited_users.map(user => user.telegram_id);
+        const uniqueIds = new Set(telegramIds);
+        if (telegramIds.length !== uniqueIds.size) {
+          errors.push('Найдены дублирующиеся Telegram ID в списке приглашенных');
+        }
+      }
     }
 
     return {

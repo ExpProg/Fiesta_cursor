@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import { CreateEventForm } from './CreateEventForm';
+import { useYandexMetrika } from '@/hooks/useYandexMetrika';
 
 interface CreateEventPageProps {
   onBack: () => void;
@@ -11,12 +12,16 @@ export const CreateEventPage: React.FC<CreateEventPageProps> = ({
   onBack,
   onSuccess
 }) => {
+  const { reachGoal } = useYandexMetrika();
   const [hasChanges, setHasChanges] = useState(false);
 
   useEffect(() => {
     // Прокручиваем наверх при открытии страницы
     window.scrollTo(0, 0);
-  }, []);
+    
+    // Отслеживаем открытие страницы создания
+    reachGoal('create_event_page_opened');
+  }, [reachGoal]);
 
   const handleBack = () => {
     if (hasChanges) {
@@ -24,18 +29,27 @@ export const CreateEventPage: React.FC<CreateEventPageProps> = ({
         'У вас есть несохраненные изменения. Вы уверены, что хотите покинуть страницу без сохранения?'
       );
       if (!confirmed) {
+        reachGoal('create_event_cancel_declined');
         return;
       }
+      reachGoal('create_event_cancelled_with_changes');
+    } else {
+      reachGoal('create_event_back_clicked');
     }
     onBack();
   };
 
   const handleFormChange = () => {
+    if (!hasChanges) {
+      // Первое изменение в форме
+      reachGoal('create_event_form_first_change');
+    }
     setHasChanges(true);
   };
 
   const handleSuccess = (eventId: string) => {
     setHasChanges(false);
+    reachGoal('create_event_form_submitted_success', { event_id: eventId });
     onSuccess(eventId);
   };
 
@@ -45,8 +59,12 @@ export const CreateEventPage: React.FC<CreateEventPageProps> = ({
         'У вас есть несохраненные изменения. Вы уверены, что хотите покинуть страницу без сохранения?'
       );
       if (!confirmed) {
+        reachGoal('create_event_cancel_declined');
         return;
       }
+      reachGoal('create_event_cancelled_with_changes');
+    } else {
+      reachGoal('create_event_cancelled_no_changes');
     }
     setHasChanges(false);
     onBack();

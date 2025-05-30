@@ -17,6 +17,7 @@ import { getEventGradient } from '@/utils/gradients';
 import { EventParticipants } from './EventParticipants';
 import { EventResponseButtons } from './EventResponseButtons';
 import { useTelegram } from './TelegramProvider';
+import { useYandexMetrika } from '@/hooks/useYandexMetrika';
 import { supabase } from '@/hooks/useSupabase';
 
 interface EventPageProps {
@@ -41,6 +42,7 @@ export const EventPage: React.FC<EventPageProps> = ({
   userUsername
 }) => {
   const { impactOccurred } = useTelegram();
+  const { reachGoal } = useYandexMetrika();
   const [isSharing, setIsSharing] = useState(false);
   const [shareSuccess, setShareSuccess] = useState(false);
   const [isCopyingLink, setIsCopyingLink] = useState(false);
@@ -58,7 +60,17 @@ export const EventPage: React.FC<EventPageProps> = ({
   useEffect(() => {
     // Прокручиваем наверх при открытии страницы
     window.scrollTo(0, 0);
-  }, []);
+    
+    // Отслеживаем просмотр страницы мероприятия
+    reachGoal('event_page_viewed', {
+      event_id: event.id,
+      event_title: event.title.substring(0, 30),
+      is_creator: currentUserId === event.created_by,
+      has_image: !!event.image_url,
+      has_location: !!event.location,
+      participant_count: event.current_participants
+    });
+  }, [event, currentUserId, reachGoal]);
 
   // Обновляем локальное состояние мероприятия при изменении props
   useEffect(() => {
@@ -148,6 +160,13 @@ export const EventPage: React.FC<EventPageProps> = ({
     setIsSharing(true);
     setShareSuccess(false);
     
+    // Отслеживаем попытку поделиться
+    reachGoal('event_share_clicked', {
+      event_id: updatedEvent.id,
+      event_title: updatedEvent.title.substring(0, 30),
+      share_method: 'share_button'
+    });
+    
     try {
       const shareData = {
         eventId: updatedEvent.id,
@@ -161,6 +180,13 @@ export const EventPage: React.FC<EventPageProps> = ({
       if (result.success) {
         setShareSuccess(true);
         
+        // Отслеживаем успешное поделиться
+        reachGoal('event_share_success', {
+          event_id: updatedEvent.id,
+          share_method: result.method || 'unknown',
+          event_title: updatedEvent.title.substring(0, 30)
+        });
+        
         // Тактильная обратная связь
         impactOccurred('medium');
         
@@ -169,11 +195,19 @@ export const EventPage: React.FC<EventPageProps> = ({
           setShareSuccess(false);
         }, 2000);
       } else {
+        reachGoal('event_share_failed', {
+          event_id: updatedEvent.id,
+          error: 'share_failed'
+        });
         impactOccurred('heavy');
         alert('Не удалось поделиться событием. Попробуйте ещё раз.');
       }
     } catch (error) {
       console.error('Share error:', error);
+      reachGoal('event_share_failed', {
+        event_id: updatedEvent.id,
+        error: error instanceof Error ? error.message : 'unknown_error'
+      });
       impactOccurred('heavy');
       alert('Произошла ошибка при попытке поделиться событием.');
     } finally {
@@ -185,6 +219,13 @@ export const EventPage: React.FC<EventPageProps> = ({
     setIsCopyingLink(true);
     setCopyLinkSuccess(false);
     
+    // Отслеживаем попытку копирования ссылки
+    reachGoal('event_copy_link_clicked', {
+      event_id: updatedEvent.id,
+      event_title: updatedEvent.title.substring(0, 30),
+      link_type: hasTelegramBot ? 'telegram' : 'web'
+    });
+    
     try {
       // Используем Telegram Web App ссылку если бот настроен, иначе обычную веб-ссылку
       const linkUrl = generateTelegramWebAppUrl(updatedEvent.id);
@@ -193,6 +234,13 @@ export const EventPage: React.FC<EventPageProps> = ({
       if (success) {
         setCopyLinkSuccess(true);
         impactOccurred('light');
+        
+        // Отслеживаем успешное копирование
+        reachGoal('event_copy_link_success', {
+          event_id: updatedEvent.id,
+          link_type: hasTelegramBot ? 'telegram' : 'web',
+          event_title: updatedEvent.title.substring(0, 30)
+        });
         
         // Показываем информативное сообщение о типе ссылки
         const linkType = hasTelegramBot ? 'Telegram-ссылка' : 'Веб-ссылка';
@@ -203,11 +251,19 @@ export const EventPage: React.FC<EventPageProps> = ({
           setCopyLinkSuccess(false);
         }, 2000);
       } else {
+        reachGoal('event_copy_link_failed', {
+          event_id: updatedEvent.id,
+          error: 'copy_failed'
+        });
         impactOccurred('heavy');
         alert('Не удалось скопировать ссылку. Попробуйте ещё раз.');
       }
     } catch (error) {
       console.error('Copy link error:', error);
+      reachGoal('event_copy_link_failed', {
+        event_id: updatedEvent.id,
+        error: error instanceof Error ? error.message : 'unknown_error'
+      });
       impactOccurred('heavy');
       alert('Произошла ошибка при копировании ссылки.');
     } finally {
@@ -239,7 +295,12 @@ export const EventPage: React.FC<EventPageProps> = ({
         <div className="absolute top-4 left-4 right-4 flex justify-between items-start">
           {/* Кнопка назад */}
           <button
-            onClick={onBack}
+            onClick={() => {
+              reachGoal('event_back_clicked', {
+                event_id: event.id
+              });
+              onBack();
+            }}
             className="bg-black/50 text-white p-3 rounded-full hover:bg-black/70 transition-colors"
             title="Назад к списку мероприятий"
           >
@@ -249,13 +310,24 @@ export const EventPage: React.FC<EventPageProps> = ({
 
         {/* Статус мероприятия */}
         <div className="absolute top-4 left-1/2 transform -translate-x-1/2">
-          <span className={`px-4 py-2 rounded-full text-sm font-medium ${
-            updatedEvent.status === 'active' 
-              ? 'bg-green-100 text-green-800' 
-              : 'bg-gray-100 text-gray-600'
-          }`}>
-            {updatedEvent.status === 'active' ? 'Активно' : 'Завершено'}
-          </span>
+          <div className="flex gap-2">
+            <span className={`px-4 py-2 rounded-full text-sm font-medium ${
+              updatedEvent.status === 'active' 
+                ? 'bg-green-100 text-green-800' 
+                : 'bg-gray-100 text-gray-600'
+            }`}>
+              {updatedEvent.status === 'active' ? 'Активно' : 'Завершено'}
+            </span>
+            
+            {updatedEvent.is_private && (
+              <span className="px-3 py-2 rounded-full text-sm font-medium bg-purple-100 text-purple-800 flex items-center">
+                <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
+                </svg>
+                Частное
+              </span>
+            )}
+          </div>
         </div>
 
         {/* Заголовок */}
@@ -304,6 +376,13 @@ export const EventPage: React.FC<EventPageProps> = ({
                       href={updatedEvent.map_url}
                       target="_blank"
                       rel="noopener noreferrer"
+                      onClick={() => {
+                        reachGoal('event_location_map_clicked', {
+                          event_id: updatedEvent.id,
+                          event_title: updatedEvent.title.substring(0, 30),
+                          location: updatedEvent.location?.substring(0, 50)
+                        });
+                      }}
                       className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer transition-colors"
                       title="Открыть на карте"
                     >
@@ -412,7 +491,13 @@ export const EventPage: React.FC<EventPageProps> = ({
               {/* Кнопки управления для создателя */}
               <div className="flex gap-3 justify-center">
                 <button
-                  onClick={() => onEdit && onEdit(event)}
+                  onClick={() => {
+                    reachGoal('event_edit_clicked', {
+                      event_id: event.id,
+                      event_title: event.title.substring(0, 30)
+                    });
+                    onEdit && onEdit(event);
+                  }}
                   className="flex items-center justify-center py-2 px-4 bg-orange-100 hover:bg-orange-200 text-orange-700 rounded-lg transition-colors"
                   title="Редактировать мероприятие"
                 >
@@ -422,8 +507,21 @@ export const EventPage: React.FC<EventPageProps> = ({
                 
                 <button
                   onClick={() => {
+                    reachGoal('event_delete_clicked', {
+                      event_id: event.id,
+                      event_title: event.title.substring(0, 30)
+                    });
+                    
                     if (window.confirm('Вы уверены, что хотите удалить это мероприятие? Это действие нельзя отменить.')) {
+                      reachGoal('event_delete_confirmed', {
+                        event_id: event.id,
+                        event_title: event.title.substring(0, 30)
+                      });
                       onDelete && onDelete(event.id);
+                    } else {
+                      reachGoal('event_delete_cancelled', {
+                        event_id: event.id
+                      });
                     }
                   }}
                   className="flex items-center justify-center py-2 px-4 bg-red-100 hover:bg-red-200 text-red-700 rounded-lg transition-colors"

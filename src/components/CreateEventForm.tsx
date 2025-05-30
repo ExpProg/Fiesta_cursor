@@ -1,7 +1,10 @@
 import React, { useState } from 'react';
 import { useTelegram } from './TelegramProvider';
 import { EventService } from '@/services/eventService';
-import type { CreateEventData } from '@/types/database';
+import { useYandexMetrika } from '@/hooks/useYandexMetrika';
+import { InviteUsersField } from './InviteUsersField';
+import type { CreateEventData, InvitedUser } from '@/types/database';
+import { Lock, Globe } from 'lucide-react';
 
 interface CreateEventFormProps {
   onSuccess?: (eventId: string) => void;
@@ -17,6 +20,7 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({
   className = ''
 }) => {
   const { user: telegramUser, impactOccurred } = useTelegram();
+  const { reachGoal } = useYandexMetrika();
   
   // Состояния формы
   const [formData, setFormData] = useState<CreateEventData>({
@@ -26,7 +30,9 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({
     date: '',
     location: '',
     map_url: '',
-    max_participants: undefined
+    max_participants: undefined,
+    is_private: false,
+    invited_users: []
   });
 
   const [isLoading, setIsLoading] = useState(false);
@@ -43,6 +49,7 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({
       ...prev,
       [name]: type === 'number' ? 
         (value === '' ? undefined : Number(value)) : 
+        type === 'checkbox' ? (e.target as HTMLInputElement).checked :
         value
     }));
 
@@ -53,6 +60,25 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({
     if (errors.length > 0) {
       setErrors([]);
     }
+  };
+
+  // Обработчик переключения приватности
+  const handlePrivacyToggle = (isPrivate: boolean) => {
+    setFormData(prev => ({
+      ...prev,
+      is_private: isPrivate,
+      invited_users: isPrivate ? prev.invited_users : []
+    }));
+    onFormChange?.();
+  };
+
+  // Обработчик изменения списка приглашенных
+  const handleInvitedUsersChange = (users: InvitedUser[]) => {
+    setFormData(prev => ({
+      ...prev,
+      invited_users: users
+    }));
+    onFormChange?.();
   };
 
   // Форматирование даты для input[type="datetime-local"]
@@ -82,6 +108,12 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({
       return false;
     }
 
+    // Дополнительная валидация для частных мероприятий
+    if (formData.is_private && (!formData.invited_users || formData.invited_users.length === 0)) {
+      setErrors(['Для частного мероприятия необходимо добавить хотя бы одного приглашенного пользователя']);
+      return false;
+    }
+
     return true;
   };
 
@@ -89,13 +121,19 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    reachGoal('create_event_form_submit_attempt');
+    
     if (!telegramUser) {
       setErrors(['Пользователь не авторизован']);
+      reachGoal('create_event_form_submit_failed', { error: 'not_authorized' });
       return;
     }
 
     if (!validateForm()) {
       impactOccurred('light');
+      reachGoal('create_event_form_validation_failed', { 
+        errors_count: errors.length 
+      });
       return;
     }
 
@@ -119,6 +157,16 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({
 
       console.log('✅ Event created successfully:', response.data.id);
       
+      reachGoal('create_event_form_submit_success', {
+        event_id: response.data.id,
+        has_image: !!formData.image_url,
+        has_location: !!formData.location,
+        has_map_url: !!formData.map_url,
+        has_max_participants: !!formData.max_participants,
+        is_private: !!formData.is_private,
+        invited_users_count: formData.invited_users?.length || 0
+      });
+      
       setSuccess(true);
       impactOccurred('medium');
       
@@ -135,11 +183,18 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({
         date: '',
         location: '',
         map_url: '',
-        max_participants: undefined
+        max_participants: undefined,
+        is_private: false,
+        invited_users: []
       });
 
     } catch (error) {
       console.error('❌ Error creating event:', error);
+      
+      reachGoal('create_event_form_submit_error', {
+        error: error instanceof Error ? error.message : 'unknown_error'
+      });
+      
       setErrors([error instanceof Error ? error.message : 'Неизвестная ошибка']);
       impactOccurred('heavy');
     } finally {
@@ -149,6 +204,8 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({
 
   // Обработчик отмены
   const handleCancel = () => {
+    reachGoal('create_event_form_cancelled');
+    
     setFormData({
       title: '',
       description: '',
@@ -156,7 +213,9 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({
       date: '',
       location: '',
       map_url: '',
-      max_participants: undefined
+      max_participants: undefined,
+      is_private: false,
+      invited_users: []
     });
     setErrors([]);
     setSuccess(false);
@@ -175,17 +234,28 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({
             Мероприятие создано!
           </h2>
           <p className="text-gray-600 mb-6">
-            Ваше мероприятие "{formData.title}" успешно создано и опубликовано.
+            Ваше {formData.is_private ? 'частное ' : ''}мероприятие "{formData.title}" успешно создано и опубликовано.
+            {formData.is_private && formData.invited_users && formData.invited_users.length > 0 && (
+              <span className="block mt-2 text-sm">
+                Приглашения отправлены {formData.invited_users.length} пользователям.
+              </span>
+            )}
           </p>
           <div className="space-y-2">
             <button
-              onClick={() => setSuccess(false)}
+              onClick={() => {
+                reachGoal('create_event_success_create_another');
+                setSuccess(false);
+              }}
               className="w-full bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 transition-colors"
             >
               Создать еще одно мероприятие
             </button>
             <button
-              onClick={handleCancel}
+              onClick={() => {
+                reachGoal('create_event_success_close');
+                handleCancel();
+              }}
               className="w-full bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600 transition-colors"
             >
               Закрыть
@@ -229,6 +299,49 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({
       )}
 
       <form onSubmit={handleSubmit} className="space-y-6">
+        {/* Тип мероприятия */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-3">
+            Тип мероприятия
+          </label>
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              type="button"
+              onClick={() => handlePrivacyToggle(false)}
+              className={`p-4 rounded-lg border-2 transition-colors ${
+                !formData.is_private
+                  ? 'border-blue-500 bg-blue-50 text-blue-700'
+                  : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
+              }`}
+            >
+              <Globe className="w-6 h-6 mx-auto mb-2" />
+              <div className="font-medium">Публичное</div>
+              <div className="text-xs mt-1">Видно всем пользователям</div>
+            </button>
+            
+            <button
+              type="button"
+              onClick={() => handlePrivacyToggle(true)}
+              className={`p-4 rounded-lg border-2 transition-colors ${
+                formData.is_private
+                  ? 'border-purple-500 bg-purple-50 text-purple-700'
+                  : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
+              }`}
+            >
+              <Lock className="w-6 h-6 mx-auto mb-2" />
+              <div className="font-medium">Частное</div>
+              <div className="text-xs mt-1">Только для приглашенных</div>
+            </button>
+          </div>
+        </div>
+
+        {/* Приглашенные пользователи - только для частных мероприятий */}
+        <InviteUsersField
+          invitedUsers={formData.invited_users || []}
+          onInvitedUsersChange={handleInvitedUsersChange}
+          isPrivate={!!formData.is_private}
+        />
+
         {/* Название мероприятия */}
         <div>
           <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-2">
@@ -396,7 +509,7 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({
                 Создание...
               </span>
             ) : (
-              'Создать'
+              `Создать ${formData.is_private ? 'частное ' : ''}мероприятие`
             )}
           </button>
           

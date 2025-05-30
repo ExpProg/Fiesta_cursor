@@ -4,6 +4,7 @@ import { getEventGradient } from '@/utils/gradients';
 import { useYandexMetrika } from '@/hooks/useYandexMetrika';
 import { useTelegramWebApp } from '@/hooks/useTelegramWebApp';
 import { TabNavigation, TabType } from './TabNavigation';
+import { InvitationsList } from './InvitationsList';
 import type { DatabaseEvent } from '@/types/database';
 import { Calendar, MapPin, Users, Star, Clock } from 'lucide-react';
 
@@ -34,12 +35,40 @@ export const EventsList: React.FC<EventsListProps> = ({
       case 'all': return 'Все мероприятия';
       case 'available': return 'Доступные мероприятия';
       case 'my': return 'Мои мероприятия';
+      case 'invitations': return 'Приглашения';
       case 'archive': return 'Архив мероприятий';
       default: return 'Мероприятия';
     }
   };
 
+  const handleEventClick = (eventId: string) => {
+    // Находим полное мероприятие по ID
+    const event = events.find(e => e.id === eventId);
+    if (event && onEventClick) {
+      onEventClick(event);
+    }
+  };
+
+  // Если выбрана вкладка "Приглашения", отображаем InvitationsList
+  if (activeTab === 'invitations') {
+    return (
+      <div className="w-full">
+        <TabNavigation activeTab={activeTab} onTabChange={setActiveTab} />
+        <InvitationsList onEventClick={handleEventClick} />
+      </div>
+    );
+  }
+
   useEffect(() => {
+    console.log('🎯 Loading events for tab:', activeTab);
+    
+    // Отслеживаем загрузку вкладки
+    reachGoal('events_list_loaded', {
+      tab: activeTab,
+      tab_name: getTabTitle(activeTab),
+      user_id: user?.id
+    });
+    
     const fetchEvents = async () => {
       try {
         setLoading(true);
@@ -85,7 +114,7 @@ export const EventsList: React.FC<EventsListProps> = ({
     };
 
     fetchEvents();
-  }, [activeTab, user?.id]);
+  }, [activeTab, user]);
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -126,6 +155,12 @@ export const EventsList: React.FC<EventsListProps> = ({
           icon: '📋',
           title: 'Вы пока не участвуете в мероприятиях',
           subtitle: 'Выберите интересное событие во вкладке "Доступные"'
+        };
+      case 'invitations':
+        return {
+          icon: '📧',
+          title: 'У вас нет приглашений',
+          subtitle: 'Здесь будут отображаться приглашения на частные мероприятия'
         };
       case 'archive':
         return {
@@ -237,13 +272,24 @@ export const EventsList: React.FC<EventsListProps> = ({
                 
                 {/* Статус */}
                 <div className="absolute top-3 right-3">
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                    event.status === 'active' 
-                      ? 'bg-green-100 text-green-800' 
-                      : 'bg-gray-100 text-gray-600'
-                  }`}>
-                    {event.status === 'active' ? 'Активно' : 'Завершено'}
-                  </span>
+                  <div className="flex flex-col gap-1">
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                      event.status === 'active' 
+                        ? 'bg-green-100 text-green-800' 
+                        : 'bg-gray-100 text-gray-600'
+                    }`}>
+                      {event.status === 'active' ? 'Активно' : 'Завершено'}
+                    </span>
+                    
+                    {event.is_private && (
+                      <span className="px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800 flex items-center">
+                        <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
+                        </svg>
+                        Частное
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
 

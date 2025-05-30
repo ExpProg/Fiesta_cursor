@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { EventService } from '@/services/eventService';
+import { useYandexMetrika } from '@/hooks/useYandexMetrika';
 import type { DatabaseEvent, CreateEventData } from '@/types/database';
 import { Calendar, MapPin, FileText, Image, Users, X } from 'lucide-react';
 
@@ -18,6 +19,8 @@ export const EditEventForm: React.FC<EditEventFormProps> = ({
   onFormChange,
   className = ''
 }) => {
+  const { reachGoal } = useYandexMetrika();
+  
   // Инициализируем форму данными существующего мероприятия
   const [formData, setFormData] = useState<CreateEventData>({
     title: event.title,
@@ -55,6 +58,11 @@ export const EditEventForm: React.FC<EditEventFormProps> = ({
     e.preventDefault();
     setLoading(true);
     setError(null);
+    
+    reachGoal('edit_event_form_submit_attempt', {
+      event_id: event.id,
+      event_title: event.title.substring(0, 30)
+    });
 
     try {
       console.log('📝 Updating event:', event.id, formData);
@@ -63,6 +71,12 @@ export const EditEventForm: React.FC<EditEventFormProps> = ({
       const validation = EventService.validateEventData(formData);
       if (!validation.isValid) {
         setError(validation.errors.join('\n'));
+        
+        reachGoal('edit_event_form_validation_failed', {
+          event_id: event.id,
+          errors_count: validation.errors.length
+        });
+        
         return;
       }
 
@@ -90,14 +104,38 @@ export const EditEventForm: React.FC<EditEventFormProps> = ({
 
       if (result.error) {
         setError(result.error.message);
+        
+        reachGoal('edit_event_form_submit_error', {
+          event_id: event.id,
+          error: result.error.message
+        });
+        
         return;
       }
 
       console.log('✅ Event updated successfully:', result.data?.id);
+      
+      reachGoal('edit_event_form_submit_success', {
+        event_id: event.id,
+        changes_made: {
+          title_changed: formData.title !== event.title,
+          description_changed: formData.description !== (event.description || ''),
+          image_changed: formData.image_url !== (event.image_url || ''),
+          location_changed: formData.location !== (event.location || ''),
+          map_url_changed: formData.map_url !== (event.map_url || ''),
+          max_participants_changed: formData.max_participants !== event.max_participants
+        }
+      });
+      
       onSuccess(event.id);
     } catch (err) {
       console.error('❌ Error updating event:', err);
       setError(err instanceof Error ? err.message : 'Неизвестная ошибка');
+      
+      reachGoal('edit_event_form_submit_error', {
+        event_id: event.id,
+        error: err instanceof Error ? err.message : 'unknown_error'
+      });
     } finally {
       setLoading(false);
     }
@@ -263,7 +301,12 @@ export const EditEventForm: React.FC<EditEventFormProps> = ({
         <div className="flex space-x-3 pt-4">
           <button
             type="button"
-            onClick={onCancel}
+            onClick={() => {
+              reachGoal('edit_event_form_cancelled', {
+                event_id: event.id
+              });
+              onCancel();
+            }}
             className="flex-1 px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium transition-colors"
           >
             Отмена

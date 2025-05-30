@@ -1,6 +1,7 @@
 import React from 'react';
+import { useYandexMetrika } from '@/hooks/useYandexMetrika';
 
-export type TabType = 'all' | 'available' | 'my' | 'archive';
+export type TabType = 'all' | 'available' | 'my' | 'invitations' | 'archive';
 
 interface Tab {
   id: TabType;
@@ -17,6 +18,7 @@ const tabs: Tab[] = [
   { id: 'all', label: 'Все', icon: '' },
   { id: 'available', label: 'Доступные', icon: '' },
   { id: 'my', label: 'Мои', icon: '' },
+  { id: 'invitations', label: 'Приглашения', icon: '' },
   { id: 'archive', label: 'Архив', icon: '' }
 ];
 
@@ -24,8 +26,23 @@ export const TabNavigation: React.FC<TabNavigationProps> = ({
   activeTab,
   onTabChange
 }) => {
+  const { reachGoal } = useYandexMetrika();
+  
   console.log('🎯 TabNavigation rendering with activeTab:', activeTab);
   
+  const handleTabClick = (tabId: TabType) => {
+    console.log('🎯 Tab clicked:', tabId);
+    
+    // Отслеживаем переключение вкладок
+    reachGoal('tab_switched', {
+      from_tab: activeTab,
+      to_tab: tabId,
+      tab_name: tabs.find(t => t.id === tabId)?.label || tabId
+    });
+    
+    onTabChange(tabId);
+  };
+
   return (
     <div 
       className="bg-white border-b-2 border-blue-200 relative z-50 shadow-sm"
@@ -42,10 +59,7 @@ export const TabNavigation: React.FC<TabNavigationProps> = ({
           {tabs.map((tab) => (
             <button
               key={tab.id}
-              onClick={() => {
-                console.log('🎯 Tab clicked:', tab.id);
-                onTabChange(tab.id);
-              }}
+              onClick={() => handleTabClick(tab.id)}
               className={`flex-1 flex items-center justify-center py-4 px-2 text-sm font-medium border-b-3 transition-all duration-200 ${
                 activeTab === tab.id
                   ? 'border-blue-500 text-blue-600 bg-blue-50 shadow-sm'

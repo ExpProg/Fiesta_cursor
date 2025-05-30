@@ -55,16 +55,10 @@ export type ResponseStatus = 'attending' | 'not_attending' | 'maybe';
 export interface DatabaseUser {
   id: string;
   telegram_id: number;
-  username: string | null;
   first_name: string;
   last_name: string | null;
-  language_code: string;
-  avatar_url: string | null;
-  phone: string | null;
-  email: string | null;
-  bio: string | null;
-  is_premium: boolean;
-  is_verified: boolean;
+  username: string | null;
+  language_code: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -107,52 +101,50 @@ export interface DatabaseEvent {
   title: string;
   description: string | null;
   image_url: string | null;
-  gradient_background: string | null; // Градиент для фона если нет изображения
-  date: string; // TIMESTAMP WITH TIME ZONE - изменено с event_date на date
-  event_time: string | null; // TIME - поле времени в формате HH:MM:SS
+  date: string;
+  event_time: string | null;
   location: string | null;
-  map_url: string | null; // Ссылка на карту (Яндекс, Google Maps и т.д.)
+  map_url: string | null;
   max_participants: number | null;
   current_participants: number;
-  created_by: number; // telegram_id создателя
-  host_id: string | null;
+  status: 'active' | 'completed' | 'cancelled';
+  created_by: number;
+  host_id: number | null;
+  gradient_background: string | null;
+  is_private: boolean;
   created_at: string;
   updated_at: string;
-  status: 'active' | 'cancelled' | 'completed' | 'draft';
 }
 
 export interface DatabaseEventInsert {
-  id?: string;
   title: string;
   description?: string | null;
   image_url?: string | null;
-  gradient_background?: string | null; // Градиент для фона если нет изображения
-  date: string; // изменено с event_date на date
-  event_time?: string | null; // TIME - поле времени в формате HH:MM:SS
+  date: string;
+  event_time?: string | null;
   location?: string | null;
-  map_url?: string | null; // Ссылка на карту (Яндекс, Google Maps и т.д.)
+  map_url?: string | null;
   max_participants?: number | null;
-  current_participants?: number;
+  status?: 'active' | 'completed' | 'cancelled';
   created_by: number;
-  host_id?: string | null;
-  created_at?: string;
-  updated_at?: string;
-  status?: 'active' | 'cancelled' | 'completed' | 'draft';
+  host_id?: number | null;
+  gradient_background?: string | null;
+  is_private?: boolean;
 }
 
 export interface DatabaseEventUpdate {
   title?: string;
   description?: string | null;
   image_url?: string | null;
-  gradient_background?: string | null; // Градиент для фона если нет изображения
-  date?: string; // изменено с event_date на date
-  event_time?: string | null; // TIME - поле времени в формате HH:MM:SS
+  date?: string;
+  event_time?: string | null;
   location?: string | null;
-  map_url?: string | null; // Ссылка на карту (Яндекс, Google Maps и т.д.)
+  map_url?: string | null;
   max_participants?: number | null;
-  current_participants?: number;
-  host_id?: string | null;
-  status?: 'active' | 'cancelled' | 'completed' | 'draft';
+  status?: 'active' | 'completed' | 'cancelled';
+  host_id?: number | null;
+  gradient_background?: string | null;
+  is_private?: boolean;
   updated_at?: string;
 }
 
@@ -209,12 +201,14 @@ export interface CreateEventData {
   title: string;
   description?: string;
   image_url?: string;
-  gradient_background?: string; // Градиент для фона если нет изображения
-  date: string; // ISO string format - изменено с event_date на date
+  date: string;
+  event_time?: string | null;
   location?: string;
-  map_url?: string; // Ссылка на карту (Яндекс, Google Maps и т.д.)
+  map_url?: string;
   max_participants?: number;
-  host_id?: string;
+  host_id?: number;
+  is_private?: boolean;
+  invited_users?: InvitedUser[];
 }
 
 export interface UpdateEventData extends Partial<CreateEventData> {
@@ -384,6 +378,35 @@ export interface EventParticipant {
   username: string | null;
   response_status: ResponseStatus;
   responded_at: string;
-  // Вычисляемое поле для отображения имени
   display_name?: string;
+}
+
+// Новые типы для приглашений
+export interface EventInvitation {
+  id: string;
+  event_id: string;
+  invited_by_telegram_id: number;
+  invited_telegram_id: number;
+  invited_first_name: string;
+  invited_last_name: string | null;
+  invited_username: string | null;
+  status: 'pending' | 'accepted' | 'declined';
+  created_at: string;
+  updated_at: string;
+}
+
+export interface InvitedUser {
+  telegram_id: number;
+  first_name: string;
+  last_name?: string | null;
+  username?: string | null;
+}
+
+export interface DatabaseEventResponse {
+  id: string;
+  event_id: string;
+  user_telegram_id: number;
+  response_status: ResponseStatus;
+  created_at: string;
+  updated_at: string;
 } 

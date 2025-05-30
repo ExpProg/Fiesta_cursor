@@ -5,6 +5,7 @@
 import React, { useState, useEffect } from 'react';
 import { Users, Eye, EyeOff, Check, X } from 'lucide-react';
 import { getAllEventResponses, formatParticipantName } from '@/utils/eventResponses';
+import { useYandexMetrika } from '@/hooks/useYandexMetrika';
 import type { EventParticipant, EventResponse } from '@/types/database';
 
 interface EventParticipantsProps {
@@ -24,6 +25,7 @@ export const EventParticipants: React.FC<EventParticipantsProps> = ({
   className = '',
   refreshTrigger
 }) => {
+  const { reachGoal } = useYandexMetrika();
   const [allResponses, setAllResponses] = useState<EventParticipant[]>([]);
   const [showParticipants, setShowParticipants] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -109,7 +111,18 @@ export const EventParticipants: React.FC<EventParticipantsProps> = ({
         {/* Кнопка показать/скрыть */}
         {(currentParticipants > 0 || notAttendingCount > 0) && (
           <button
-            onClick={() => setShowParticipants(!showParticipants)}
+            onClick={() => {
+              const newShowState = !showParticipants;
+              setShowParticipants(newShowState);
+              
+              reachGoal('event_participants_toggle', {
+                event_id: eventId,
+                action: newShowState ? 'show' : 'hide',
+                participant_count: currentParticipants,
+                attending_count: attendingCount,
+                not_attending_count: notAttendingCount
+              });
+            }}
             className="flex items-center px-2 py-1 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
           >
             {showParticipants ? (
