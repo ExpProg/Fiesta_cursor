@@ -21,6 +21,14 @@ export const EventsList: React.FC<EventsListProps> = ({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  console.log('🎯 EventsList rendering with:', { 
+    activeTab, 
+    eventsCount: events.length, 
+    loading, 
+    error,
+    userId: user?.id 
+  });
+
   const getTabTitle = (tab: TabType): string => {
     switch (tab) {
       case 'all': return 'Все мероприятия';

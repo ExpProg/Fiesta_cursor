@@ -24,22 +24,50 @@ export const TabNavigation: React.FC<TabNavigationProps> = ({
   activeTab,
   onTabChange
 }) => {
+  console.log('🎯 TabNavigation rendering with activeTab:', activeTab);
+  
   return (
-    <div className="bg-white border-b border-gray-200 sticky top-0 z-10">
-      <div className="max-w-6xl mx-auto px-4">
-        <div className="flex space-x-0">
+    <div 
+      className="bg-white border-b-2 border-blue-200 relative z-50 shadow-sm"
+      style={{
+        position: 'relative',
+        zIndex: 999,
+        backgroundColor: '#ffffff',
+        borderBottom: '2px solid #dbeafe',
+        boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)'
+      }}
+    >
+      <div className="max-w-6xl mx-auto px-2">
+        <div className="flex space-x-0" style={{ display: 'flex', width: '100%' }}>
           {tabs.map((tab) => (
             <button
               key={tab.id}
-              onClick={() => onTabChange(tab.id)}
-              className={`flex-1 flex items-center justify-center py-3 px-4 text-sm font-medium border-b-2 transition-colors ${
+              onClick={() => {
+                console.log('🎯 Tab clicked:', tab.id);
+                onTabChange(tab.id);
+              }}
+              className={`flex-1 flex items-center justify-center py-4 px-2 text-sm font-medium border-b-3 transition-all duration-200 ${
                 activeTab === tab.id
-                  ? 'border-blue-500 text-blue-600 bg-blue-50'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                  ? 'border-blue-500 text-blue-600 bg-blue-50 shadow-sm'
+                  : 'border-transparent text-gray-600 hover:text-gray-800 hover:bg-gray-50'
               }`}
+              style={{
+                minHeight: '60px',
+                borderBottomWidth: activeTab === tab.id ? '3px' : '1px',
+                borderBottomColor: activeTab === tab.id ? '#3b82f6' : 'transparent',
+                backgroundColor: activeTab === tab.id ? '#eff6ff' : 'transparent',
+                color: activeTab === tab.id ? '#2563eb' : '#4b5563',
+                flex: '1',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                border: 'none',
+                outline: 'none'
+              }}
             >
-              <span className="mr-2">{tab.icon}</span>
-              {tab.label}
+              <span className="mr-1 text-base">{tab.icon}</span>
+              <span className="text-xs font-semibold">{tab.label}</span>
             </button>
           ))}
         </div>
