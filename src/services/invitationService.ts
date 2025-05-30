@@ -30,6 +30,18 @@ export class InvitationService {
 
       if (error) {
         console.error('❌ Error creating invitations:', error);
+        
+        // Если таблица не существует
+        if (error.code === '42P01' || error.message.includes('does not exist')) {
+          console.warn('⚠️ Table event_invitations does not exist yet. Please run the migration.');
+          return { 
+            data: null, 
+            error: { 
+              message: 'Функция приглашений пока недоступна. Требуется обновление базы данных.' 
+            } 
+          };
+        }
+        
         return { data: null, error };
       }
 
@@ -37,6 +49,17 @@ export class InvitationService {
       return { data, error: null };
     } catch (error) {
       console.error('❌ Exception creating invitations:', error);
+      
+      // Если это ошибка отсутствия таблицы
+      if (error instanceof Error && error.message.includes('does not exist')) {
+        return { 
+          data: null, 
+          error: { 
+            message: 'Функция приглашений пока недоступна. Требуется обновление базы данных.' 
+          } 
+        };
+      }
+      
       return { 
         data: null, 
         error: { message: error instanceof Error ? error.message : 'Unknown error' }
@@ -104,12 +127,35 @@ export class InvitationService {
 
       if (error) {
         console.error('❌ Error fetching user invitations:', error);
+        
+        // Если таблица не существует, возвращаем пустой массив вместо ошибки
+        if (error.code === '42P01' || error.message.includes('does not exist')) {
+          console.warn('⚠️ Table event_invitations does not exist yet. Please run the migration.');
+          return { 
+            data: [], 
+            error: { 
+              message: 'Функция приглашений пока недоступна. Требуется обновление базы данных.' 
+            } 
+          };
+        }
+        
         return { data: null, error };
       }
 
       return { data, error: null };
     } catch (error) {
       console.error('❌ Exception fetching user invitations:', error);
+      
+      // Если это ошибка отсутствия таблицы
+      if (error instanceof Error && error.message.includes('does not exist')) {
+        return { 
+          data: [], 
+          error: { 
+            message: 'Функция приглашений пока недоступна. Требуется обновление базы данных.' 
+          } 
+        };
+      }
+      
       return { 
         data: null, 
         error: { message: error instanceof Error ? error.message : 'Unknown error' }

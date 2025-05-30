@@ -167,18 +167,43 @@ export const InvitationsList: React.FC<InvitationsListProps> = ({
   }
 
   if (error) {
+    // Проверяем, является ли это ошибкой отсутствия миграции
+    const isMigrationError = error.includes('Функция приглашений пока недоступна') || 
+                           error.includes('обновление базы данных');
+    
     return (
       <div className="p-6">
         <h2 className="text-2xl font-bold text-gray-800 mb-6">Приглашения</h2>
-        <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
-          <div className="text-red-600 mb-2">⚠️ Ошибка загрузки</div>
-          <div className="text-gray-600">{error}</div>
-          <button
-            onClick={loadInvitations}
-            className="mt-4 bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors"
-          >
-            Попробовать снова
-          </button>
+        <div className={`border rounded-lg p-6 text-center ${
+          isMigrationError ? 'bg-yellow-50 border-yellow-200' : 'bg-red-50 border-red-200'
+        }`}>
+          <div className={`mb-2 ${
+            isMigrationError ? 'text-yellow-600' : 'text-red-600'
+          }`}>
+            {isMigrationError ? '⚠️ Требуется обновление' : '⚠️ Ошибка загрузки'}
+          </div>
+          <div className="text-gray-600 mb-4">{error}</div>
+          
+          {isMigrationError ? (
+            <div className="bg-white p-4 rounded-lg border border-yellow-300">
+              <p className="text-sm text-gray-700 mb-3">
+                Для работы с частными мероприятиями и приглашениями необходимо выполнить миграцию базы данных.
+              </p>
+              <p className="text-sm text-gray-600">
+                <strong>Инструкция:</strong><br/>
+                1. Откройте Supabase Dashboard<br/>
+                2. Перейдите в SQL Editor<br/>
+                3. Выполните миграцию из файла <code>migrations/add_private_events.sql</code>
+              </p>
+            </div>
+          ) : (
+            <button
+              onClick={loadInvitations}
+              className="mt-4 bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors"
+            >
+              Попробовать снова
+            </button>
+          )}
         </div>
       </div>
     );
