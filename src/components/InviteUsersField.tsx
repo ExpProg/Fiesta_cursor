@@ -424,7 +424,7 @@ export const InviteUsersField: React.FC<InviteUsersFieldProps> = ({
           {/* Кнопка поиска по username */}
           <button
             type="button"
-            onClick={() => setShowAddForm(true)}
+            onClick={() => setShowSearchForm(true)}
             className="w-full flex items-center justify-center py-3 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
           >
             <Search className="w-5 h-5 mr-2" />
