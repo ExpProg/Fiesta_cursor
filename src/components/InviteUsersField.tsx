@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, X, Users, UserCheck, Phone, Contact } from 'lucide-react';
+import { Plus, X, Users, UserCheck, Phone } from 'lucide-react';
 import { useTelegramWebApp } from '@/hooks/useTelegramWebApp';
 import { useYandexMetrika } from '@/hooks/useYandexMetrika';
 import type { InvitedUser } from '@/types/database';
@@ -17,10 +17,9 @@ export const InviteUsersField: React.FC<InviteUsersFieldProps> = ({
   isPrivate,
   className = ''
 }) => {
-  const { requestContact, switchInlineQuery, user: currentUser } = useTelegramWebApp();
+  const { switchInlineQuery } = useTelegramWebApp();
   const { reachGoal } = useYandexMetrika();
   const [showAddForm, setShowAddForm] = useState(false);
-  const [isRequestingContact, setIsRequestingContact] = useState(false);
   const [newUser, setNewUser] = useState({
     telegram_id: '',
     first_name: '',
@@ -63,47 +62,6 @@ export const InviteUsersField: React.FC<InviteUsersFieldProps> = ({
 
   const handleRemoveUser = (telegramId: number) => {
     onInvitedUsersChange(invitedUsers.filter(user => user.telegram_id !== telegramId));
-  };
-
-  const handleRequestContact = async () => {
-    try {
-      setIsRequestingContact(true);
-      
-      reachGoal('invite_users_request_contact_attempt');
-      
-      const success = await requestContact();
-      
-      if (success && currentUser) {
-        reachGoal('invite_users_request_contact_success');
-        
-        // Проверяем, не добавлен ли уже этот пользователь
-        if (invitedUsers.some(user => user.telegram_id === currentUser.id)) {
-          alert('Этот пользователь уже добавлен в список приглашенных');
-          return;
-        }
-
-        // Добавляем текущего пользователя (того, кто поделился контактом)
-        const invitedUser: InvitedUser = {
-          telegram_id: currentUser.id,
-          first_name: currentUser.first_name,
-          last_name: currentUser.last_name || null,
-          username: currentUser.username || null
-        };
-
-        onInvitedUsersChange([...invitedUsers, invitedUser]);
-        
-        alert('Контакт успешно добавлен!');
-      } else {
-        reachGoal('invite_users_request_contact_failed');
-        alert('Не удалось получить контакт. Попробуйте добавить пользователя вручную.');
-      }
-    } catch (error) {
-      console.error('Error requesting contact:', error);
-      reachGoal('invite_users_request_contact_error');
-      alert('Произошла ошибка при запросе контакта');
-    } finally {
-      setIsRequestingContact(false);
-    }
   };
 
   const handleInviteFromContacts = async () => {
@@ -330,26 +288,6 @@ export const InviteUsersField: React.FC<InviteUsersFieldProps> = ({
         </div>
       ) : (
         <div className="space-y-2">
-          {/* Кнопка запроса контакта */}
-          <button
-            type="button"
-            onClick={handleRequestContact}
-            disabled={isRequestingContact}
-            className="w-full flex items-center justify-center py-3 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            {isRequestingContact ? (
-              <>
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                Запрос контакта...
-              </>
-            ) : (
-              <>
-                <Contact className="w-5 h-5 mr-2" />
-                Поделиться своим контактом
-              </>
-            )}
-          </button>
-          
           {/* Кнопка отправки приглашений из контактов */}
           <button
             type="button"
@@ -380,7 +318,6 @@ export const InviteUsersField: React.FC<InviteUsersFieldProps> = ({
         <p>• <strong>Только приглашенные</strong> увидят это частное мероприятие</p>
         
         <p className="mt-2">💡 <strong>Способы добавления пользователей:</strong></p>
-        <p>• <strong>Поделиться контактом</strong> - добавьте себя в список</p>
         <p>• <strong>Ссылка-приглашение</strong> - создайте ссылку для отправки друзьям</p>
         <p>• <strong>Вручную</strong> - введите Telegram ID пользователя</p>
         
