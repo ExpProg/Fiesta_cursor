@@ -9,13 +9,15 @@ import {
   Check,
   Edit,
   Trash2,
-  ArrowLeft
+  ArrowLeft,
+  Lock
 } from 'lucide-react';
 import { shareEvent, copyToClipboard, generateTelegramWebAppUrl } from '@/utils/sharing';
 import { refreshEventData } from '@/utils/eventResponses';
 import { getEventGradient } from '@/utils/gradients';
 import { EventParticipants } from './EventParticipants';
 import { EventResponseButtons } from './EventResponseButtons';
+import { InviteUsersField } from './InviteUsersField';
 import { useTelegram } from './TelegramProvider';
 import { useYandexMetrika } from '@/hooks/useYandexMetrika';
 import { supabase } from '@/hooks/useSupabase';
@@ -56,6 +58,8 @@ export const EventPage: React.FC<EventPageProps> = ({
   const [loadingOrganizer, setLoadingOrganizer] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [showParticipants, setShowParticipants] = useState(false);
+  const [showInviteManagement, setShowInviteManagement] = useState(false);
+  const [invitedUsers, setInvitedUsers] = useState<any[]>([]); // Будем загружать из БД
   
   useEffect(() => {
     // Прокручиваем наверх при открытии страницы
@@ -487,6 +491,32 @@ export const EventPage: React.FC<EventPageProps> = ({
                   )}
                 </button>
               </div>
+
+              {/* Управление приглашениями для частных мероприятий */}
+              {updatedEvent.is_private && (
+                <div className="mt-6 border-t pt-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <h4 className="text-lg font-semibold text-gray-900">Управление приглашениями</h4>
+                    <button
+                      onClick={() => setShowInviteManagement(!showInviteManagement)}
+                      className="flex items-center py-2 px-4 bg-purple-100 hover:bg-purple-200 text-purple-700 rounded-lg transition-colors"
+                    >
+                      <Lock className="w-4 h-4 mr-2" />
+                      {showInviteManagement ? 'Скрыть' : 'Пригласить пользователей'}
+                    </button>
+                  </div>
+                  
+                  {showInviteManagement && (
+                    <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                      <InviteUsersField
+                        invitedUsers={invitedUsers}
+                        onInvitedUsersChange={setInvitedUsers}
+                        isPrivate={true}
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Кнопки управления для создателя */}
               <div className="flex gap-3 justify-center">

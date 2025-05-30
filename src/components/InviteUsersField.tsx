@@ -372,14 +372,6 @@ export const InviteUsersField: React.FC<InviteUsersFieldProps> = ({
         </div>
       )}
 
-      {invitedUsers.length === 0 && (
-        <div className="mt-2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-          <p className="text-xs text-yellow-800">
-            ⚠️ Для частного мероприятия необходимо добавить хотя бы одного приглашенного пользователя
-          </p>
-        </div>
-      )}
-
       <div className="mt-3 text-xs text-gray-500">
         <p>💡 <strong>Способы добавления пользователей:</strong></p>
         <p>• <strong>Поделиться контактом</strong> - добавьте себя в список приглашенных</p>

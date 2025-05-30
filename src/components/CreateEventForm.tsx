@@ -2,8 +2,7 @@ import React, { useState } from 'react';
 import { useTelegram } from './TelegramProvider';
 import { EventService } from '@/services/eventService';
 import { useYandexMetrika } from '@/hooks/useYandexMetrika';
-import { InviteUsersField } from './InviteUsersField';
-import type { CreateEventData, InvitedUser } from '@/types/database';
+import type { CreateEventData } from '@/types/database';
 import { Lock, Globe } from 'lucide-react';
 
 interface CreateEventFormProps {
@@ -66,17 +65,7 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({
   const handlePrivacyToggle = (isPrivate: boolean) => {
     setFormData(prev => ({
       ...prev,
-      is_private: isPrivate,
-      invited_users: isPrivate ? prev.invited_users : []
-    }));
-    onFormChange?.();
-  };
-
-  // Обработчик изменения списка приглашенных
-  const handleInvitedUsersChange = (users: InvitedUser[]) => {
-    setFormData(prev => ({
-      ...prev,
-      invited_users: users
+      is_private: isPrivate
     }));
     onFormChange?.();
   };
@@ -108,11 +97,8 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({
       return false;
     }
 
-    // Дополнительная валидация для частных мероприятий
-    if (formData.is_private && (!formData.invited_users || formData.invited_users.length === 0)) {
-      setErrors(['Для частного мероприятия необходимо добавить хотя бы одного приглашенного пользователя']);
-      return false;
-    }
+    // Убираем обязательную валидацию приглашенных пользователей
+    // Теперь их можно добавить после создания мероприятия
 
     return true;
   };
@@ -333,14 +319,18 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({
               <div className="text-xs mt-1">Только для приглашенных</div>
             </button>
           </div>
+          
+          {/* Пояснение для частных мероприятий */}
+          {formData.is_private && (
+            <div className="mt-3 p-3 bg-purple-50 border border-purple-200 rounded-lg">
+              <p className="text-sm text-purple-700">
+                💡 <strong>Частное мероприятие:</strong> После создания вы сможете пригласить пользователей на странице мероприятия.
+              </p>
+            </div>
+          )}
         </div>
 
-        {/* Приглашенные пользователи - только для частных мероприятий */}
-        <InviteUsersField
-          invitedUsers={formData.invited_users || []}
-          onInvitedUsersChange={handleInvitedUsersChange}
-          isPrivate={!!formData.is_private}
-        />
+        {/* Приглашенные пользователи теперь добавляются после создания мероприятия */}
 
         {/* Название мероприятия */}
         <div>
