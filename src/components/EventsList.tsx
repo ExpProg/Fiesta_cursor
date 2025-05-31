@@ -93,9 +93,11 @@ export const EventsList: React.FC<EventsListProps> = ({
         } else {
           let filteredEvents = result.data || [];
           
-          // Фильтруем частные мероприятия для общих списков
+          // Фильтруем частные мероприятия для общих списков, но оставляем их для организатора
           if (activeTab === 'all' || activeTab === 'available') {
-            filteredEvents = filteredEvents.filter(event => !event.is_private);
+            filteredEvents = filteredEvents.filter(event => 
+              !event.is_private || (user?.id && event.created_by === user.id)
+            );
           }
           
           setEvents(filteredEvents);

@@ -471,7 +471,7 @@ export class EventService {
   }
 
   /**
-   * Получить мероприятия пользователя (на которые он откликнулся и которые еще не прошли)
+   * Получить мероприятия пользователя (на которые он откликнулся и которые еще не прошли + созданные им частные мероприятия)
    */
   static async getUserEvents(telegramId: number, limit: number = 20): Promise<ApiResponse<DatabaseEvent[]>> {
     try {
@@ -489,18 +489,13 @@ export class EventService {
         throw responsesError;
       }
 
-      if (!responses || responses.length === 0) {
-        console.log('ℹ️ No user responses found');
-        return { data: [], error: null };
-      }
+      const eventIds = responses?.map(r => r.event_id) || [];
 
-      const eventIds = responses.map(r => r.event_id);
-
-      // Получаем сами события
+      // Получаем события: те на которые откликнулся + созданные им частные мероприятия
       const { data, error } = await supabase
         .from('events')
         .select('*')
-        .in('id', eventIds)
+        .or(`id.in.(${eventIds.length > 0 ? eventIds.join(',') : 'null'}),and(created_by.eq.${telegramId},is_private.eq.true)`)
         .gte('date', new Date().toISOString()) // Только будущие события
         .order('date', { ascending: true })
         .limit(limit);
@@ -510,7 +505,7 @@ export class EventService {
         throw error;
       }
 
-      console.log(`✅ Found ${data?.length || 0} user events`);
+      console.log(`✅ Found ${data?.length || 0} user events (responses + created private)`);
       return { data: data || [], error: null };
     } catch (error) {
       console.error('❌ Error fetching user events:', error);
@@ -522,7 +517,7 @@ export class EventService {
   }
 
   /**
-   * Получить архивные мероприятия пользователя (прошедшие, на которые он откликнулся)
+   * Получить архивные мероприятия пользователя (прошедшие, на которые он откликнулся + созданные им частные мероприятия)
    */
   static async getUserArchive(telegramId: number, limit: number = 20): Promise<ApiResponse<DatabaseEvent[]>> {
     try {
@@ -540,18 +535,13 @@ export class EventService {
         throw responsesError;
       }
 
-      if (!responses || responses.length === 0) {
-        console.log('ℹ️ No user responses found for archive');
-        return { data: [], error: null };
-      }
+      const eventIds = responses?.map(r => r.event_id) || [];
 
-      const eventIds = responses.map(r => r.event_id);
-
-      // Получаем прошедшие события
+      // Получаем прошедшие события: те на которые откликнулся + созданные им частные мероприятия
       const { data, error } = await supabase
         .from('events')
         .select('*')
-        .in('id', eventIds)
+        .or(`id.in.(${eventIds.length > 0 ? eventIds.join(',') : 'null'}),and(created_by.eq.${telegramId},is_private.eq.true)`)
         .lt('date', new Date().toISOString()) // Только прошедшие события
         .order('date', { ascending: false }) // Сначала более свежие
         .limit(limit);
@@ -561,7 +551,7 @@ export class EventService {
         throw error;
       }
 
-      console.log(`✅ Found ${data?.length || 0} archive events`);
+      console.log(`✅ Found ${data?.length || 0} archive events (responses + created private)`);
       return { data: data || [], error: null };
     } catch (error) {
       console.error('❌ Error fetching archive events:', error);
