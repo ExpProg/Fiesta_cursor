@@ -22,6 +22,12 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({
   const { user: telegramUser, impactOccurred } = useTelegram();
   const { reachGoal } = useYandexMetrika();
   
+  // Отладочная информация
+  console.log('📝 CreateEventForm render:', {
+    telegramUser,
+    userId: telegramUser?.id
+  });
+  
   // Состояния формы
   const [formData, setFormData] = useState<CreateEventData>({
     title: '',
@@ -383,24 +389,47 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({
 
         {/* Изображение */}
         <div>
-          <ImageUpload
-            currentImageUrl={formData.image_url}
-            onImageUploaded={(url: string) => {
-              setFormData(prev => ({
-                ...prev,
-                image_url: url
-              }));
-              onFormChange?.();
-            }}
-            onImageRemoved={() => {
-              setFormData(prev => ({
-                ...prev,
-                image_url: ''
-              }));
-              onFormChange?.();
-            }}
-            userId={telegramUser?.id || 0}
+          {/* Временная замена для тестирования */}
+          <label htmlFor="image_url_temp" className="block text-sm font-medium text-gray-700 mb-2">
+            Изображение мероприятия (временно - обычное поле)
+          </label>
+          <input
+            type="url"
+            id="image_url_temp"
+            name="image_url"
+            value={formData.image_url}
+            onChange={handleInputChange}
+            placeholder="https://example.com/image.jpg"
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           />
+          <p className="text-xs text-gray-500 mt-1">
+            Временно: вставьте ссылку на изображение. Загрузка файлов в разработке.
+          </p>
+          
+          {/* Попытка отобразить ImageUpload */}
+          {telegramUser?.id && (
+            <div className="mt-4 p-4 border border-blue-200 rounded-lg bg-blue-50">
+              <p className="text-sm text-blue-700 mb-2">Тест компонента загрузки:</p>
+              <ImageUpload
+                currentImageUrl={formData.image_url}
+                onImageUploaded={(url: string) => {
+                  setFormData(prev => ({
+                    ...prev,
+                    image_url: url
+                  }));
+                  onFormChange?.();
+                }}
+                onImageRemoved={() => {
+                  setFormData(prev => ({
+                    ...prev,
+                    image_url: ''
+                  }));
+                  onFormChange?.();
+                }}
+                userId={telegramUser.id}
+              />
+            </div>
+          )}
         </div>
 
         {/* Дата и время */}

@@ -31,6 +31,17 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
   const displayError = uploadError || storageError;
   const isDisabled = isUploading || isInitializing || !!storageError;
 
+  // Отладочная информация
+  console.log('🖼️ ImageUpload render:', {
+    userId,
+    currentImageUrl,
+    isInitialized,
+    isInitializing,
+    storageError,
+    previewUrl,
+    isDisabled
+  });
+
   // Обработчик выбора файла
   const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -127,6 +138,11 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
 
   return (
     <div className={`space-y-3 ${className}`}>
+      {/* Временный отладочный блок */}
+      <div className="bg-yellow-100 border border-yellow-400 rounded p-2 text-xs">
+        🔧 DEBUG: ImageUpload компонент загружен. UserId: {userId}, Initialized: {isInitialized ? 'Yes' : 'No'}
+      </div>
+      
       <label className="block text-sm font-medium text-gray-700">
         Изображение мероприятия
       </label>
