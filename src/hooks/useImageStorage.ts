@@ -2,6 +2,13 @@ import { useEffect, useState } from 'react';
 import { ImageService } from '@/services/imageService';
 
 /**
+ * Проверка, запущено ли приложение в Telegram WebApp
+ */
+const isTelegramWebApp = (): boolean => {
+  return !!(window as any).Telegram?.WebApp;
+};
+
+/**
  * Хук для работы с Supabase Storage для изображений
  */
 export const useImageStorage = () => {
@@ -13,6 +20,14 @@ export const useImageStorage = () => {
   useEffect(() => {
     const initializeStorage = async () => {
       if (isInitialized || isInitializing) return;
+
+      // В Telegram WebApp пропускаем Storage и сразу переходим в режим URL
+      if (isTelegramWebApp()) {
+        setInitializationLog(['📱 Telegram WebApp обнаружен', '⏭️ Пропускаем Storage, используем режим URL']);
+        setError('Telegram WebApp: используйте URL изображений');
+        setIsInitialized(false); // Остаемся в режиме URL
+        return;
+      }
 
       setIsInitializing(true);
       setError(null);
@@ -64,7 +79,7 @@ export const useImageStorage = () => {
         
         // Проверяем существование bucket с таймаутом
         const bucketPromise = ImageService.checkBucketExists();
-        const bucketTimeout = new Promise((_, reject) => 
+        const bucketTimeout = new Promise<never>((_, reject) => 
           setTimeout(() => reject(new Error('Таймаут проверки bucket (3 сек)')), 3000)
         );
         
@@ -124,6 +139,7 @@ export const useImageStorage = () => {
     isInitialized,
     isInitializing,
     error,
-    initializationLog
+    initializationLog,
+    isTelegramWebApp: isTelegramWebApp()
   };
 }; 

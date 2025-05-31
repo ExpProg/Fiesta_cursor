@@ -20,22 +20,22 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
   className = ''
 }) => {
   const { reachGoal } = useYandexMetrika();
-  const { isInitialized, isInitializing, error: storageError, initializationLog } = useImageStorage();
+  const { isInitialized, isInitializing, error: storageError, initializationLog, isTelegramWebApp } = useImageStorage();
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(currentImageUrl || null);
-  const [showUrlInput, setShowUrlInput] = useState(false);
+  const [showUrlInput, setShowUrlInput] = useState(isTelegramWebApp);
   const [urlInput, setUrlInput] = useState('');
-  const [skipStorage, setSkipStorage] = useState(false);
+  const [skipStorage, setSkipStorage] = useState(isTelegramWebApp);
 
   // Показываем ошибку инициализации если есть
   const displayError = uploadError || storageError;
   const isDisabled = isUploading || (isInitializing && !skipStorage);
   
-  // Если Storage недоступен более 5 секунд, показываем fallback
-  const [showFallback, setShowFallback] = useState(false);
+  // Если Storage недоступен более 3 секунд, показываем fallback
+  const [showFallback, setShowFallback] = useState(isTelegramWebApp);
   
   useEffect(() => {
     if (isInitializing && !skipStorage) {
@@ -45,9 +45,9 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
       
       return () => clearTimeout(timer);
     } else {
-      setShowFallback(false);
+      setShowFallback(isTelegramWebApp);
     }
-  }, [isInitializing, skipStorage]);
+  }, [isInitializing, skipStorage, isTelegramWebApp]);
 
   // Обработчик выбора файла
   const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -169,6 +169,19 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
       <label className="block text-sm font-medium text-gray-700">
         Изображение мероприятия
       </label>
+      
+      {/* Информация для Telegram WebApp */}
+      {isTelegramWebApp && (
+        <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+          <div className="flex items-center gap-2">
+            <span className="text-blue-600">📱</span>
+            <span className="text-sm font-medium text-blue-700">Telegram WebApp</span>
+          </div>
+          <p className="text-xs text-blue-600 mt-1">
+            В Telegram используйте ссылки на изображения. Загрузка файлов недоступна.
+          </p>
+        </div>
+      )}
 
       {/* Область загрузки/предварительного просмотра */}
       <div className="relative">
@@ -247,10 +260,12 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
                 <AlertCircle className="w-8 h-8 text-orange-400" />
                 <div className="text-center">
                   <span className="text-sm font-medium text-orange-600">
-                    {skipStorage ? 'Режим без Storage' : 'Ошибка инициализации'}
+                    {isTelegramWebApp ? 'Telegram WebApp режим' : 
+                     skipStorage ? 'Режим без Storage' : 'Ошибка инициализации'}
                   </span>
                   <p className="text-xs text-orange-500 mt-1">
-                    {skipStorage ? 'Используйте URL изображений' : storageError}
+                    {isTelegramWebApp ? 'Используйте ссылки на изображения' :
+                     skipStorage ? 'Используйте URL изображений' : storageError}
                   </p>
                   <button
                     type="button"
@@ -260,7 +275,7 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
                     }}
                     className="mt-2 text-xs text-blue-600 hover:text-blue-800 underline"
                   >
-                    Добавить URL изображения
+                    {showUrlInput ? 'Скрыть поле URL' : 'Добавить URL изображения'}
                   </button>
                 </div>
               </>
@@ -314,17 +329,19 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
       
       {/* Диагностика (только в режиме разработки) */}
       {import.meta.env.DEV && (
-        <details className="mt-2" open={!!storageError || isInitializing}>
+        <details className="mt-2" open={!!storageError || isInitializing || isTelegramWebApp}>
           <summary className="text-xs text-gray-400 cursor-pointer hover:text-gray-600">
             🔧 Диагностика (только для разработки)
           </summary>
           <div className="mt-2 p-2 bg-gray-50 rounded text-xs space-y-1">
             <div>UserId: {userId}</div>
+            <div>Telegram WebApp: {isTelegramWebApp ? '✅' : '❌'}</div>
             <div>Initialized: {isInitialized ? '✅' : '❌'}</div>
             <div>Initializing: {isInitializing ? '⏳' : '❌'}</div>
             <div>Storage Error: {storageError || 'None'}</div>
             <div>Upload Error: {uploadError || 'None'}</div>
             <div>Show Fallback: {showFallback ? '✅' : '❌'}</div>
+            <div>Skip Storage: {skipStorage ? '✅' : '❌'}</div>
             
             {/* Лог инициализации */}
             {initializationLog.length > 0 && (
