@@ -29,6 +29,8 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
   const [showUrlInput, setShowUrlInput] = useState(isTelegramWebApp);
   const [urlInput, setUrlInput] = useState('');
   const [skipStorage, setSkipStorage] = useState(isTelegramWebApp);
+  const [showContextMenu, setShowContextMenu] = useState(false);
+  const [contextMenuPosition, setContextMenuPosition] = useState({ x: 0, y: 0 });
 
   // Показываем ошибку инициализации если есть
   const displayError = uploadError || storageError;
@@ -49,15 +51,37 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
     }
   }, [isInitializing, skipStorage, isTelegramWebApp]);
 
+  // Закрытие контекстного меню при клике вне его
+  useEffect(() => {
+    const handleClickOutside = () => setShowContextMenu(false);
+    if (showContextMenu) {
+      document.addEventListener('click', handleClickOutside);
+      return () => document.removeEventListener('click', handleClickOutside);
+    }
+  }, [showContextMenu]);
+
+  // Обработчик контекстного меню
+  const handleContextMenu = (event: React.MouseEvent) => {
+    if (!previewUrl) return;
+    
+    event.preventDefault();
+    setContextMenuPosition({ x: event.clientX, y: event.clientY });
+    setShowContextMenu(true);
+  };
+
   // Обработчик выбора файла
   const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
+    const isReplacing = !!previewUrl;
+    const previousImageUrl = previewUrl;
+
     reachGoal('image_upload_attempt', {
       file_size: file.size,
       file_type: file.type,
-      user_id: userId
+      user_id: userId,
+      action: isReplacing ? 'replace' : 'add'
     });
 
     setIsUploading(true);
@@ -77,6 +101,11 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
           throw new Error(result.error?.message || 'Не удалось загрузить изображение');
         }
 
+        // Если заменяем изображение, удаляем предыдущее из Storage
+        if (isReplacing && previousImageUrl && previousImageUrl.startsWith('http') && !previousImageUrl.startsWith('blob:')) {
+          ImageService.deleteImage(previousImageUrl).catch(console.warn);
+        }
+
         // Очищаем временный URL и устанавливаем финальный
         URL.revokeObjectURL(objectUrl);
         setPreviewUrl(result.data);
@@ -84,7 +113,8 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
         
         reachGoal('image_upload_success', {
           image_url: result.data,
-          user_id: userId
+          user_id: userId,
+          action: isReplacing ? 'replace' : 'add'
         });
       } else {
         // В Telegram WebApp или когда Storage недоступен, конвертируем в base64
@@ -97,7 +127,8 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
           
           reachGoal('image_upload_success', {
             image_url: 'base64_image',
-            user_id: userId
+            user_id: userId,
+            action: isReplacing ? 'replace' : 'add'
           });
         };
         reader.onerror = () => {
@@ -111,11 +142,13 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
     } catch (error) {
       console.error('❌ Error uploading image:', error);
       setUploadError(error instanceof Error ? error.message : 'Ошибка загрузки');
-      setPreviewUrl(currentImageUrl || null);
+      // Возвращаем предыдущее изображение при ошибке
+      setPreviewUrl(isReplacing ? previousImageUrl : null);
 
       reachGoal('image_upload_error', {
         error: error instanceof Error ? error.message : 'unknown_error',
-        user_id: userId
+        user_id: userId,
+        action: isReplacing ? 'replace' : 'add'
       });
     } finally {
       setIsUploading(false);
@@ -173,14 +206,22 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
     // Простая валидация URL
     try {
       new URL(urlInput);
+      
+      // Если было предыдущее изображение, удаляем его из Storage
+      if (previewUrl && previewUrl.startsWith('http') && !previewUrl.startsWith('blob:') && isInitialized && !isTelegramWebApp) {
+        ImageService.deleteImage(previewUrl).catch(console.warn);
+      }
+      
       setPreviewUrl(urlInput);
       onImageUploaded(urlInput);
       setUrlInput('');
       setShowUrlInput(false);
+      setUploadError(null);
       
       reachGoal('image_url_added_manual', {
         image_url: urlInput,
-        user_id: userId
+        user_id: userId,
+        action: previewUrl ? 'replace' : 'add'
       });
     } catch {
       setUploadError('Введите корректный URL изображения');
@@ -214,9 +255,57 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
             <img
               src={previewUrl}
               alt="Предварительный просмотр"
-              className="w-full h-48 object-cover rounded-lg border-2 border-gray-200"
+              className="w-full h-48 object-cover rounded-lg border-2 border-gray-200 cursor-pointer"
+              onContextMenu={handleContextMenu}
+              onClick={() => setShowContextMenu(false)}
             />
             
+            {/* Контекстное меню */}
+            {showContextMenu && (
+              <div
+                className="fixed bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-50 min-w-[150px]"
+                style={{
+                  left: Math.min(contextMenuPosition.x, window.innerWidth - 160),
+                  top: Math.min(contextMenuPosition.y, window.innerHeight - 120)
+                }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <button
+                  onClick={() => {
+                    handleUploadClick();
+                    setShowContextMenu(false);
+                  }}
+                  className="w-full text-left px-3 py-2 hover:bg-gray-100 flex items-center gap-2 text-sm"
+                >
+                  <Upload className="w-4 h-4" />
+                  {isTelegramWebApp ? 'Выбрать другое' : 'Загрузить новое'}
+                </button>
+                {!isTelegramWebApp && (
+                  <button
+                    onClick={() => {
+                      setShowUrlInput(true);
+                      setShowContextMenu(false);
+                    }}
+                    className="w-full text-left px-3 py-2 hover:bg-gray-100 flex items-center gap-2 text-sm"
+                  >
+                    <ImageIcon className="w-4 h-4" />
+                    Изменить URL
+                  </button>
+                )}
+                <hr className="my-1" />
+                <button
+                  onClick={() => {
+                    handleRemoveImage();
+                    setShowContextMenu(false);
+                  }}
+                  className="w-full text-left px-3 py-2 hover:bg-red-50 text-red-600 flex items-center gap-2 text-sm"
+                >
+                  <X className="w-4 h-4" />
+                  Удалить
+                </button>
+              </div>
+            )}
+
             {/* Оверлей с кнопками */}
             <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all duration-200 rounded-lg flex items-center justify-center">
               <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex gap-2">
@@ -229,6 +318,19 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
                   <Upload className="w-4 h-4" />
                   Заменить
                 </button>
+                {!isTelegramWebApp && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowUrlInput(true);
+                    }}
+                    className="bg-blue-500 text-white px-3 py-2 rounded-lg shadow-md hover:bg-blue-600 transition-colors duration-200 flex items-center gap-2"
+                  >
+                    <ImageIcon className="w-4 h-4" />
+                    URL
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={handleRemoveImage}
@@ -240,6 +342,43 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
                 </button>
               </div>
             </div>
+
+            {/* Быстрые действия под изображением */}
+            <div className="mt-3 flex gap-2 justify-center">
+              <button
+                type="button"
+                onClick={handleUploadClick}
+                disabled={isDisabled}
+                className="flex items-center gap-2 px-3 py-1.5 text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors duration-200 disabled:opacity-50"
+              >
+                <Upload className="w-4 h-4" />
+                {isTelegramWebApp ? 'Выбрать другое' : 'Загрузить новое'}
+              </button>
+              {!isTelegramWebApp && (
+                <button
+                  type="button"
+                  onClick={() => setShowUrlInput(true)}
+                  className="flex items-center gap-2 px-3 py-1.5 text-sm bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-lg transition-colors duration-200"
+                >
+                  <ImageIcon className="w-4 h-4" />
+                  Изменить URL
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={handleRemoveImage}
+                disabled={isDisabled}
+                className="flex items-center gap-2 px-3 py-1.5 text-sm bg-red-100 hover:bg-red-200 text-red-700 rounded-lg transition-colors duration-200 disabled:opacity-50"
+              >
+                <X className="w-4 h-4" />
+                Удалить
+              </button>
+            </div>
+            
+            {/* Подсказка о правом клике */}
+            <p className="text-xs text-gray-400 text-center mt-2">
+              💡 Нажмите правой кнопкой мыши на изображение для быстрого доступа к действиям
+            </p>
 
             {/* Индикатор загрузки */}
             {isUploading && (
@@ -480,7 +619,7 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
       {showUrlInput && (
         <div className="mt-3 p-4 border border-blue-200 rounded-lg bg-blue-50">
           <label className="block text-sm font-medium text-blue-700 mb-2">
-            URL изображения
+            {previewUrl ? 'Изменить URL изображения' : 'URL изображения'}
           </label>
           <div className="flex gap-2">
             <input
@@ -501,7 +640,7 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
               disabled={!urlInput.trim()}
               className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
             >
-              Добавить
+              {previewUrl ? 'Заменить' : 'Добавить'}
             </button>
             <button
               type="button"
@@ -515,6 +654,28 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
               Отмена
             </button>
           </div>
+          
+          {/* Предварительный просмотр URL */}
+          {urlInput && (
+            <div className="mt-3">
+              <p className="text-xs text-blue-600 mb-2">Предварительный просмотр:</p>
+              <div className="relative">
+                <img
+                  src={urlInput}
+                  alt="Предварительный просмотр URL"
+                  className="w-full h-32 object-cover rounded border"
+                  onLoad={() => setUploadError(null)}
+                  onError={() => setUploadError('Не удалось загрузить изображение по указанному URL')}
+                />
+              </div>
+            </div>
+          )}
+          
+          {previewUrl && (
+            <p className="text-xs text-blue-500 mt-2">
+              💡 Текущее изображение будет заменено новым
+            </p>
+          )}
         </div>
       )}
     </div>
