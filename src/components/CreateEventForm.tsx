@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useTelegram } from './TelegramProvider';
 import { EventService } from '@/services/eventService';
 import { useYandexMetrika } from '@/hooks/useYandexMetrika';
+import { ImageUpload } from './ImageUpload';
 import type { CreateEventData } from '@/types/database';
 import { Lock, Globe } from 'lucide-react';
 
@@ -382,35 +383,24 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({
 
         {/* Изображение */}
         <div>
-          <label htmlFor="image_url" className="block text-sm font-medium text-gray-700 mb-2">
-            Ссылка на изображение
-          </label>
-          <input
-            type="url"
-            id="image_url"
-            name="image_url"
-            value={formData.image_url}
-            onChange={handleInputChange}
-            placeholder="https://example.com/image.jpg"
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          <ImageUpload
+            currentImageUrl={formData.image_url}
+            onImageUploaded={(url: string) => {
+              setFormData(prev => ({
+                ...prev,
+                image_url: url
+              }));
+              onFormChange?.();
+            }}
+            onImageRemoved={() => {
+              setFormData(prev => ({
+                ...prev,
+                image_url: ''
+              }));
+              onFormChange?.();
+            }}
+            userId={telegramUser?.id || 0}
           />
-          <p className="text-xs text-gray-500 mt-1">
-            Вставьте ссылку на изображение мероприятия
-          </p>
-          
-          {/* Превью изображения */}
-          {formData.image_url && (
-            <div className="mt-3">
-              <img
-                src={formData.image_url}
-                alt="Превью изображения"
-                className="w-full h-32 object-cover rounded-lg border"
-                onError={(e) => {
-                  e.currentTarget.style.display = 'none';
-                }}
-              />
-            </div>
-          )}
         </div>
 
         {/* Дата и время */}

@@ -56,6 +56,26 @@
 - **create_event_form_submit_error** - Ошибка при создании
   - `error` - Текст ошибки
 
+### Загрузка изображений
+- **image_upload_attempt** - Попытка загрузки изображения
+  - `file_size` - Размер файла в байтах
+  - `file_type` - MIME тип файла
+  - `user_id` - ID пользователя
+- **image_upload_success** - Успешная загрузка изображения
+  - `image_url` - URL загруженного изображения
+  - `user_id` - ID пользователя
+- **image_upload_error** - Ошибка загрузки изображения
+  - `error` - Текст ошибки
+  - `user_id` - ID пользователя
+- **image_remove_attempt** - Попытка удаления изображения
+  - `image_url` - URL удаляемого изображения
+  - `user_id` - ID пользователя
+- **image_remove_success** - Успешное удаление изображения
+  - `user_id` - ID пользователя
+- **image_remove_error** - Ошибка удаления изображения
+  - `error` - Текст ошибки
+  - `user_id` - ID пользователя
+
 ### Навигация и отмена
 - **create_event_back_clicked** - Нажатие кнопки "Назад"
 - **create_event_cancel_declined** - Отказ от отмены при наличии изменений
