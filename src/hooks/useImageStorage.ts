@@ -18,16 +18,19 @@ export const useImageStorage = () => {
       setError(null);
       setInitializationLog(['🚀 Начинаем инициализацию Storage...']);
 
-      // Добавляем таймаут для инициализации
+      // Более короткий таймаут для диагностики
       const timeoutId = setTimeout(() => {
-        console.warn('⏰ Storage initialization timeout');
-        setError('Таймаут инициализации хранилища. Попробуйте перезагрузить страницу.');
-        setInitializationLog(prev => [...prev, '⏰ Таймаут инициализации (10 сек)']);
+        console.warn('⏰ Storage initialization timeout after 5 seconds');
+        setError('Таймаут инициализации (5 сек). Возможно проблема с подключением к Supabase.');
+        setInitializationLog(prev => [...prev, '⏰ ТАЙМАУТ! Инициализация зависла на 5+ секунд']);
         setIsInitializing(false);
-      }, 10000); // 10 секунд
+      }, 5000); // Сократили до 5 секунд
 
       try {
         setInitializationLog(prev => [...prev, '🔍 Проверяем переменные окружения...']);
+        
+        // Добавляем задержку для отображения лога
+        await new Promise(resolve => setTimeout(resolve, 100));
         
         // Сначала проверяем переменные окружения
         const envCheck = ImageService.checkEnvironmentVariables();
@@ -36,22 +39,40 @@ export const useImageStorage = () => {
         }
         
         setInitializationLog(prev => [...prev, '✅ Переменные окружения в порядке']);
-        setInitializationLog(prev => [...prev, '🔍 Проверяем подключение к Supabase...']);
+        await new Promise(resolve => setTimeout(resolve, 100));
         
-        // Проверяем подключение к Supabase
-        const connectionCheck = await ImageService.checkConnection();
+        setInitializationLog(prev => [...prev, '🔍 Проверяем подключение к Supabase...']);
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+        // Проверяем подключение к Supabase с собственным таймаутом
+        const connectionPromise = ImageService.checkConnection();
+        const connectionTimeout = new Promise<never>((_, reject) => 
+          setTimeout(() => reject(new Error('Таймаут подключения к Supabase (3 сек)')), 3000)
+        );
+        
+        const connectionCheck = await Promise.race([connectionPromise, connectionTimeout]);
+        
         if (!connectionCheck.isConnected) {
           throw new Error(`Ошибка подключения к Supabase: ${connectionCheck.error}`);
         }
         
         setInitializationLog(prev => [...prev, '✅ Подключение к Supabase успешно']);
-        setInitializationLog(prev => [...prev, '🪣 Проверяем существование bucket...']);
+        await new Promise(resolve => setTimeout(resolve, 100));
         
-        // Проверяем существование bucket
-        const bucketExists = await ImageService.checkBucketExists();
+        setInitializationLog(prev => [...prev, '🪣 Проверяем существование bucket...']);
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+        // Проверяем существование bucket с таймаутом
+        const bucketPromise = ImageService.checkBucketExists();
+        const bucketTimeout = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Таймаут проверки bucket (3 сек)')), 3000)
+        );
+        
+        const bucketExists = await Promise.race([bucketPromise, bucketTimeout]);
         
         if (!bucketExists) {
           setInitializationLog(prev => [...prev, '🪣 Bucket не найден, создаем...']);
+          await new Promise(resolve => setTimeout(resolve, 100));
           
           // Создаем bucket если не существует
           const createResult = await ImageService.createBucket();
@@ -76,7 +97,9 @@ export const useImageStorage = () => {
         let errorMessage = 'Ошибка инициализации хранилища';
         
         if (err instanceof Error) {
-          if (err.message.includes('JWT')) {
+          if (err.message.includes('Таймаут')) {
+            errorMessage = err.message;
+          } else if (err.message.includes('JWT')) {
             errorMessage = 'Ошибка авторизации. Попробуйте перезагрузить страницу.';
           } else if (err.message.includes('network') || err.message.includes('fetch')) {
             errorMessage = 'Проблемы с сетью. Проверьте интернет-соединение.';

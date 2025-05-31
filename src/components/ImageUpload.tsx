@@ -28,25 +28,26 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
   const [previewUrl, setPreviewUrl] = useState<string | null>(currentImageUrl || null);
   const [showUrlInput, setShowUrlInput] = useState(false);
   const [urlInput, setUrlInput] = useState('');
+  const [skipStorage, setSkipStorage] = useState(false);
 
   // Показываем ошибку инициализации если есть
   const displayError = uploadError || storageError;
-  const isDisabled = isUploading || isInitializing;
+  const isDisabled = isUploading || (isInitializing && !skipStorage);
   
   // Если Storage недоступен более 5 секунд, показываем fallback
   const [showFallback, setShowFallback] = useState(false);
   
   useEffect(() => {
-    if (isInitializing) {
+    if (isInitializing && !skipStorage) {
       const timer = setTimeout(() => {
         setShowFallback(true);
-      }, 5000);
+      }, 3000); // Сократили до 3 секунд
       
       return () => clearTimeout(timer);
     } else {
       setShowFallback(false);
     }
-  }, [isInitializing]);
+  }, [isInitializing, skipStorage]);
 
   // Обработчик выбора файла
   const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -222,7 +223,7 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
             disabled={isDisabled}
             className="w-full h-48 border-2 border-dashed border-gray-300 rounded-lg hover:border-gray-400 transition-colors duration-200 flex flex-col items-center justify-center gap-3 bg-gray-50 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {isUploading || isInitializing ? (
+            {(isUploading || (isInitializing && !skipStorage)) ? (
               <>
                 <Loader2 className="w-8 h-8 text-gray-400 animate-spin" />
                 <span className="text-sm text-gray-500">
@@ -241,15 +242,15 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
                   </button>
                 )}
               </>
-            ) : storageError ? (
+            ) : storageError || skipStorage ? (
               <>
-                <AlertCircle className="w-8 h-8 text-red-400" />
+                <AlertCircle className="w-8 h-8 text-orange-400" />
                 <div className="text-center">
-                  <span className="text-sm font-medium text-red-600">
-                    Ошибка инициализации
+                  <span className="text-sm font-medium text-orange-600">
+                    {skipStorage ? 'Режим без Storage' : 'Ошибка инициализации'}
                   </span>
-                  <p className="text-xs text-red-500 mt-1">
-                    {storageError}
+                  <p className="text-xs text-orange-500 mt-1">
+                    {skipStorage ? 'Используйте URL изображений' : storageError}
                   </p>
                   <button
                     type="button"
@@ -390,6 +391,30 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
               >
                 Тест
               </button>
+              {isInitializing && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    console.log('🛑 Force stopping initialization...');
+                    window.location.reload();
+                  }}
+                  className="px-2 py-1 bg-red-500 text-white rounded text-xs"
+                >
+                  Стоп
+                </button>
+              )}
+              {isInitializing && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    console.log('⏭️ Skipping Storage initialization...');
+                    setSkipStorage(true);
+                  }}
+                  className="px-2 py-1 bg-yellow-500 text-white rounded text-xs"
+                >
+                  Пропустить
+                </button>
+              )}
             </div>
           </div>
         </details>
