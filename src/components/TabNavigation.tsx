@@ -1,7 +1,7 @@
 import React from 'react';
 import { useYandexMetrika } from '@/hooks/useYandexMetrika';
 
-export type TabType = 'all' | 'available' | 'my' | 'invitations' | 'archive';
+export type TabType = 'all' | 'available' | 'my' | 'archive';
 
 interface Tab {
   id: TabType;
@@ -18,7 +18,6 @@ const tabs: Tab[] = [
   { id: 'all', label: 'Все', icon: '' },
   { id: 'available', label: 'Доступные', icon: '' },
   { id: 'my', label: 'Мои', icon: '' },
-  { id: 'invitations', label: 'Приглашения', icon: '' },
   { id: 'archive', label: 'Архив', icon: '' }
 ];
 

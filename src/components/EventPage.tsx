@@ -17,8 +17,6 @@ import { refreshEventData } from '@/utils/eventResponses';
 import { getEventGradient } from '@/utils/gradients';
 import { EventParticipants } from './EventParticipants';
 import { EventResponseButtons } from './EventResponseButtons';
-import { InviteUsersField } from './InviteUsersField';
-import { InvitationService } from '@/services/invitationService';
 import { useTelegram } from './TelegramProvider';
 import { useYandexMetrika } from '@/hooks/useYandexMetrika';
 import { supabase } from '@/hooks/useSupabase';
@@ -58,10 +56,6 @@ export const EventPage: React.FC<EventPageProps> = ({
   } | null>(null);
   const [loadingOrganizer, setLoadingOrganizer] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
-  const [showParticipants, setShowParticipants] = useState(false);
-  const [showInviteManagement, setShowInviteManagement] = useState(false);
-  const [invitedUsers, setInvitedUsers] = useState<any[]>([]); // Будем загружать из БД
-  const [isSavingInvitations, setIsSavingInvitations] = useState(false);
   
   // Определяем, является ли текущий пользователь создателем мероприятия
   const isCreator = currentUserId && updatedEvent.created_by === currentUserId;
@@ -116,39 +110,6 @@ export const EventPage: React.FC<EventPageProps> = ({
 
     fetchOrganizerInfo();
   }, [updatedEvent.created_by]);
-
-  // Загружаем существующие приглашения для частного мероприятия
-  useEffect(() => {
-    const fetchExistingInvitations = async () => {
-      if (!updatedEvent.is_private || !isCreator) return;
-      
-      try {
-        const { data, error } = await InvitationService.getEventInvitations(updatedEvent.id);
-        
-        if (error) {
-          console.error('Error fetching invitations:', error);
-          return;
-        }
-        
-        if (data) {
-          // Преобразуем приглашения в формат InvitedUser
-          const existingUsers = data.map(invitation => ({
-            telegram_id: invitation.invited_telegram_id,
-            first_name: invitation.invited_first_name,
-            last_name: invitation.invited_last_name,
-            username: invitation.invited_username
-          }));
-          
-          setInvitedUsers(existingUsers);
-          console.log('✅ Loaded existing invitations:', existingUsers.length);
-        }
-      } catch (error) {
-        console.error('Error fetching existing invitations:', error);
-      }
-    };
-
-    fetchExistingInvitations();
-  }, [updatedEvent.id, updatedEvent.is_private, isCreator]);
 
   // Обработчик изменения отклика - обновляет данные мероприятия из БД
   const handleResponseChange = async (newResponse: ResponseStatus | null) => {
@@ -308,49 +269,6 @@ export const EventPage: React.FC<EventPageProps> = ({
       alert('Произошла ошибка при копировании ссылки.');
     } finally {
       setIsCopyingLink(false);
-    }
-  };
-
-  // Обработчик изменения списка приглашенных - сохраняем в БД
-  const handleInvitedUsersChange = async (newInvitedUsers: any[]) => {
-    setInvitedUsers(newInvitedUsers);
-    
-    // Если мероприятие частное и пользователь - создатель, сохраняем приглашения
-    if (updatedEvent.is_private && isCreator && currentUserId) {
-      setIsSavingInvitations(true);
-      
-      try {
-        // Находим новых пользователей (которых еще нет в списке)
-        const existingUserIds = invitedUsers.map(user => user.telegram_id);
-        const newUsers = newInvitedUsers.filter(user => !existingUserIds.includes(user.telegram_id));
-        
-        // Добавляем новых пользователей в базу данных
-        for (const user of newUsers) {
-          const result = await InvitationService.addInvitation(
-            updatedEvent.id,
-            currentUserId,
-            user
-          );
-          
-          if (result.error) {
-            console.error('Error adding invitation:', result.error);
-            // Можно показать уведомление об ошибке
-          } else {
-            console.log('✅ Invitation added for user:', user.telegram_id);
-            
-            // Отслеживаем успешное добавление приглашения
-            reachGoal('invitation_added_success', {
-              event_id: updatedEvent.id,
-              invited_user_id: user.telegram_id,
-              event_title: updatedEvent.title.substring(0, 30)
-            });
-          }
-        }
-      } catch (error) {
-        console.error('Error saving invitations:', error);
-      } finally {
-        setIsSavingInvitations(false);
-      }
     }
   };
 
@@ -547,61 +465,34 @@ export const EventPage: React.FC<EventPageProps> = ({
                   )}
                 </button>
                 
-                <button 
-                  onClick={handleShare}
-                  disabled={isSharing}
-                  className="flex items-center justify-center py-3 px-4 bg-blue-100 hover:bg-blue-200 rounded-lg transition-colors disabled:opacity-50"
-                >
-                  {shareSuccess ? (
-                    <>
-                      <Check className="w-5 h-5 mr-2 text-green-600" />
-                      Отправлено
-                    </>
-                  ) : isSharing ? (
-                    <>
-                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600 mr-2"></div>
-                      Отправляю...
-                    </>
-                  ) : (
-                    <>
-                      <Share2 className="w-5 h-5 mr-2" />
-                      Поделиться
-                    </>
-                  )}
-                </button>
-              </div>
-
-              {/* Управление приглашениями для частных мероприятий */}
-              {updatedEvent.is_private && (
-                <div className="mt-6 border-t pt-6">
-                  <h4 className="text-lg font-semibold text-gray-900 mb-4">Управление приглашениями</h4>
-                  
-                  <button
-                    onClick={() => setShowInviteManagement(!showInviteManagement)}
-                    className="w-full flex items-center justify-center py-3 px-4 bg-purple-100 hover:bg-purple-200 text-purple-700 rounded-lg transition-colors mb-4"
-                  >
-                    <Lock className="w-4 h-4 mr-2" />
-                    {showInviteManagement ? 'Скрыть управление приглашениями' : 'Пригласить пользователей'}
-                  </button>
-                  
-                  {showInviteManagement && (
-                    <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
-                      {isSavingInvitations && (
-                        <div className="mb-3 p-2 bg-blue-50 border border-blue-200 rounded-lg flex items-center text-sm text-blue-700">
-                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></div>
-                          Сохранение приглашений...
-                        </div>
+                {/* Стандартная кнопка приглашения для частных мероприятий */}
+                {updatedEvent.is_private && (
+                  <div className="mt-6 border-t pt-6">
+                    <button
+                      onClick={handleShare}
+                      disabled={isSharing}
+                      className="w-full flex items-center justify-center py-3 px-4 bg-purple-100 hover:bg-purple-200 text-purple-700 rounded-lg transition-colors disabled:opacity-50"
+                    >
+                      {shareSuccess ? (
+                        <>
+                          <Check className="w-5 h-5 mr-2 text-green-600" />
+                          Приглашение отправлено
+                        </>
+                      ) : isSharing ? (
+                        <>
+                          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-purple-600 mr-2"></div>
+                          Отправляю приглашение...
+                        </>
+                      ) : (
+                        <>
+                          <Lock className="w-4 h-4 mr-2" />
+                          Пригласить пользователей
+                        </>
                       )}
-                      
-                      <InviteUsersField
-                        invitedUsers={invitedUsers}
-                        onInvitedUsersChange={handleInvitedUsersChange}
-                        isPrivate={true}
-                      />
-                    </div>
-                  )}
-                </div>
-              )}
+                    </button>
+                  </div>
+                )}
+              </div>
 
               {/* Кнопки управления для создателя */}
               <div className="flex gap-3 justify-center">
