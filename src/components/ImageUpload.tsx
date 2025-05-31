@@ -26,8 +26,6 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(currentImageUrl || null);
-  const [showUrlInput, setShowUrlInput] = useState(isTelegramWebApp);
-  const [urlInput, setUrlInput] = useState('');
   const [skipStorage, setSkipStorage] = useState(isTelegramWebApp);
   const [showContextMenu, setShowContextMenu] = useState(false);
   const [contextMenuPosition, setContextMenuPosition] = useState({ x: 0, y: 0 });
@@ -199,35 +197,6 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
     fileInputRef.current?.click();
   };
 
-  // Обработчик ввода URL
-  const handleUrlSubmit = () => {
-    if (!urlInput.trim()) return;
-    
-    // Простая валидация URL
-    try {
-      new URL(urlInput);
-      
-      // Если было предыдущее изображение, удаляем его из Storage
-      if (previewUrl && previewUrl.startsWith('http') && !previewUrl.startsWith('blob:') && isInitialized && !isTelegramWebApp) {
-        ImageService.deleteImage(previewUrl).catch(console.warn);
-      }
-      
-      setPreviewUrl(urlInput);
-      onImageUploaded(urlInput);
-      setUrlInput('');
-      setShowUrlInput(false);
-      setUploadError(null);
-      
-      reachGoal('image_url_added_manual', {
-        image_url: urlInput,
-        user_id: userId,
-        action: previewUrl ? 'replace' : 'add'
-      });
-    } catch {
-      setUploadError('Введите корректный URL изображения');
-    }
-  };
-
   return (
     <div className={`space-y-3 ${className}`}>
       <label className="block text-sm font-medium text-gray-700">
@@ -280,18 +249,6 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
                   <Upload className="w-4 h-4" />
                   {isTelegramWebApp ? 'Выбрать другое' : 'Загрузить новое'}
                 </button>
-                {!isTelegramWebApp && (
-                  <button
-                    onClick={() => {
-                      setShowUrlInput(true);
-                      setShowContextMenu(false);
-                    }}
-                    className="w-full text-left px-3 py-2 hover:bg-gray-100 flex items-center gap-2 text-sm"
-                  >
-                    <ImageIcon className="w-4 h-4" />
-                    Изменить URL
-                  </button>
-                )}
                 <hr className="my-1" />
                 <button
                   onClick={() => {
@@ -318,19 +275,6 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
                   <Upload className="w-4 h-4" />
                   Заменить
                 </button>
-                {!isTelegramWebApp && (
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setShowUrlInput(true);
-                    }}
-                    className="bg-blue-500 text-white px-3 py-2 rounded-lg shadow-md hover:bg-blue-600 transition-colors duration-200 flex items-center gap-2"
-                  >
-                    <ImageIcon className="w-4 h-4" />
-                    URL
-                  </button>
-                )}
                 <button
                   type="button"
                   onClick={handleRemoveImage}
@@ -354,16 +298,6 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
                 <Upload className="w-4 h-4" />
                 {isTelegramWebApp ? 'Выбрать другое' : 'Загрузить новое'}
               </button>
-              {!isTelegramWebApp && (
-                <button
-                  type="button"
-                  onClick={() => setShowUrlInput(true)}
-                  className="flex items-center gap-2 px-3 py-1.5 text-sm bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-lg transition-colors duration-200"
-                >
-                  <ImageIcon className="w-4 h-4" />
-                  Изменить URL
-                </button>
-              )}
               <button
                 type="button"
                 onClick={handleRemoveImage}
@@ -404,18 +338,6 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
                 <span className="text-sm text-gray-500">
                   {isInitializing ? 'Инициализация хранилища...' : 'Загрузка изображения...'}
                 </span>
-                {showFallback && !isTelegramWebApp && (
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setShowUrlInput(true);
-                    }}
-                    className="mt-2 text-xs text-blue-600 hover:text-blue-800 underline"
-                  >
-                    Добавить URL изображения
-                  </button>
-                )}
               </>
             ) : isTelegramWebApp ? (
               <>
@@ -440,18 +362,8 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
                     {skipStorage ? 'Режим без Storage' : 'Ошибка инициализации'}
                   </span>
                   <p className="text-xs text-orange-500 mt-1">
-                    {skipStorage ? 'Используйте URL изображений' : storageError}
+                    {skipStorage ? 'Выберите изображение с устройства' : storageError}
                   </p>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setShowUrlInput(true);
-                    }}
-                    className="mt-2 text-xs text-blue-600 hover:text-blue-800 underline"
-                  >
-                    {showUrlInput ? 'Скрыть поле URL' : 'Добавить URL изображения'}
-                  </button>
                 </div>
               </>
             ) : (
@@ -464,16 +376,6 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
                   <p className="text-xs text-gray-500 mt-1">
                     JPEG, PNG, WebP до 5MB
                   </p>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setShowUrlInput(true);
-                    }}
-                    className="mt-2 text-xs text-blue-600 hover:text-blue-800 underline"
-                  >
-                    Или добавить URL изображения
-                  </button>
                 </div>
               </>
             )}
@@ -613,70 +515,6 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
             </div>
           </div>
         </details>
-      )}
-
-      {/* Поле для ввода URL */}
-      {showUrlInput && (
-        <div className="mt-3 p-4 border border-blue-200 rounded-lg bg-blue-50">
-          <label className="block text-sm font-medium text-blue-700 mb-2">
-            {previewUrl ? 'Изменить URL изображения' : 'URL изображения'}
-          </label>
-          <div className="flex gap-2">
-            <input
-              type="url"
-              value={urlInput}
-              onChange={(e) => setUrlInput(e.target.value)}
-              placeholder="https://example.com/image.jpg"
-              className="flex-1 px-3 py-2 border border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-              onKeyPress={(e) => {
-                if (e.key === 'Enter') {
-                  handleUrlSubmit();
-                }
-              }}
-            />
-            <button
-              type="button"
-              onClick={handleUrlSubmit}
-              disabled={!urlInput.trim()}
-              className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
-            >
-              {previewUrl ? 'Заменить' : 'Добавить'}
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setShowUrlInput(false);
-                setUrlInput('');
-                setUploadError(null);
-              }}
-              className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 text-sm"
-            >
-              Отмена
-            </button>
-          </div>
-          
-          {/* Предварительный просмотр URL */}
-          {urlInput && (
-            <div className="mt-3">
-              <p className="text-xs text-blue-600 mb-2">Предварительный просмотр:</p>
-              <div className="relative">
-                <img
-                  src={urlInput}
-                  alt="Предварительный просмотр URL"
-                  className="w-full h-32 object-cover rounded border"
-                  onLoad={() => setUploadError(null)}
-                  onError={() => setUploadError('Не удалось загрузить изображение по указанному URL')}
-                />
-              </div>
-            </div>
-          )}
-          
-          {previewUrl && (
-            <p className="text-xs text-blue-500 mt-2">
-              💡 Текущее изображение будет заменено новым
-            </p>
-          )}
-        </div>
       )}
     </div>
   );
