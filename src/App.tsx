@@ -17,6 +17,8 @@ import { EventsList } from './components/EventsList';
 import { EventPage } from './components/EventPage';
 import { EditEventForm } from './components/EditEventForm';
 import { EditEventPage } from './components/EditEventPage';
+import { Dashboard } from './components/Dashboard';
+import { UserMenu } from './components/UserMenu';
 import { UserService } from '@/services/userService';
 import type { DatabaseUser, DatabaseEvent } from '@/types/database';
 
@@ -41,6 +43,7 @@ function AppContent() {
   const [selectedEvent, setSelectedEvent] = useState<DatabaseEvent | null>(null);
   const [editingEvent, setEditingEvent] = useState<DatabaseEvent | null>(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [showDashboard, setShowDashboard] = useState(false);
 
   // Безопасные данные пользователя для отображения
   const safeUserData = {
@@ -231,8 +234,23 @@ function AppContent() {
 
   return (
     <div className="min-h-screen bg-white text-gray-900">
-      {/* Если создаём мероприятие, показываем страницу создания */}
-      {showCreateEvent ? (
+      {/* Если показываем дэшборд */}
+      {showDashboard ? (
+        <Dashboard
+          onBack={() => {
+            setShowDashboard(false);
+            impactOccurred('light');
+          }}
+          onCreateEvent={() => {
+            setShowDashboard(false);
+            setShowCreateEvent(true);
+            reachGoal('dashboard_to_create_event');
+            impactOccurred('light');
+          }}
+          currentUserId={telegramUser?.id}
+        />
+      ) : showCreateEvent ? (
+        /* Если создаём мероприятие, показываем страницу создания */
         <CreateEventPage
           onBack={() => {
             setShowCreateEvent(false);
@@ -318,17 +336,22 @@ function AppContent() {
                 <div className="flex items-center space-x-3">
                   <TelegramUserInfo />
                   
-                  {/* Кнопка создания мероприятия */}
-                  <button
-                    className="bg-green-600 hover:bg-green-700 text-white text-sm font-medium py-1.5 px-3 rounded-lg transition-colors duration-200 flex items-center gap-1.5"
-                    onClick={() => {
-                      setShowCreateEvent(true);
-                      reachGoal('create_event_start');
+                  {/* Бургер-меню с дэшбордом и созданием мероприятия */}
+                  <UserMenu
+                    onDashboard={() => {
+                      setShowDashboard(true);
+                      reachGoal('header_dashboard_clicked');
                       impactOccurred('light');
                     }}
-                  >
-                    ➕ Создать
-                  </button>
+                    onCreateEvent={() => {
+                      setShowCreateEvent(true);
+                      reachGoal('header_create_event_clicked');
+                      impactOccurred('light');
+                    }}
+                    userFirstName={telegramUser?.first_name}
+                    userLastName={telegramUser?.last_name}
+                    userUsername={telegramUser?.username}
+                  />
                 </div>
               </div>
             </div>

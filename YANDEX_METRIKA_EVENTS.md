@@ -294,3 +294,88 @@ reachGoal('event_name', {
 **Параметры**: нет  
 
 ### invitations_list_loaded 
+
+## Основные события
+
+### Навигация по мероприятиям
+- `event_view` - Просмотр мероприятия
+  - Параметры: `event_id`, `event_title`
+
+### Создание мероприятий
+- `event_created` - Мероприятие создано
+  - Параметры: `event_id`
+
+### Дэшборд и пользовательское меню
+- `user_menu_opened` - Открыто пользовательское меню
+- `user_menu_dashboard_clicked` - Клик по дэшборду в меню
+- `user_menu_create_event_clicked` - Клик по созданию мероприятия в меню
+- `header_dashboard_clicked` - Клик по дэшборду в хедере
+- `header_create_event_clicked` - Клик по созданию мероприятия в хедере
+- `dashboard_opened` - Открыт дэшборд
+  - Параметры: `user_id`
+- `dashboard_stats_loaded` - Загружена статистика дэшборда
+  - Параметры: `user_id`, `total_events`, `active_events`, `completed_events`
+- `dashboard_back_clicked` - Возврат из дэшборда
+- `dashboard_create_event_clicked` - Создание мероприятия из дэшборда
+- `dashboard_first_event_clicked` - Создание первого мероприятия из пустого состояния
+- `dashboard_welcome_create_clicked` - Создание мероприятия из приветственного блока
+- `dashboard_to_create_event` - Переход из дэшборда к созданию мероприятия
+
+### Карты
+- `map_click` - Клик по кнопке карты
+  - Параметры: `event_id`, `event_title`
+
+### Поделиться мероприятием
+- `share_event_attempt` - Попытка поделиться мероприятием
+  - Параметры: `event_id`, `event_title`, `method`
+- `share_event_success` - Успешное поделиться мероприятием
+  - Параметры: `event_id`, `event_title`, `method`
+- `share_event_error` - Ошибка при попытке поделиться
+  - Параметры: `event_id`, `event_title`, `method`, `error`
+
+### Приглашения пользователей
+- `invite_users_request_contact_attempt` - Попытка запроса контакта
+  - Параметры: `event_id`
+- `invite_users_request_contact_success` - Успешный запрос контакта
+  - Параметры: `event_id`, `contact_data`
+- `invite_users_request_contact_failed` - Неудачный запрос контакта
+  - Параметры: `event_id`, `error`
+- `invite_users_request_contact_error` - Ошибка запроса контакта
+  - Параметры: `event_id`, `error`
+- `invite_users_share_invitation_attempt` - Попытка поделиться приглашением
+  - Параметры: `event_id`
+- `invite_users_share_invitation_success` - Успешное поделиться приглашением
+  - Параметры: `event_id`
+- `invite_users_share_invitation_error` - Ошибка при поделиться приглашением
+  - Параметры: `event_id`, `error`
+- `invite_users_link_copied_success` - Ссылка приглашения скопирована
+  - Параметры: `event_id`
+- `invite_users_link_shown` - Показана ссылка приглашения для ручного копирования
+  - Параметры: `event_id`
+
+## Параметры пользователя (userParams)
+- `telegram_id` - ID пользователя в Telegram
+- `first_name` - Имя пользователя
+- `username` - Username пользователя (или 'no_username')
+- `language_code` - Код языка пользователя (или 'unknown')
+
+## Примеры использования
+
+```typescript
+// Отслеживание открытия дэшборда
+reachGoal('dashboard_opened', {
+  user_id: currentUserId
+});
+
+// Отслеживание загрузки статистики
+reachGoal('dashboard_stats_loaded', {
+  user_id: currentUserId,
+  total_events: events.length,
+  active_events: activeEvents.length,
+  completed_events: completedEvents.length
+});
+
+// Отслеживание действий в пользовательском меню
+reachGoal('user_menu_dashboard_clicked');
+reachGoal('user_menu_create_event_clicked');
+``` 
