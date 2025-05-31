@@ -21,11 +21,10 @@ export const useImageStorage = () => {
     const initializeStorage = async () => {
       if (isInitialized || isInitializing) return;
 
-      // В Telegram WebApp пропускаем Storage и сразу переходим в режим URL
+      // В Telegram WebApp пропускаем Storage и сразу переходим в режим файлов
       if (isTelegramWebApp()) {
-        setInitializationLog(['📱 Telegram WebApp обнаружен', '⏭️ Пропускаем Storage, используем режим URL']);
-        setError('Telegram WebApp: используйте URL изображений');
-        setIsInitialized(false); // Остаемся в режиме URL
+        setInitializationLog(['📱 Telegram WebApp обнаружен', '⏭️ Пропускаем Storage, используем режим файлов']);
+        setIsInitialized(false); // Остаемся в режиме файлов
         return;
       }
 
