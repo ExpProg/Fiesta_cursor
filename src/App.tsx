@@ -320,7 +320,7 @@ function AppContent() {
                   
                   {/* Кнопка создания мероприятия */}
                   <button
-                    className="bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200 flex items-center gap-2"
+                    className="bg-green-600 hover:bg-green-700 text-white text-sm font-medium py-1.5 px-3 rounded-lg transition-colors duration-200 flex items-center gap-1.5"
                     onClick={() => {
                       setShowCreateEvent(true);
                       reachGoal('create_event_start');
