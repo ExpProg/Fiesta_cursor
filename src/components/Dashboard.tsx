@@ -185,10 +185,10 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 onCreateEvent();
                 impactOccurred('light');
               }}
-              className="bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-lg transition-colors flex items-center gap-2"
+              className="bg-green-600 hover:bg-green-700 text-white text-sm font-medium py-1.5 px-3 rounded-lg transition-colors flex items-center gap-1.5"
             >
               <Plus className="w-4 h-4" />
-              Создать мероприятие
+              Создать
             </button>
           </div>
         </div>
@@ -340,7 +340,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 onCreateEvent();
                 impactOccurred('medium');
               }}
-              className="bg-white text-blue-600 font-semibold py-3 px-6 rounded-lg hover:bg-blue-50 transition-colors"
+              className="bg-white text-blue-600 font-semibold py-2 px-4 rounded-lg hover:bg-blue-50 transition-colors"
             >
               Создать мероприятие
             </button>
