@@ -202,19 +202,6 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
       <label className="block text-sm font-medium text-gray-700">
         Изображение мероприятия
       </label>
-      
-      {/* Информация для Telegram WebApp */}
-      {isTelegramWebApp && (
-        <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-          <div className="flex items-center gap-2">
-            <span className="text-blue-600">📱</span>
-            <span className="text-sm font-medium text-blue-700">Telegram WebApp</span>
-          </div>
-          <p className="text-xs text-blue-600 mt-1">
-            Вы можете выбрать изображение с устройства. Файл будет сохранен как base64.
-          </p>
-        </div>
-      )}
 
       {/* Область загрузки/предварительного просмотра */}
       <div className="relative">
@@ -247,7 +234,7 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
                   className="w-full text-left px-3 py-2 hover:bg-gray-100 flex items-center gap-2 text-sm"
                 >
                   <Upload className="w-4 h-4" />
-                  {isTelegramWebApp ? 'Выбрать другое' : 'Загрузить новое'}
+                  Загрузить новое
                 </button>
                 <hr className="my-1" />
                 <button
@@ -296,7 +283,7 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
                 className="flex items-center gap-2 px-3 py-1.5 text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors duration-200 disabled:opacity-50"
               >
                 <Upload className="w-4 h-4" />
-                {isTelegramWebApp ? 'Выбрать другое' : 'Загрузить новое'}
+                Загрузить новое
               </button>
               <button
                 type="button"
@@ -339,33 +326,6 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
                   {isInitializing ? 'Инициализация хранилища...' : 'Загрузка изображения...'}
                 </span>
               </>
-            ) : isTelegramWebApp ? (
-              <>
-                <ImageIcon className="w-8 h-8 text-blue-400" />
-                <div className="text-center">
-                  <span className="text-sm font-medium text-blue-700">
-                    📱 Выбрать изображение с устройства
-                  </span>
-                  <p className="text-xs text-blue-500 mt-1">
-                    JPEG, PNG, WebP до 5MB
-                  </p>
-                  <p className="text-xs text-blue-400 mt-1">
-                    Изображение будет сохранено как base64
-                  </p>
-                </div>
-              </>
-            ) : storageError || skipStorage ? (
-              <>
-                <AlertCircle className="w-8 h-8 text-orange-400" />
-                <div className="text-center">
-                  <span className="text-sm font-medium text-orange-600">
-                    {skipStorage ? 'Режим без Storage' : 'Ошибка инициализации'}
-                  </span>
-                  <p className="text-xs text-orange-500 mt-1">
-                    {skipStorage ? 'Выберите изображение с устройства' : storageError}
-                  </p>
-                </div>
-              </>
             ) : (
               <>
                 <ImageIcon className="w-8 h-8 text-gray-400" />
@@ -401,10 +361,7 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
 
       {/* Подсказка */}
       <p className="text-xs text-gray-500">
-        {isTelegramWebApp 
-          ? 'Рекомендуемый размер: 1200x600 пикселей. Поддерживаются форматы JPEG, PNG, WebP размером до 5MB. Изображение будет сохранено как base64.'
-          : 'Рекомендуемый размер: 1200x600 пикселей. Поддерживаются форматы JPEG, PNG, WebP размером до 5MB.'
-        }
+        Рекомендуемый размер: 1200x600 пикселей. Поддерживаются форматы JPEG, PNG, WebP размером до 5MB.
       </p>
       
       {/* Диагностика (только в режиме разработки) */}
