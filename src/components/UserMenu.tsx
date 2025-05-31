@@ -86,10 +86,10 @@ export const UserMenu: React.FC<UserMenuProps> = ({
       {isOpen && (
         <>
           {/* Overlay для мобильных устройств */}
-          <div className="fixed inset-0 bg-black bg-opacity-25 z-40 md:hidden" />
+          <div className="fixed inset-0 bg-black bg-opacity-25 z-[60] md:hidden" />
           
           {/* Меню */}
-          <div className="absolute right-0 top-full mt-2 w-80 bg-white rounded-lg shadow-lg border border-gray-200 z-50">
+          <div className="absolute right-0 top-full mt-2 w-80 bg-white rounded-lg shadow-lg border border-gray-200 z-[70]">
             {/* Заголовок с информацией о пользователе */}
             <div className="p-4 border-b border-gray-100">
               <div className="flex items-center space-x-3">
