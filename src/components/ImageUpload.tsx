@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { ImageService } from '@/services/imageService';
 import { useYandexMetrika } from '@/hooks/useYandexMetrika';
 import { useImageStorage } from '@/hooks/useImageStorage';
@@ -26,10 +26,27 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(currentImageUrl || null);
+  const [showUrlInput, setShowUrlInput] = useState(false);
+  const [urlInput, setUrlInput] = useState('');
 
   // Показываем ошибку инициализации если есть
   const displayError = uploadError || storageError;
-  const isDisabled = isUploading || isInitializing || !!storageError;
+  const isDisabled = isUploading || isInitializing;
+  
+  // Если Storage недоступен более 5 секунд, показываем fallback
+  const [showFallback, setShowFallback] = useState(false);
+  
+  useEffect(() => {
+    if (isInitializing) {
+      const timer = setTimeout(() => {
+        setShowFallback(true);
+      }, 5000);
+      
+      return () => clearTimeout(timer);
+    } else {
+      setShowFallback(false);
+    }
+  }, [isInitializing]);
 
   // Обработчик выбора файла
   const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -125,6 +142,27 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
     fileInputRef.current?.click();
   };
 
+  // Обработчик ввода URL
+  const handleUrlSubmit = () => {
+    if (!urlInput.trim()) return;
+    
+    // Простая валидация URL
+    try {
+      new URL(urlInput);
+      setPreviewUrl(urlInput);
+      onImageUploaded(urlInput);
+      setUrlInput('');
+      setShowUrlInput(false);
+      
+      reachGoal('image_url_added_manual', {
+        image_url: urlInput,
+        user_id: userId
+      });
+    } catch {
+      setUploadError('Введите корректный URL изображения');
+    }
+  };
+
   return (
     <div className={`space-y-3 ${className}`}>
       <label className="block text-sm font-medium text-gray-700">
@@ -190,6 +228,18 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
                 <span className="text-sm text-gray-500">
                   {isInitializing ? 'Инициализация хранилища...' : 'Загрузка изображения...'}
                 </span>
+                {showFallback && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowUrlInput(true);
+                    }}
+                    className="mt-2 text-xs text-blue-600 hover:text-blue-800 underline"
+                  >
+                    Добавить URL изображения
+                  </button>
+                )}
               </>
             ) : storageError ? (
               <>
@@ -199,8 +249,18 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
                     Ошибка инициализации
                   </span>
                   <p className="text-xs text-red-500 mt-1">
-                    Попробуйте перезагрузить страницу
+                    {storageError}
                   </p>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowUrlInput(true);
+                    }}
+                    className="mt-2 text-xs text-blue-600 hover:text-blue-800 underline"
+                  >
+                    Добавить URL изображения
+                  </button>
                 </div>
               </>
             ) : (
@@ -213,6 +273,16 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
                   <p className="text-xs text-gray-500 mt-1">
                     JPEG, PNG, WebP до 5MB
                   </p>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowUrlInput(true);
+                    }}
+                    className="mt-2 text-xs text-blue-600 hover:text-blue-800 underline"
+                  >
+                    Или добавить URL изображения
+                  </button>
                 </div>
               </>
             )}
@@ -240,6 +310,75 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
       <p className="text-xs text-gray-500">
         Рекомендуемый размер: 1200x600 пикселей. Поддерживаются форматы JPEG, PNG, WebP размером до 5MB.
       </p>
+      
+      {/* Диагностика (только в режиме разработки) */}
+      {import.meta.env.DEV && (
+        <details className="mt-2">
+          <summary className="text-xs text-gray-400 cursor-pointer hover:text-gray-600">
+            🔧 Диагностика (только для разработки)
+          </summary>
+          <div className="mt-2 p-2 bg-gray-50 rounded text-xs space-y-1">
+            <div>UserId: {userId}</div>
+            <div>Initialized: {isInitialized ? '✅' : '❌'}</div>
+            <div>Initializing: {isInitializing ? '⏳' : '❌'}</div>
+            <div>Storage Error: {storageError || 'None'}</div>
+            <div>Upload Error: {uploadError || 'None'}</div>
+            <div>Show Fallback: {showFallback ? '✅' : '❌'}</div>
+            <button
+              type="button"
+              onClick={() => {
+                console.log('🔧 Manual Storage Check');
+                window.location.reload();
+              }}
+              className="mt-1 px-2 py-1 bg-blue-500 text-white rounded text-xs"
+            >
+              Перезагрузить
+            </button>
+          </div>
+        </details>
+      )}
+
+      {/* Поле для ввода URL */}
+      {showUrlInput && (
+        <div className="mt-3 p-4 border border-blue-200 rounded-lg bg-blue-50">
+          <label className="block text-sm font-medium text-blue-700 mb-2">
+            URL изображения
+          </label>
+          <div className="flex gap-2">
+            <input
+              type="url"
+              value={urlInput}
+              onChange={(e) => setUrlInput(e.target.value)}
+              placeholder="https://example.com/image.jpg"
+              className="flex-1 px-3 py-2 border border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+              onKeyPress={(e) => {
+                if (e.key === 'Enter') {
+                  handleUrlSubmit();
+                }
+              }}
+            />
+            <button
+              type="button"
+              onClick={handleUrlSubmit}
+              disabled={!urlInput.trim()}
+              className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+            >
+              Добавить
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setShowUrlInput(false);
+                setUrlInput('');
+                setUploadError(null);
+              }}
+              className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 text-sm"
+            >
+              Отмена
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }; 

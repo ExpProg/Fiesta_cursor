@@ -143,10 +143,50 @@ export class ImageService {
   }
 
   /**
-   * Получение информации о bucket (для проверки настройки)
+   * Проверка подключения к Supabase
+   */
+  static async checkConnection(): Promise<{ isConnected: boolean; error?: string }> {
+    try {
+      console.log('🔍 Checking Supabase connection...');
+      
+      // Простая проверка подключения
+      const { data, error } = await supabase
+        .from('users')
+        .select('count')
+        .limit(1);
+      
+      if (error) {
+        console.error('❌ Supabase connection error:', error);
+        return {
+          isConnected: false,
+          error: error.message
+        };
+      }
+      
+      console.log('✅ Supabase connection successful');
+      return { isConnected: true };
+      
+    } catch (error) {
+      console.error('❌ Supabase connection failed:', error);
+      return {
+        isConnected: false,
+        error: error instanceof Error ? error.message : 'Connection failed'
+      };
+    }
+  }
+
+  /**
+   * Проверка существования bucket (для проверки настройки)
    */
   static async checkBucketExists(): Promise<boolean> {
     try {
+      // Сначала проверяем подключение
+      const connectionCheck = await this.checkConnection();
+      if (!connectionCheck.isConnected) {
+        console.error('❌ Cannot check bucket: no connection to Supabase');
+        return false;
+      }
+      
       const { data, error } = await supabase.storage.listBuckets();
       
       if (error) {

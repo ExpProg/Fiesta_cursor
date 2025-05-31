@@ -16,6 +16,13 @@ export const useImageStorage = () => {
       setIsInitializing(true);
       setError(null);
 
+      // Добавляем таймаут для инициализации
+      const timeoutId = setTimeout(() => {
+        console.warn('⏰ Storage initialization timeout');
+        setError('Таймаут инициализации хранилища. Попробуйте перезагрузить страницу.');
+        setIsInitializing(false);
+      }, 10000); // 10 секунд
+
       try {
         console.log('🔍 Checking if storage bucket exists...');
         
@@ -37,10 +44,26 @@ export const useImageStorage = () => {
           console.log('✅ Storage bucket already exists');
         }
 
+        clearTimeout(timeoutId);
         setIsInitialized(true);
       } catch (err) {
         console.error('❌ Error initializing storage:', err);
-        setError(err instanceof Error ? err.message : 'Ошибка инициализации хранилища');
+        clearTimeout(timeoutId);
+        
+        // Более детальная обработка ошибок
+        let errorMessage = 'Ошибка инициализации хранилища';
+        
+        if (err instanceof Error) {
+          if (err.message.includes('JWT')) {
+            errorMessage = 'Ошибка авторизации. Попробуйте перезагрузить страницу.';
+          } else if (err.message.includes('network') || err.message.includes('fetch')) {
+            errorMessage = 'Проблемы с сетью. Проверьте интернет-соединение.';
+          } else {
+            errorMessage = err.message;
+          }
+        }
+        
+        setError(errorMessage);
       } finally {
         setIsInitializing(false);
       }
