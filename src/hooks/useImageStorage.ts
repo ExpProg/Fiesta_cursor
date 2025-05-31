@@ -26,6 +26,12 @@ export const useImageStorage = () => {
       try {
         console.log('🔍 Checking if storage bucket exists...');
         
+        // Сначала проверяем переменные окружения
+        const envCheck = ImageService.checkEnvironmentVariables();
+        if (!envCheck.isValid) {
+          throw new Error(`Отсутствуют переменные окружения: ${envCheck.missing.join(', ')}`);
+        }
+        
         // Проверяем существование bucket
         const bucketExists = await ImageService.checkBucketExists();
         

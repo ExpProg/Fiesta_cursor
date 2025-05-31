@@ -324,16 +324,40 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
             <div>Storage Error: {storageError || 'None'}</div>
             <div>Upload Error: {uploadError || 'None'}</div>
             <div>Show Fallback: {showFallback ? '✅' : '❌'}</div>
-            <button
-              type="button"
-              onClick={() => {
-                console.log('🔧 Manual Storage Check');
-                window.location.reload();
-              }}
-              className="mt-1 px-2 py-1 bg-blue-500 text-white rounded text-xs"
-            >
-              Перезагрузить
-            </button>
+            <div className="flex gap-1 mt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  console.log('🔧 Manual Storage Check');
+                  window.location.reload();
+                }}
+                className="px-2 py-1 bg-blue-500 text-white rounded text-xs"
+              >
+                Перезагрузить
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  console.log('🔍 Testing Supabase connection...');
+                  try {
+                    const { ImageService } = await import('@/services/imageService');
+                    const connectionTest = await ImageService.checkConnection();
+                    console.log('Connection test result:', connectionTest);
+                    
+                    const bucketTest = await ImageService.checkBucketExists();
+                    console.log('Bucket test result:', bucketTest);
+                    
+                    alert(`Connection: ${connectionTest.isConnected ? '✅' : '❌'}\nBucket exists: ${bucketTest ? '✅' : '❌'}\nError: ${connectionTest.error || 'None'}`);
+                  } catch (error) {
+                    console.error('Test failed:', error);
+                    alert(`Test failed: ${error}`);
+                  }
+                }}
+                className="px-2 py-1 bg-green-500 text-white rounded text-xs"
+              >
+                Тест
+              </button>
+            </div>
           </div>
         </details>
       )}

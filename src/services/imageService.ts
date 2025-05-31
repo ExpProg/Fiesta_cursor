@@ -10,6 +10,32 @@ export class ImageService {
   private static readonly ALLOWED_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
 
   /**
+   * Проверка переменных окружения
+   */
+  static checkEnvironmentVariables(): { isValid: boolean; missing: string[] } {
+    const required = ['VITE_SUPABASE_URL', 'VITE_SUPABASE_ANON_KEY'];
+    const missing: string[] = [];
+    
+    for (const variable of required) {
+      if (!import.meta.env[variable]) {
+        missing.push(variable);
+      }
+    }
+    
+    console.log('🔍 Environment variables check:', {
+      VITE_SUPABASE_URL: import.meta.env.VITE_SUPABASE_URL ? '✅ Set' : '❌ Missing',
+      VITE_SUPABASE_ANON_KEY: import.meta.env.VITE_SUPABASE_ANON_KEY ? '✅ Set' : '❌ Missing',
+      VITE_TELEGRAM_BOT_USERNAME: import.meta.env.VITE_TELEGRAM_BOT_USERNAME ? '✅ Set' : '⚠️ Optional',
+      missing
+    });
+    
+    return {
+      isValid: missing.length === 0,
+      missing
+    };
+  }
+
+  /**
    * Проверка валидности файла
    */
   private static validateFile(file: File): { isValid: boolean; error?: string } {
