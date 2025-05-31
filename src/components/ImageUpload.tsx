@@ -20,7 +20,7 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
   className = ''
 }) => {
   const { reachGoal } = useYandexMetrika();
-  const { isInitialized, isInitializing, error: storageError } = useImageStorage();
+  const { isInitialized, isInitializing, error: storageError, initializationLog } = useImageStorage();
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const [isUploading, setIsUploading] = useState(false);
@@ -313,7 +313,7 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
       
       {/* Диагностика (только в режиме разработки) */}
       {import.meta.env.DEV && (
-        <details className="mt-2">
+        <details className="mt-2" open={!!storageError || isInitializing}>
           <summary className="text-xs text-gray-400 cursor-pointer hover:text-gray-600">
             🔧 Диагностика (только для разработки)
           </summary>
@@ -324,6 +324,19 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
             <div>Storage Error: {storageError || 'None'}</div>
             <div>Upload Error: {uploadError || 'None'}</div>
             <div>Show Fallback: {showFallback ? '✅' : '❌'}</div>
+            
+            {/* Лог инициализации */}
+            {initializationLog.length > 0 && (
+              <div className="mt-2 p-2 bg-white border rounded max-h-32 overflow-y-auto">
+                <div className="font-semibold text-gray-700 mb-1">Лог инициализации:</div>
+                {initializationLog.map((logEntry, index) => (
+                  <div key={index} className="text-xs text-gray-600">
+                    {logEntry}
+                  </div>
+                ))}
+              </div>
+            )}
+            
             <div className="flex gap-1 mt-2">
               <button
                 type="button"
@@ -341,13 +354,33 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
                   console.log('🔍 Testing Supabase connection...');
                   try {
                     const { ImageService } = await import('@/services/imageService');
+                    
+                    console.log('🔍 Environment variables check...');
+                    const envCheck = ImageService.checkEnvironmentVariables();
+                    
+                    console.log('🔍 Connection test...');
                     const connectionTest = await ImageService.checkConnection();
-                    console.log('Connection test result:', connectionTest);
                     
+                    console.log('🔍 Bucket test...');
                     const bucketTest = await ImageService.checkBucketExists();
-                    console.log('Bucket test result:', bucketTest);
                     
-                    alert(`Connection: ${connectionTest.isConnected ? '✅' : '❌'}\nBucket exists: ${bucketTest ? '✅' : '❌'}\nError: ${connectionTest.error || 'None'}`);
+                    const results = {
+                      env: envCheck,
+                      connection: connectionTest,
+                      bucket: bucketTest
+                    };
+                    
+                    console.log('Test results:', results);
+                    
+                    const message = [
+                      `Environment: ${envCheck.isValid ? '✅' : '❌'}`,
+                      `Missing vars: ${envCheck.missing.length > 0 ? envCheck.missing.join(', ') : 'None'}`,
+                      `Connection: ${connectionTest.isConnected ? '✅' : '❌'}`,
+                      `Bucket exists: ${bucketTest ? '✅' : '❌'}`,
+                      `Error: ${connectionTest.error || 'None'}`
+                    ].join('\n');
+                    
+                    alert(message);
                   } catch (error) {
                     console.error('Test failed:', error);
                     alert(`Test failed: ${error}`);

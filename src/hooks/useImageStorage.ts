@@ -8,6 +8,7 @@ export const useImageStorage = () => {
   const [isInitialized, setIsInitialized] = useState(false);
   const [isInitializing, setIsInitializing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [initializationLog, setInitializationLog] = useState<string[]>([]);
 
   useEffect(() => {
     const initializeStorage = async () => {
@@ -15,16 +16,18 @@ export const useImageStorage = () => {
 
       setIsInitializing(true);
       setError(null);
+      setInitializationLog(['🚀 Начинаем инициализацию Storage...']);
 
       // Добавляем таймаут для инициализации
       const timeoutId = setTimeout(() => {
         console.warn('⏰ Storage initialization timeout');
         setError('Таймаут инициализации хранилища. Попробуйте перезагрузить страницу.');
+        setInitializationLog(prev => [...prev, '⏰ Таймаут инициализации (10 сек)']);
         setIsInitializing(false);
       }, 10000); // 10 секунд
 
       try {
-        console.log('🔍 Checking if storage bucket exists...');
+        setInitializationLog(prev => [...prev, '🔍 Проверяем переменные окружения...']);
         
         // Сначала проверяем переменные окружения
         const envCheck = ImageService.checkEnvironmentVariables();
@@ -32,11 +35,23 @@ export const useImageStorage = () => {
           throw new Error(`Отсутствуют переменные окружения: ${envCheck.missing.join(', ')}`);
         }
         
+        setInitializationLog(prev => [...prev, '✅ Переменные окружения в порядке']);
+        setInitializationLog(prev => [...prev, '🔍 Проверяем подключение к Supabase...']);
+        
+        // Проверяем подключение к Supabase
+        const connectionCheck = await ImageService.checkConnection();
+        if (!connectionCheck.isConnected) {
+          throw new Error(`Ошибка подключения к Supabase: ${connectionCheck.error}`);
+        }
+        
+        setInitializationLog(prev => [...prev, '✅ Подключение к Supabase успешно']);
+        setInitializationLog(prev => [...prev, '🪣 Проверяем существование bucket...']);
+        
         // Проверяем существование bucket
         const bucketExists = await ImageService.checkBucketExists();
         
         if (!bucketExists) {
-          console.log('🪣 Creating storage bucket...');
+          setInitializationLog(prev => [...prev, '🪣 Bucket не найден, создаем...']);
           
           // Создаем bucket если не существует
           const createResult = await ImageService.createBucket();
@@ -45,12 +60,13 @@ export const useImageStorage = () => {
             throw new Error(createResult.error.message);
           }
           
-          console.log('✅ Storage bucket created successfully');
+          setInitializationLog(prev => [...prev, '✅ Bucket создан успешно']);
         } else {
-          console.log('✅ Storage bucket already exists');
+          setInitializationLog(prev => [...prev, '✅ Bucket уже существует']);
         }
 
         clearTimeout(timeoutId);
+        setInitializationLog(prev => [...prev, '🎉 Инициализация завершена успешно!']);
         setIsInitialized(true);
       } catch (err) {
         console.error('❌ Error initializing storage:', err);
@@ -64,12 +80,15 @@ export const useImageStorage = () => {
             errorMessage = 'Ошибка авторизации. Попробуйте перезагрузить страницу.';
           } else if (err.message.includes('network') || err.message.includes('fetch')) {
             errorMessage = 'Проблемы с сетью. Проверьте интернет-соединение.';
+          } else if (err.message.includes('переменные окружения')) {
+            errorMessage = err.message;
           } else {
             errorMessage = err.message;
           }
         }
         
         setError(errorMessage);
+        setInitializationLog(prev => [...prev, `❌ Ошибка: ${errorMessage}`]);
       } finally {
         setIsInitializing(false);
       }
@@ -81,6 +100,7 @@ export const useImageStorage = () => {
   return {
     isInitialized,
     isInitializing,
-    error
+    error,
+    initializationLog
   };
 }; 
