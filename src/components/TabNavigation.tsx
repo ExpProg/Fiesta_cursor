@@ -45,9 +45,10 @@ export const TabNavigation: React.FC<TabNavigationProps> = ({
 
   return (
     <div 
-      className="bg-white border-b-2 border-blue-200 relative z-50 shadow-sm"
+      className="bg-white border-b-2 border-blue-200 sticky top-0 z-50 shadow-sm"
       style={{
-        position: 'relative',
+        position: 'sticky',
+        top: 0,
         zIndex: 999,
         backgroundColor: '#ffffff',
         borderBottom: '2px solid #dbeafe',
