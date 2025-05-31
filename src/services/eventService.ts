@@ -527,23 +527,69 @@ export class EventService {
       }
 
       const eventIds = responses?.map(r => r.event_id) || [];
+      console.log('📋 User responded to events:', eventIds);
 
-      // Получаем события: те на которые откликнулся + созданные им частные мероприятия
-      const { data, error } = await supabase
-        .from('events')
-        .select('*')
-        .or(`id.in.(${eventIds.length > 0 ? eventIds.join(',') : 'null'}),and(created_by.eq.${telegramId},is_private.eq.true)`)
-        .gte('date', new Date().toISOString()) // Только будущие события
-        .order('date', { ascending: true })
-        .limit(limit);
+      if (eventIds.length === 0) {
+        // Если пользователь не откликнулся ни на одно мероприятие, 
+        // показываем только созданные им частные мероприятия
+        const { data, error } = await supabase
+          .from('events')
+          .select('*')
+          .eq('created_by', telegramId)
+          .eq('is_private', true)
+          .gte('date', new Date().toISOString())
+          .order('date', { ascending: true })
+          .limit(limit);
 
-      if (error) {
-        console.error('❌ Supabase error in getUserEvents:', error);
-        throw error;
+        if (error) {
+          console.error('❌ Supabase error in getUserEvents (no responses):', error);
+          throw error;
+        }
+
+        console.log(`✅ Found ${data?.length || 0} user events (only created private)`);
+        return { data: data || [], error: null };
       }
 
-      console.log(`✅ Found ${data?.length || 0} user events (responses + created private)`);
-      return { data: data || [], error: null };
+      // Получаем все мероприятия, на которые пользователь откликнулся
+      const { data: respondedEvents, error: respondedError } = await supabase
+        .from('events')
+        .select('*')
+        .in('id', eventIds)
+        .gte('date', new Date().toISOString())
+        .order('date', { ascending: true });
+
+      if (respondedError) {
+        console.error('❌ Supabase error getting responded events:', respondedError);
+        throw respondedError;
+      }
+
+      // Получаем созданные пользователем частные мероприятия
+      const { data: createdPrivateEvents, error: createdError } = await supabase
+        .from('events')
+        .select('*')
+        .eq('created_by', telegramId)
+        .eq('is_private', true)
+        .gte('date', new Date().toISOString())
+        .order('date', { ascending: true });
+
+      if (createdError) {
+        console.error('❌ Supabase error getting created private events:', createdError);
+        throw createdError;
+      }
+
+      // Объединяем результаты и убираем дубликаты
+      const allEvents = [...(respondedEvents || []), ...(createdPrivateEvents || [])];
+      const uniqueEvents = allEvents.filter((event, index, self) => 
+        index === self.findIndex(e => e.id === event.id)
+      );
+
+      // Сортируем по дате и ограничиваем количество
+      const sortedEvents = uniqueEvents
+        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+        .slice(0, limit);
+
+      console.log(`✅ Found ${sortedEvents.length} user events (${respondedEvents?.length || 0} responded + ${createdPrivateEvents?.length || 0} created private, ${uniqueEvents.length} unique)`);
+      return { data: sortedEvents, error: null };
     } catch (error) {
       console.error('❌ Error fetching user events:', error);
       return { 
@@ -573,23 +619,69 @@ export class EventService {
       }
 
       const eventIds = responses?.map(r => r.event_id) || [];
+      console.log('📋 User responded to archived events:', eventIds);
 
-      // Получаем прошедшие события: те на которые откликнулся + созданные им частные мероприятия
-      const { data, error } = await supabase
-        .from('events')
-        .select('*')
-        .or(`id.in.(${eventIds.length > 0 ? eventIds.join(',') : 'null'}),and(created_by.eq.${telegramId},is_private.eq.true)`)
-        .lt('date', new Date().toISOString()) // Только прошедшие события
-        .order('date', { ascending: false }) // Сначала более свежие
-        .limit(limit);
+      if (eventIds.length === 0) {
+        // Если пользователь не откликнулся ни на одно мероприятие, 
+        // показываем только созданные им частные мероприятия
+        const { data, error } = await supabase
+          .from('events')
+          .select('*')
+          .eq('created_by', telegramId)
+          .eq('is_private', true)
+          .lt('date', new Date().toISOString())
+          .order('date', { ascending: false })
+          .limit(limit);
 
-      if (error) {
-        console.error('❌ Supabase error in getUserArchive:', error);
-        throw error;
+        if (error) {
+          console.error('❌ Supabase error in getUserArchive (no responses):', error);
+          throw error;
+        }
+
+        console.log(`✅ Found ${data?.length || 0} archive events (only created private)`);
+        return { data: data || [], error: null };
       }
 
-      console.log(`✅ Found ${data?.length || 0} archive events (responses + created private)`);
-      return { data: data || [], error: null };
+      // Получаем все прошедшие мероприятия, на которые пользователь откликнулся
+      const { data: respondedEvents, error: respondedError } = await supabase
+        .from('events')
+        .select('*')
+        .in('id', eventIds)
+        .lt('date', new Date().toISOString())
+        .order('date', { ascending: false });
+
+      if (respondedError) {
+        console.error('❌ Supabase error getting responded archive events:', respondedError);
+        throw respondedError;
+      }
+
+      // Получаем созданные пользователем частные мероприятия
+      const { data: createdPrivateEvents, error: createdError } = await supabase
+        .from('events')
+        .select('*')
+        .eq('created_by', telegramId)
+        .eq('is_private', true)
+        .lt('date', new Date().toISOString())
+        .order('date', { ascending: false });
+
+      if (createdError) {
+        console.error('❌ Supabase error getting created private archive events:', createdError);
+        throw createdError;
+      }
+
+      // Объединяем результаты и убираем дубликаты
+      const allEvents = [...(respondedEvents || []), ...(createdPrivateEvents || [])];
+      const uniqueEvents = allEvents.filter((event, index, self) => 
+        index === self.findIndex(e => e.id === event.id)
+      );
+
+      // Сортируем по дате (сначала более свежие) и ограничиваем количество
+      const sortedEvents = uniqueEvents
+        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+        .slice(0, limit);
+
+      console.log(`✅ Found ${sortedEvents.length} archive events (${respondedEvents?.length || 0} responded + ${createdPrivateEvents?.length || 0} created private, ${uniqueEvents.length} unique)`);
+      return { data: sortedEvents, error: null };
     } catch (error) {
       console.error('❌ Error fetching archive events:', error);
       return { 

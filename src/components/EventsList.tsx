@@ -300,18 +300,25 @@ export const EventsList: React.FC<EventsListProps> = ({
                   {/* Дата и время */}
                   <div className="flex items-center text-gray-500 text-sm">
                     <Calendar className="w-4 h-4 mr-2 flex-shrink-0" />
-                    <span>{formatDate(event.date)}</span>
-                    {event.event_time && (
-                      <>
-                        <Clock className="w-4 h-4 ml-3 mr-1 flex-shrink-0" />
-                        <span>
-                          {formatTime(event.event_time)}
-                          {event.end_time && (
-                            <span className="text-gray-400"> - {formatTime(event.end_time)}</span>
-                          )}
-                        </span>
-                      </>
-                    )}
+                    <div className="flex flex-col">
+                      <div>
+                        {formatDate(event.date)}
+                        {event.end_date && event.end_date !== event.date.split('T')[0] && (
+                          <span className="text-gray-400"> - {formatDate(event.end_date)}</span>
+                        )}
+                      </div>
+                      {event.event_time && (
+                        <div className="flex items-center mt-1">
+                          <Clock className="w-3 h-3 mr-1 flex-shrink-0" />
+                          <span>
+                            {formatTime(event.event_time)}
+                            {event.end_time && (
+                              <span className="text-gray-400"> - {formatTime(event.end_time)}</span>
+                            )}
+                          </span>
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   {/* Место */}
