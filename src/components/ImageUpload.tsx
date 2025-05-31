@@ -68,22 +68,45 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
       const objectUrl = URL.createObjectURL(file);
       setPreviewUrl(objectUrl);
 
-      // Загружаем файл
-      const result = await ImageService.uploadImage(file, userId);
+      // В Telegram WebApp загружаем файл в Supabase Storage если доступен
+      if (isInitialized && !isTelegramWebApp) {
+        // Загружаем файл в Supabase Storage
+        const result = await ImageService.uploadImage(file, userId);
 
-      if (result.error || !result.data) {
-        throw new Error(result.error?.message || 'Не удалось загрузить изображение');
+        if (result.error || !result.data) {
+          throw new Error(result.error?.message || 'Не удалось загрузить изображение');
+        }
+
+        // Очищаем временный URL и устанавливаем финальный
+        URL.revokeObjectURL(objectUrl);
+        setPreviewUrl(result.data);
+        onImageUploaded(result.data);
+        
+        reachGoal('image_upload_success', {
+          image_url: result.data,
+          user_id: userId
+        });
+      } else {
+        // В Telegram WebApp или когда Storage недоступен, конвертируем в base64
+        const reader = new FileReader();
+        reader.onload = () => {
+          const base64 = reader.result as string;
+          URL.revokeObjectURL(objectUrl);
+          setPreviewUrl(base64);
+          onImageUploaded(base64);
+          
+          reachGoal('image_upload_success', {
+            image_url: 'base64_image',
+            user_id: userId
+          });
+        };
+        reader.onerror = () => {
+          throw new Error('Ошибка чтения файла');
+        };
+        reader.readAsDataURL(file);
+        setIsUploading(false);
+        return;
       }
-
-      // Очищаем временный URL и устанавливаем финальный
-      URL.revokeObjectURL(objectUrl);
-      setPreviewUrl(result.data);
-      onImageUploaded(result.data);
-
-      reachGoal('image_upload_success', {
-        image_url: result.data,
-        user_id: userId
-      });
 
     } catch (error) {
       console.error('❌ Error uploading image:', error);
@@ -178,7 +201,7 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
             <span className="text-sm font-medium text-blue-700">Telegram WebApp</span>
           </div>
           <p className="text-xs text-blue-600 mt-1">
-            В Telegram используйте ссылки на изображения. Загрузка файлов недоступна.
+            Вы можете выбрать изображение с устройства. Файл будет сохранен как base64.
           </p>
         </div>
       )}
@@ -236,13 +259,13 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
             disabled={isDisabled}
             className="w-full h-48 border-2 border-dashed border-gray-300 rounded-lg hover:border-gray-400 transition-colors duration-200 flex flex-col items-center justify-center gap-3 bg-gray-50 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {(isUploading || (isInitializing && !skipStorage)) ? (
+            {(isUploading || (isInitializing && !skipStorage && !isTelegramWebApp)) ? (
               <>
                 <Loader2 className="w-8 h-8 text-gray-400 animate-spin" />
                 <span className="text-sm text-gray-500">
                   {isInitializing ? 'Инициализация хранилища...' : 'Загрузка изображения...'}
                 </span>
-                {showFallback && (
+                {showFallback && !isTelegramWebApp && (
                   <button
                     type="button"
                     onClick={(e) => {
@@ -255,17 +278,30 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
                   </button>
                 )}
               </>
+            ) : isTelegramWebApp ? (
+              <>
+                <ImageIcon className="w-8 h-8 text-blue-400" />
+                <div className="text-center">
+                  <span className="text-sm font-medium text-blue-700">
+                    📱 Выбрать изображение с устройства
+                  </span>
+                  <p className="text-xs text-blue-500 mt-1">
+                    JPEG, PNG, WebP до 5MB
+                  </p>
+                  <p className="text-xs text-blue-400 mt-1">
+                    Изображение будет сохранено как base64
+                  </p>
+                </div>
+              </>
             ) : storageError || skipStorage ? (
               <>
                 <AlertCircle className="w-8 h-8 text-orange-400" />
                 <div className="text-center">
                   <span className="text-sm font-medium text-orange-600">
-                    {isTelegramWebApp ? 'Telegram WebApp режим' : 
-                     skipStorage ? 'Режим без Storage' : 'Ошибка инициализации'}
+                    {skipStorage ? 'Режим без Storage' : 'Ошибка инициализации'}
                   </span>
                   <p className="text-xs text-orange-500 mt-1">
-                    {isTelegramWebApp ? 'Используйте ссылки на изображения' :
-                     skipStorage ? 'Используйте URL изображений' : storageError}
+                    {skipStorage ? 'Используйте URL изображений' : storageError}
                   </p>
                   <button
                     type="button"
@@ -324,7 +360,10 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
 
       {/* Подсказка */}
       <p className="text-xs text-gray-500">
-        Рекомендуемый размер: 1200x600 пикселей. Поддерживаются форматы JPEG, PNG, WebP размером до 5MB.
+        {isTelegramWebApp 
+          ? 'Рекомендуемый размер: 1200x600 пикселей. Поддерживаются форматы JPEG, PNG, WebP размером до 5MB. Изображение будет сохранено как base64.'
+          : 'Рекомендуемый размер: 1200x600 пикселей. Поддерживаются форматы JPEG, PNG, WebP размером до 5MB.'
+        }
       </p>
       
       {/* Диагностика (только в режиме разработки) */}

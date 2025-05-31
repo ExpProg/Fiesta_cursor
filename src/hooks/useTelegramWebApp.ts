@@ -18,6 +18,61 @@ import {
   getSafeUserData
 } from '@/utils/telegram-validation';
 
+interface TelegramWebApp {
+  ready: () => void;
+  close: () => void;
+  expand: () => void;
+  MainButton: {
+    text: string;
+    color: string;
+    textColor: string;
+    isVisible: boolean;
+    isActive: boolean;
+    setText: (text: string) => void;
+    onClick: (callback: () => void) => void;
+    offClick: (callback: () => void) => void;
+    show: () => void;
+    hide: () => void;
+    enable: () => void;
+    disable: () => void;
+  };
+  HapticFeedback: {
+    impactOccurred: (style: 'light' | 'medium' | 'heavy' | 'rigid' | 'soft') => void;
+    notificationOccurred: (type: 'error' | 'success' | 'warning') => void;
+    selectionChanged: () => void;
+  };
+  showPopup: (params: {
+    title?: string;
+    message: string;
+    buttons?: Array<{
+      id?: string;
+      type?: 'default' | 'ok' | 'close' | 'cancel' | 'destructive';
+      text: string;
+    }>;
+  }, callback?: (buttonId: string) => void) => void;
+  showAlert: (message: string, callback?: () => void) => void;
+  showConfirm: (message: string, callback?: (confirmed: boolean) => void) => void;
+  requestWriteAccess: (callback?: (granted: boolean) => void) => void;
+  requestContact: (callback?: (contact: any) => void) => void;
+  // Методы для работы с файлами
+  CloudStorage: {
+    setItem: (key: string, value: string, callback?: (error: string | null, success: boolean) => void) => void;
+    getItem: (key: string, callback?: (error: string | null, value: string | null) => void) => void;
+    getItems: (keys: string[], callback?: (error: string | null, values: Record<string, string>) => void) => void;
+    removeItem: (key: string, callback?: (error: string | null, success: boolean) => void) => void;
+    removeItems: (keys: string[], callback?: (error: string | null, success: boolean) => void) => void;
+    getKeys: (callback?: (error: string | null, keys: string[]) => void) => void;
+  };
+}
+
+declare global {
+  interface Window {
+    Telegram?: {
+      WebApp: TelegramWebApp;
+    };
+  }
+}
+
 export interface UseTelegramWebAppReturn {
   // Основные данные
   initData: TelegramWebAppInitData | null;
@@ -106,7 +161,21 @@ export interface UseTelegramWebAppReturn {
   requestWriteAccess: () => Promise<boolean>;
 }
 
+/**
+ * Хук для работы с Telegram WebApp API
+ */
 export const useTelegramWebApp = (): UseTelegramWebAppReturn => {
+  const [isAvailable, setIsAvailable] = useState(false);
+  const [webApp, setWebApp] = useState<TelegramWebApp | null>(null);
+
+  useEffect(() => {
+    if (window.Telegram?.WebApp) {
+      setIsAvailable(true);
+      setWebApp(window.Telegram.WebApp);
+      window.Telegram.WebApp.ready();
+    }
+  }, []);
+
   // Основные состояния
   const [isInitialized, setIsInitialized] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -680,12 +749,12 @@ export const useTelegramWebApp = (): UseTelegramWebAppReturn => {
   }, []);
 
   // Другие методы
-  const openLink = useCallback((url: string) => {
+  const openLink = useCallback((url: string, options?: { tryInstantView?: boolean }) => {
     try {
       // @ts-ignore
       if (typeof window !== 'undefined' && window.Telegram?.WebApp?.openLink) {
         // @ts-ignore
-        window.Telegram.WebApp.openLink(url);
+        window.Telegram.WebApp.openLink(url, options);
       } else {
         window.open(url, '_blank');
       }
@@ -714,11 +783,14 @@ export const useTelegramWebApp = (): UseTelegramWebAppReturn => {
       if (typeof window !== 'undefined' && window.Telegram?.WebApp?.switchInlineQuery) {
         // @ts-ignore
         window.Telegram.WebApp.switchInlineQuery(query, chooseChatTypes);
+        console.log('switchInlineQuery called successfully:', query, chooseChatTypes);
       } else {
-        console.log('Switch inline query requested:', query, chooseChatTypes);
+        console.warn('switchInlineQuery not available in current environment');
+        throw new Error('switchInlineQuery функция недоступна в текущей среде');
       }
     } catch (e) {
       console.warn('Failed to switch inline query:', e);
+      throw e; // Пробрасываем ошибку дальше
     }
   }, []);
 
