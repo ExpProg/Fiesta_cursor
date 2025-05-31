@@ -109,6 +109,8 @@ export interface DatabaseEvent {
   image_url: string | null;
   date: string;
   event_time: string | null;
+  end_date: string | null;
+  end_time: string | null;
   location: string | null;
   map_url: string | null;
   max_participants: number | null;
@@ -128,6 +130,8 @@ export interface DatabaseEventInsert {
   image_url?: string | null;
   date: string;
   event_time?: string | null;
+  end_date?: string | null;
+  end_time?: string | null;
   location?: string | null;
   map_url?: string | null;
   max_participants?: number | null;
@@ -144,6 +148,8 @@ export interface DatabaseEventUpdate {
   image_url?: string | null;
   date?: string;
   event_time?: string | null;
+  end_date?: string | null;
+  end_time?: string | null;
   location?: string | null;
   map_url?: string | null;
   max_participants?: number | null;
@@ -209,6 +215,8 @@ export interface CreateEventData {
   image_url?: string;
   date: string;
   event_time?: string | null;
+  end_date?: string | null;
+  end_time?: string | null;
   location?: string;
   map_url?: string;
   max_participants?: number;

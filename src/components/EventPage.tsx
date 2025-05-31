@@ -361,7 +361,19 @@ export const EventPage: React.FC<EventPageProps> = ({
               <div>
                 <div className="font-medium text-lg">{formatDate(updatedEvent.date)}</div>
                 {updatedEvent.event_time && (
-                  <div className="text-gray-500">в {formatTime(updatedEvent.event_time)}</div>
+                  <div className="text-gray-500">
+                    начало в {formatTime(updatedEvent.event_time)}
+                    {(updatedEvent.end_date || updatedEvent.end_time) && (
+                      <>
+                        {updatedEvent.end_date && updatedEvent.end_date !== updatedEvent.date.split('T')[0] && (
+                          <div>до {formatDate(updatedEvent.end_date)}</div>
+                        )}
+                        {updatedEvent.end_time && (
+                          <div>окончание в {formatTime(updatedEvent.end_time)}</div>
+                        )}
+                      </>
+                    )}
+                  </div>
                 )}
               </div>
             </div>

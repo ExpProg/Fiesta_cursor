@@ -304,7 +304,12 @@ export const EventsList: React.FC<EventsListProps> = ({
                     {event.event_time && (
                       <>
                         <Clock className="w-4 h-4 ml-3 mr-1 flex-shrink-0" />
-                        <span>{formatTime(event.event_time)}</span>
+                        <span>
+                          {formatTime(event.event_time)}
+                          {event.end_time && (
+                            <span className="text-gray-400"> - {formatTime(event.end_time)}</span>
+                          )}
+                        </span>
                       </>
                     )}
                   </div>

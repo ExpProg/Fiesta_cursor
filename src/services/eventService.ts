@@ -62,6 +62,18 @@ export class EventService {
       const seconds = eventDate.getSeconds().toString().padStart(2, '0');
       const eventTime = `${hours}:${minutes}:${seconds}`; // формат HH:MM:SS для TIME поля
       
+      // Обработка времени окончания
+      let endDate = null;
+      let endTime = null;
+      
+      if (eventData.end_date) {
+        endDate = eventData.end_date;
+      }
+      
+      if (eventData.end_time) {
+        endTime = `${eventData.end_time}:00`; // добавляем секунды для формата HH:MM:SS
+      }
+      
       const newEvent: DatabaseEventInsert = {
         title: eventData.title,
         description: eventData.description || null,
@@ -69,6 +81,8 @@ export class EventService {
         gradient_background: eventData.image_url ? null : generateRandomGradient(),
         date: eventData.date,
         event_time: eventTime, // добавляем время из даты
+        end_date: endDate,
+        end_time: endTime,
         location: eventData.location || null, // обеспечиваем null вместо undefined
         map_url: eventData.map_url || null, // добавляем ссылку на карту
         max_participants: eventData.max_participants || null,
@@ -78,7 +92,7 @@ export class EventService {
         is_private: eventData.is_private || false
       };
 
-      console.log('📝 Event data prepared with event_time:', { eventTime, newEvent });
+      console.log('📝 Event data prepared with times:', { eventTime, endDate, endTime, newEvent });
 
       const { data, error } = await supabase
         .from('events')
@@ -336,6 +350,29 @@ export class EventService {
 
     if (eventData.max_participants !== undefined && eventData.max_participants < 1) {
       errors.push('Максимальное количество участников должно быть больше 0');
+    }
+
+    // Валидация времени окончания
+    if (eventData.end_date) {
+      const startDate = new Date(eventData.date);
+      const endDate = new Date(eventData.end_date);
+      
+      if (endDate < startDate) {
+        errors.push('Дата окончания не может быть раньше даты начала');
+      }
+    }
+
+    if (eventData.end_time && !eventData.end_date) {
+      // Если указано только время окончания без даты, проверяем что оно позже времени начала в тот же день
+      const startDateTime = new Date(eventData.date);
+      const startTime = startDateTime.getHours() * 60 + startDateTime.getMinutes();
+      
+      const [endHours, endMinutes] = eventData.end_time.split(':').map(Number);
+      const endTime = endHours * 60 + endMinutes;
+      
+      if (endTime <= startTime) {
+        errors.push('Время окончания должно быть позже времени начала');
+      }
     }
 
     // Валидация для частных мероприятий

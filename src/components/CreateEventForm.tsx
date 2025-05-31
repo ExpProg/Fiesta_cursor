@@ -27,6 +27,8 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({
     description: '',
     image_url: '',
     date: '',
+    end_date: '',
+    end_time: '',
     location: '',
     map_url: '',
     max_participants: undefined,
@@ -37,6 +39,7 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<string[]>([]);
   const [success, setSuccess] = useState(false);
+  const [isMultiDay, setIsMultiDay] = useState(false);
 
   // Обработчик изменения полей формы
   const handleInputChange = (
@@ -167,6 +170,8 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({
         description: '',
         image_url: '',
         date: '',
+        end_date: '',
+        end_time: '',
         location: '',
         map_url: '',
         max_participants: undefined,
@@ -197,6 +202,8 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({
       description: '',
       image_url: '',
       date: '',
+      end_date: '',
+      end_time: '',
       location: '',
       map_url: '',
       max_participants: undefined,
@@ -409,7 +416,7 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({
         {/* Дата и время */}
         <div>
           <label htmlFor="date" className="block text-sm font-medium text-gray-700 mb-2">
-            Дата и время мероприятия *
+            Дата и время начала *
           </label>
           <input
             type="datetime-local"
@@ -422,9 +429,78 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           />
           <p className="text-xs text-gray-500 mt-1">
-            Выберите дату и время проведения мероприятия
+            Выберите дату и время начала мероприятия
           </p>
         </div>
+
+        {/* Переключатель многодневного мероприятия */}
+        <div>
+          <label className="flex items-center space-x-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={isMultiDay}
+              onChange={(e) => {
+                setIsMultiDay(e.target.checked);
+                if (!e.target.checked) {
+                  setFormData(prev => ({
+                    ...prev,
+                    end_date: '',
+                    end_time: ''
+                  }));
+                }
+                onFormChange?.();
+              }}
+              className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
+            />
+            <span className="text-sm font-medium text-gray-700">
+              Многодневное мероприятие или с определенным временем окончания
+            </span>
+          </label>
+        </div>
+
+        {/* Поля времени окончания (показываются только если включен переключатель) */}
+        {isMultiDay && (
+          <div className="space-y-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <h4 className="text-sm font-medium text-blue-800">Время окончания</h4>
+            
+            {/* Дата окончания */}
+            <div>
+              <label htmlFor="end_date" className="block text-sm font-medium text-gray-700 mb-2">
+                Дата окончания
+              </label>
+              <input
+                type="date"
+                id="end_date"
+                name="end_date"
+                value={formData.end_date || ''}
+                onChange={handleInputChange}
+                min={formData.date ? formData.date.split('T')[0] : ''}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Оставьте пустым, если мероприятие заканчивается в тот же день
+              </p>
+            </div>
+
+            {/* Время окончания */}
+            <div>
+              <label htmlFor="end_time" className="block text-sm font-medium text-gray-700 mb-2">
+                Время окончания
+              </label>
+              <input
+                type="time"
+                id="end_time"
+                name="end_time"
+                value={formData.end_time || ''}
+                onChange={handleInputChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Укажите время окончания мероприятия
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* Место проведения */}
         <div>

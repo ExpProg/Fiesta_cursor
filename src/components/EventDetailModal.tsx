@@ -336,15 +336,27 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
               {/* Основная информация */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                 {/* Дата и время */}
-                                  <div className="flex items-center text-gray-600">
-                    <Calendar className="w-5 h-5 mr-3 flex-shrink-0" />
-                    <div>
-                      <div className="font-medium">{formatDate(updatedEvent.date)}</div>
-                      {updatedEvent.event_time && (
-                        <div className="text-sm text-gray-500">в {formatTime(updatedEvent.event_time)}</div>
-                      )}
-                    </div>
+                <div className="flex items-center text-gray-600">
+                  <Calendar className="w-5 h-5 mr-3 flex-shrink-0" />
+                  <div>
+                    <div className="font-medium">{formatDate(updatedEvent.date)}</div>
+                    {updatedEvent.event_time && (
+                      <div className="text-sm text-gray-500">
+                        начало в {formatTime(updatedEvent.event_time)}
+                        {(updatedEvent.end_date || updatedEvent.end_time) && (
+                          <>
+                            {updatedEvent.end_date && updatedEvent.end_date !== updatedEvent.date.split('T')[0] && (
+                              <div>до {formatDate(updatedEvent.end_date)}</div>
+                            )}
+                            {updatedEvent.end_time && (
+                              <div>окончание в {formatTime(updatedEvent.end_time)}</div>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    )}
                   </div>
+                </div>
 
                 {/* Место */}
                 {updatedEvent.location && (
