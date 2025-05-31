@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { EventService } from '@/services/eventService';
 import { useYandexMetrika } from '@/hooks/useYandexMetrika';
+import { useTelegram } from './TelegramProvider';
+import { ImageUpload } from './ImageUpload';
 import type { DatabaseEvent, CreateEventData } from '@/types/database';
-import { Calendar, MapPin, FileText, Image, Users, X } from 'lucide-react';
+import { Calendar, MapPin, FileText, Users, X } from 'lucide-react';
 
 interface EditEventFormProps {
   event: DatabaseEvent;
@@ -20,6 +22,7 @@ export const EditEventForm: React.FC<EditEventFormProps> = ({
   className = ''
 }) => {
   const { reachGoal } = useYandexMetrika();
+  const { user: telegramUser } = useTelegram();
   
   // Инициализируем форму данными существующего мероприятия
   const [formData, setFormData] = useState<CreateEventData>({
@@ -35,7 +38,6 @@ export const EditEventForm: React.FC<EditEventFormProps> = ({
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [imagePreview, setImagePreview] = useState<string | null>(event.image_url);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -44,11 +46,6 @@ export const EditEventForm: React.FC<EditEventFormProps> = ({
       [name]: value
     };
     setFormData(newFormData);
-
-    // Обновление превью изображения
-    if (name === 'image_url') {
-      setImagePreview(value || null);
-    }
 
     // Уведомляем родительский компонент об изменениях
     onFormChange?.(newFormData);
@@ -196,27 +193,23 @@ export const EditEventForm: React.FC<EditEventFormProps> = ({
         {/* Изображение */}
         <div>
           <label className="flex items-center text-sm font-medium text-gray-700 mb-2">
-            <Image className="w-4 h-4 mr-2" />
-            Ссылка на изображение
+            <FileText className="w-4 h-4 mr-2" />
+            Изображение
           </label>
-          <input
-            type="url"
-            name="image_url"
-            value={formData.image_url}
-            onChange={handleInputChange}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            placeholder="https://example.com/image.jpg"
+          <ImageUpload
+            currentImageUrl={formData.image_url}
+            onImageUploaded={(url: string) => {
+              const newFormData = { ...formData, image_url: url };
+              setFormData(newFormData);
+              onFormChange?.(newFormData);
+            }}
+            onImageRemoved={() => {
+              const newFormData = { ...formData, image_url: '' };
+              setFormData(newFormData);
+              onFormChange?.(newFormData);
+            }}
+            userId={telegramUser?.id || 0}
           />
-          {imagePreview && (
-            <div className="mt-2">
-              <img 
-                src={imagePreview} 
-                alt="Превью" 
-                className="w-full h-32 object-cover rounded-lg"
-                onError={() => setImagePreview(null)}
-              />
-            </div>
-          )}
         </div>
 
         {/* Дата и время */}
