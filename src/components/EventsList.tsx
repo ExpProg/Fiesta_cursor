@@ -384,6 +384,11 @@ export const EventsList: React.FC<EventsListProps> = ({
   const [showDebug, setShowDebug] = useState(false); // Отладочная панель
   const [lastLoadTime, setLastLoadTime] = useState<number | null>(null); // Время последней загрузки
   const [loadingStage, setLoadingStage] = useState<string>('Инициализация...'); // Этап загрузки
+  const [fastMode, setFastMode] = useState(() => {
+    // Инициализируем из localStorage или по умолчанию false
+    const saved = localStorage.getItem('eventsFastMode');
+    return saved !== null ? JSON.parse(saved) : false;
+  }); // Быстрый режим загрузки
   
   const ITEMS_PER_PAGE = 5;
   
@@ -404,6 +409,24 @@ export const EventsList: React.FC<EventsListProps> = ({
       user_id: user?.id || 0
     });
   }, [imagesEnabled, activeTab, user?.id, reachGoal]);
+
+  // Функция переключения быстрого режима
+  const toggleFastMode = useCallback(() => {
+    setFastMode((prev: boolean) => {
+      const newValue = !prev;
+      localStorage.setItem('eventsFastMode', JSON.stringify(newValue));
+      // Очищаем кэш при смене режима
+      eventsCache.current.clear();
+      return newValue;
+    });
+    reachGoal('fast_mode_toggle', {
+      enabled: !fastMode,
+      tab: activeTab,
+      user_id: user?.id || 0
+    });
+    // Перезагружаем данные в новом режиме
+    fetchEvents(activeTab, currentPage, true);
+  }, [fastMode, activeTab, currentPage, user?.id, reachGoal]);
 
   // Функция переключения отладки
   const toggleDebug = useCallback(() => {
@@ -570,18 +593,32 @@ export const EventsList: React.FC<EventsListProps> = ({
       switch (tab) {
         case 'all':
           console.log('🔄 Fetching all events...');
-          if (!silent) setLoadingStage('Загрузка всех мероприятий...');
-          [result, totalCountResult] = await Promise.all([
-            EventService.getAll(ITEMS_PER_PAGE, offset),
-            EventService.getTotalCount()
-          ]);
+          if (!silent) setLoadingStage(`Загрузка всех мероприятий${fastMode ? ' (быстрый режим)' : ''}...`);
+          if (fastMode) {
+            [result, totalCountResult] = await Promise.all([
+              EventService.getAllFast(ITEMS_PER_PAGE, offset),
+              EventService.getTotalCount()
+            ]);
+          } else {
+            [result, totalCountResult] = await Promise.all([
+              EventService.getAll(ITEMS_PER_PAGE, offset),
+              EventService.getTotalCount()
+            ]);
+          }
           break;
         case 'available':
-          if (!silent) setLoadingStage('Загрузка доступных мероприятий...');
-          [result, totalCountResult] = await Promise.all([
-            EventService.getAvailable(ITEMS_PER_PAGE, offset),
-            EventService.getAvailableTotalCount()
-          ]);
+          if (!silent) setLoadingStage(`Загрузка доступных мероприятий${fastMode ? ' (быстрый режим)' : ''}...`);
+          if (fastMode) {
+            [result, totalCountResult] = await Promise.all([
+              EventService.getAvailableFast(ITEMS_PER_PAGE, offset),
+              EventService.getAvailableTotalCount()
+            ]);
+          } else {
+            [result, totalCountResult] = await Promise.all([
+              EventService.getAvailable(ITEMS_PER_PAGE, offset),
+              EventService.getAvailableTotalCount()
+            ]);
+          }
           break;
         case 'my':
           if (!user?.id) {
@@ -593,11 +630,18 @@ export const EventsList: React.FC<EventsListProps> = ({
             }
             return [];
           }
-          if (!silent) setLoadingStage('Загрузка ваших мероприятий...');
-          [result, totalCountResult] = await Promise.all([
-            EventService.getUserEvents(user.id, ITEMS_PER_PAGE, offset),
-            EventService.getUserEventsTotalCount(user.id)
-          ]);
+          if (!silent) setLoadingStage(`Загрузка ваших мероприятий${fastMode ? ' (быстрый режим)' : ''}...`);
+          if (fastMode) {
+            [result, totalCountResult] = await Promise.all([
+              EventService.getUserEventsFast(user.id, ITEMS_PER_PAGE, offset),
+              EventService.getUserEventsTotalCount(user.id)
+            ]);
+          } else {
+            [result, totalCountResult] = await Promise.all([
+              EventService.getUserEvents(user.id, ITEMS_PER_PAGE, offset),
+              EventService.getUserEventsTotalCount(user.id)
+            ]);
+          }
           break;
         case 'archive':
           if (!user?.id) {
@@ -609,18 +653,32 @@ export const EventsList: React.FC<EventsListProps> = ({
             }
             return [];
           }
-          if (!silent) setLoadingStage('Загрузка архива...');
-          [result, totalCountResult] = await Promise.all([
-            EventService.getUserArchive(user.id, ITEMS_PER_PAGE, offset),
-            EventService.getUserArchiveTotalCount(user.id)
-          ]);
+          if (!silent) setLoadingStage(`Загрузка архива${fastMode ? ' (быстрый режим)' : ''}...`);
+          if (fastMode) {
+            [result, totalCountResult] = await Promise.all([
+              EventService.getUserArchiveFast(user.id, ITEMS_PER_PAGE, offset),
+              EventService.getUserArchiveTotalCount(user.id)
+            ]);
+          } else {
+            [result, totalCountResult] = await Promise.all([
+              EventService.getUserArchive(user.id, ITEMS_PER_PAGE, offset),
+              EventService.getUserArchiveTotalCount(user.id)
+            ]);
+          }
           break;
         default:
-          if (!silent) setLoadingStage('Загрузка по умолчанию...');
-          [result, totalCountResult] = await Promise.all([
-            EventService.getAll(ITEMS_PER_PAGE, offset),
-            EventService.getTotalCount()
-          ]);
+          if (!silent) setLoadingStage(`Загрузка по умолчанию${fastMode ? ' (быстрый режим)' : ''}...`);
+          if (fastMode) {
+            [result, totalCountResult] = await Promise.all([
+              EventService.getAllFast(ITEMS_PER_PAGE, offset),
+              EventService.getTotalCount()
+            ]);
+          } else {
+            [result, totalCountResult] = await Promise.all([
+              EventService.getAll(ITEMS_PER_PAGE, offset),
+              EventService.getTotalCount()
+            ]);
+          }
       }
 
       if (!silent) setLoadingStage('Обработка данных...');
@@ -714,7 +772,7 @@ export const EventsList: React.FC<EventsListProps> = ({
         setLoading(false);
       }
     }
-  }, [user?.id, reachGoal, getCacheKey, preloadAdjacentPages]);
+  }, [user?.id, reachGoal, getCacheKey, preloadAdjacentPages, fastMode]);
 
   // Функция принудительного обновления
   const forceRefresh = useCallback(() => {
@@ -889,6 +947,22 @@ export const EventsList: React.FC<EventsListProps> = ({
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-2xl font-bold text-gray-800">{tabTitle}</h2>
           <div className="flex items-center gap-4">
+            {/* Кнопка переключения быстрого режима */}
+            <button
+              onClick={toggleFastMode}
+              className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                fastMode
+                  ? 'bg-green-100 text-green-700 hover:bg-green-200'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+              title={fastMode ? 'Отключить быстрый режим (включить полную функциональность)' : 'Включить быстрый режим (упрощенная загрузка)'}
+            >
+              {fastMode ? '⚡' : '🔧'}
+              <span className="hidden sm:inline">
+                {fastMode ? 'Быстро' : 'Полный'}
+              </span>
+            </button>
+
             {/* Кнопка переключения изображений */}
             <button
               onClick={toggleImages}
@@ -957,6 +1031,7 @@ export const EventsList: React.FC<EventsListProps> = ({
                   <li>Последняя загрузка: {lastLoadTime ? `${lastLoadTime.toFixed(2)}ms` : 'N/A'}</li>
                   <li>Кэш записей: {eventsCache.current.size}</li>
                   <li>Изображения: {imagesEnabled ? 'Включены' : 'Отключены'}</li>
+                  <li>Режим загрузки: {fastMode ? 'Быстрый' : 'Полный'}</li>
                 </ul>
               </div>
               <div>

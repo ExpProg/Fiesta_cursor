@@ -967,6 +967,129 @@ export class EventService {
       };
     }
   }
+
+  /**
+   * Быстрая загрузка всех мероприятий (упрощенная версия)
+   */
+  static async getAllFast(limit: number = 5, offset: number = 0): Promise<ApiResponse<DatabaseEvent[]>> {
+    try {
+      console.log(`⚡ EventService.getAllFast fetching events (limit: ${limit}, offset: ${offset})`);
+      
+      const { data, error } = await supabase
+        .from('events')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .range(offset, offset + limit - 1);
+
+      if (error) {
+        console.error('❌ Supabase error in getAllFast:', error);
+        throw error;
+      }
+
+      console.log(`⚡ Fast loaded ${data?.length || 0} events`);
+      return { data: data || [], error: null };
+    } catch (error) {
+      console.error('❌ Error in getAllFast:', error);
+      return { 
+        data: null, 
+        error: { message: `Ошибка быстрой загрузки: ${this.getErrorMessage(error)}` } 
+      };
+    }
+  }
+
+  /**
+   * Быстрая загрузка доступных мероприятий (упрощенная версия)
+   */
+  static async getAvailableFast(limit: number = 5, offset: number = 0): Promise<ApiResponse<DatabaseEvent[]>> {
+    try {
+      console.log(`⚡ EventService.getAvailableFast fetching events (limit: ${limit}, offset: ${offset})`);
+      
+      const { data, error } = await supabase
+        .from('events')
+        .select('*')
+        .eq('status', 'active')
+        .gte('date', new Date().toISOString().split('T')[0]) // Только дата без времени
+        .order('created_at', { ascending: false })
+        .range(offset, offset + limit - 1);
+
+      if (error) {
+        console.error('❌ Supabase error in getAvailableFast:', error);
+        throw error;
+      }
+
+      console.log(`⚡ Fast loaded ${data?.length || 0} available events`);
+      return { data: data || [], error: null };
+    } catch (error) {
+      console.error('❌ Error in getAvailableFast:', error);
+      return { 
+        data: null, 
+        error: { message: `Ошибка быстрой загрузки доступных: ${this.getErrorMessage(error)}` } 
+      };
+    }
+  }
+
+  /**
+   * Быстрая загрузка мероприятий пользователя (упрощенная версия)
+   */
+  static async getUserEventsFast(telegramId: number, limit: number = 5, offset: number = 0): Promise<ApiResponse<DatabaseEvent[]>> {
+    try {
+      console.log(`⚡ EventService.getUserEventsFast for user: ${telegramId} (limit: ${limit}, offset: ${offset})`);
+      
+      // Простой запрос только созданных пользователем мероприятий
+      const { data, error } = await supabase
+        .from('events')
+        .select('*')
+        .eq('created_by', telegramId)
+        .order('created_at', { ascending: false })
+        .range(offset, offset + limit - 1);
+
+      if (error) {
+        console.error('❌ Supabase error in getUserEventsFast:', error);
+        throw error;
+      }
+
+      console.log(`⚡ Fast loaded ${data?.length || 0} user events`);
+      return { data: data || [], error: null };
+    } catch (error) {
+      console.error('❌ Error in getUserEventsFast:', error);
+      return { 
+        data: null, 
+        error: { message: `Ошибка быстрой загрузки пользователя: ${this.getErrorMessage(error)}` } 
+      };
+    }
+  }
+
+  /**
+   * Быстрая загрузка архива пользователя (упрощенная версия)
+   */
+  static async getUserArchiveFast(telegramId: number, limit: number = 5, offset: number = 0): Promise<ApiResponse<DatabaseEvent[]>> {
+    try {
+      console.log(`⚡ EventService.getUserArchiveFast for user: ${telegramId} (limit: ${limit}, offset: ${offset})`);
+      
+      // Простой запрос завершенных мероприятий пользователя
+      const { data, error } = await supabase
+        .from('events')
+        .select('*')
+        .eq('created_by', telegramId)
+        .or('status.eq.completed,date.lt.' + new Date().toISOString().split('T')[0])
+        .order('created_at', { ascending: false })
+        .range(offset, offset + limit - 1);
+
+      if (error) {
+        console.error('❌ Supabase error in getUserArchiveFast:', error);
+        throw error;
+      }
+
+      console.log(`⚡ Fast loaded ${data?.length || 0} archive events`);
+      return { data: data || [], error: null };
+    } catch (error) {
+      console.error('❌ Error in getUserArchiveFast:', error);
+      return { 
+        data: null, 
+        error: { message: `Ошибка быстрой загрузки архива: ${this.getErrorMessage(error)}` } 
+      };
+    }
+  }
 }
 
 // Экспортируем экземпляр для удобства
