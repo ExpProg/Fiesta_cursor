@@ -383,6 +383,7 @@ export const EventsList: React.FC<EventsListProps> = ({
   }); // Новое состояние для управления изображениями
   const [showDebug, setShowDebug] = useState(false); // Отладочная панель
   const [lastLoadTime, setLastLoadTime] = useState<number | null>(null); // Время последней загрузки
+  const [loadingStage, setLoadingStage] = useState<string>('Инициализация...'); // Этап загрузки
   
   const ITEMS_PER_PAGE = 5;
   
@@ -498,6 +499,10 @@ export const EventsList: React.FC<EventsListProps> = ({
     const cached = eventsCache.current.get(cacheKey);
     const now = Date.now();
     
+    if (!silent) {
+      setLoadingStage('Проверка кэша...');
+    }
+    
     // Диагностика
     console.log('🔍 EventsList.fetchEvents called:', {
       tab,
@@ -515,6 +520,7 @@ export const EventsList: React.FC<EventsListProps> = ({
         setEvents(cached.data);
         setTotalItems(cached.totalItems);
         setLoading(false);
+        setLoadingStage('Завершено');
         console.log(`⚡ Cache hit for ${tab} page ${page} (${(performance.now() - startTime).toFixed(2)}ms)`);
       }
       return cached.data;
@@ -523,6 +529,7 @@ export const EventsList: React.FC<EventsListProps> = ({
     if (!silent) {
       setLoading(true);
       setError(null);
+      setLoadingStage('Подключение к базе данных...');
     }
 
     try {
@@ -533,18 +540,29 @@ export const EventsList: React.FC<EventsListProps> = ({
       console.log(`🔄 Loading ${tab} page ${page} (offset: ${offset}, limit: ${ITEMS_PER_PAGE})`);
       const apiStartTime = performance.now();
       
-      // Простая проверка подключения к Supabase
+      // Простая проверка подключения к Supabase с таймаутом
       try {
+        if (!silent) setLoadingStage('Тестирование подключения...');
         const { supabase } = await import('@/hooks/useSupabase');
         console.log('🔍 Testing Supabase connection...');
-        const { data: testData, error: testError } = await supabase.from('events').select('count').limit(1);
+        
+        // Добавляем таймаут для запроса
+        const connectionPromise = supabase.from('events').select('count').limit(1);
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Таймаут подключения (10 секунд)')), 10000)
+        );
+        
+        const { data: testData, error: testError } = await Promise.race([connectionPromise, timeoutPromise]) as any;
+        
         if (testError) {
           console.error('❌ Supabase connection test failed:', testError);
           throw new Error(`Ошибка подключения к базе данных: ${testError.message}`);
         }
         console.log('✅ Supabase connection test passed');
+        if (!silent) setLoadingStage('Подключение успешно! Загрузка данных...');
       } catch (connectionError) {
         console.error('❌ Supabase connection error:', connectionError);
+        if (!silent) setLoadingStage('Ошибка подключения');
         throw connectionError;
       }
       
@@ -552,12 +570,14 @@ export const EventsList: React.FC<EventsListProps> = ({
       switch (tab) {
         case 'all':
           console.log('🔄 Fetching all events...');
+          if (!silent) setLoadingStage('Загрузка всех мероприятий...');
           [result, totalCountResult] = await Promise.all([
             EventService.getAll(ITEMS_PER_PAGE, offset),
             EventService.getTotalCount()
           ]);
           break;
         case 'available':
+          if (!silent) setLoadingStage('Загрузка доступных мероприятий...');
           [result, totalCountResult] = await Promise.all([
             EventService.getAvailable(ITEMS_PER_PAGE, offset),
             EventService.getAvailableTotalCount()
@@ -569,9 +589,11 @@ export const EventsList: React.FC<EventsListProps> = ({
               setEvents([]);
               setTotalItems(0);
               setLoading(false);
+              setLoadingStage('Пользователь не авторизован');
             }
             return [];
           }
+          if (!silent) setLoadingStage('Загрузка ваших мероприятий...');
           [result, totalCountResult] = await Promise.all([
             EventService.getUserEvents(user.id, ITEMS_PER_PAGE, offset),
             EventService.getUserEventsTotalCount(user.id)
@@ -583,21 +605,25 @@ export const EventsList: React.FC<EventsListProps> = ({
               setEvents([]);
               setTotalItems(0);
               setLoading(false);
+              setLoadingStage('Пользователь не авторизован');
             }
             return [];
           }
+          if (!silent) setLoadingStage('Загрузка архива...');
           [result, totalCountResult] = await Promise.all([
             EventService.getUserArchive(user.id, ITEMS_PER_PAGE, offset),
             EventService.getUserArchiveTotalCount(user.id)
           ]);
           break;
         default:
+          if (!silent) setLoadingStage('Загрузка по умолчанию...');
           [result, totalCountResult] = await Promise.all([
             EventService.getAll(ITEMS_PER_PAGE, offset),
             EventService.getTotalCount()
           ]);
       }
 
+      if (!silent) setLoadingStage('Обработка данных...');
       const apiEndTime = performance.now();
       console.log(`📊 API calls completed in ${(apiEndTime - apiStartTime).toFixed(2)}ms`);
 
@@ -612,6 +638,7 @@ export const EventsList: React.FC<EventsListProps> = ({
       let eventsData = result.data || [];
       
       // Фильтруем частные мероприятия для общих списков
+      if (!silent) setLoadingStage('Фильтрация данных...');
       const filterStartTime = performance.now();
       if (tab === 'all' || tab === 'available') {
         eventsData = eventsData.filter(event => 
@@ -628,6 +655,7 @@ export const EventsList: React.FC<EventsListProps> = ({
           eventsData.length * 10);
       
       // Сохраняем в кэш
+      if (!silent) setLoadingStage('Сохранение в кэш...');
       eventsCache.current.set(cacheKey, {
         data: eventsData,
         totalItems: actualTotal,
@@ -641,6 +669,7 @@ export const EventsList: React.FC<EventsListProps> = ({
         setEvents(eventsData);
         setTotalItems(actualTotal);
         setLastLoadTime(totalTime); // Сохраняем время загрузки
+        setLoadingStage('Завершено успешно!');
         
         // Аналитика с временными метриками
         reachGoal('events_list_loaded', {
@@ -668,6 +697,7 @@ export const EventsList: React.FC<EventsListProps> = ({
       
       if (!silent) {
         setError(err instanceof Error ? err.message : 'Ошибка загрузки мероприятий');
+        setLoadingStage(`Ошибка: ${err instanceof Error ? err.message : 'Неизвестная ошибка'}`);
         
         reachGoal('events_list_error', {
           tab,
@@ -739,14 +769,27 @@ export const EventsList: React.FC<EventsListProps> = ({
           
           {/* Визуальная диагностика загрузки */}
           <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-            <div className="text-blue-800 font-medium mb-2">🔄 Загрузка мероприятий...</div>
+            <div className="text-blue-800 font-medium mb-2">🔄 {loadingStage}</div>
             <div className="text-sm text-blue-600 space-y-1">
               <div>Вкладка: {activeTab}</div>
               <div>Страница: {currentPage}</div>
               <div>Пользователь: {user?.id ? `ID ${user.id}` : 'Не авторизован'}</div>
               <div>Supabase URL: {import.meta.env.VITE_SUPABASE_URL ? '✅ Настроен' : '❌ Не настроен'}</div>
               <div>Supabase Key: {import.meta.env.VITE_SUPABASE_ANON_KEY ? '✅ Настроен' : '❌ Не настроен'}</div>
+              <div>Время: {new Date().toLocaleTimeString()}</div>
             </div>
+            
+            {/* Кнопка принудительной остановки загрузки */}
+            <button
+              onClick={() => {
+                setLoading(false);
+                setLoadingStage('Остановлено пользователем');
+                setError('Загрузка была остановлена пользователем');
+              }}
+              className="mt-3 w-full bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors"
+            >
+              ⏹️ Остановить загрузку
+            </button>
           </div>
           
           <LoadingGrid />
