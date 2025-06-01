@@ -661,8 +661,13 @@ export const EventsList: React.FC<EventsListProps> = ({
       <div className="p-6">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-2xl font-bold text-gray-800">{tabTitle}</h2>
-          <div className="text-sm text-gray-500">
-            Страница {currentPage}
+          <div className="text-right">
+            <div className="text-sm text-gray-500">
+              Страница {currentPage} из {Math.ceil(totalItems / ITEMS_PER_PAGE)}
+            </div>
+            <div className="text-xs text-gray-400">
+              Всего: {totalItems} {totalItems === 1 ? 'мероприятие' : totalItems < 5 ? 'мероприятия' : 'мероприятий'}
+            </div>
           </div>
         </div>
 
