@@ -472,10 +472,40 @@ export class EventService {
 
   /**
    * Получить доступные мероприятия (активные, в будущем, есть места)
+   * Оптимизированная версия
    */
   static async getAvailable(limit: number = 20): Promise<ApiResponse<DatabaseEvent[]>> {
     try {
       console.log('🔍 EventService.getAvailable fetching available events');
+      
+      // Используем оптимизированную RPC функцию
+      const { data, error } = await supabase.rpc('get_available_events_optimized', {
+        events_limit: limit
+      });
+
+      if (error) {
+        console.error('❌ Supabase RPC error in getAvailable:', error);
+        
+        // Fallback к старому методу если RPC функция не существует
+        return this.getAvailableLegacy(limit);
+      }
+
+      console.log(`✅ Found ${data?.length || 0} available events (optimized)`);
+      return { data: data || [], error: null };
+    } catch (error) {
+      console.error('❌ Error fetching available events (optimized):', error);
+      
+      // Fallback к старому методу
+      return this.getAvailableLegacy(limit);
+    }
+  }
+
+  /**
+   * Legacy метод getAvailable (для fallback)
+   */
+  private static async getAvailableLegacy(limit: number = 20): Promise<ApiResponse<DatabaseEvent[]>> {
+    try {
+      console.log('🔍 EventService.getAvailableLegacy (fallback)');
       
       const { data, error } = await supabase
         .from('events')
@@ -496,10 +526,10 @@ export class EventService {
         return event.current_participants < event.max_participants;
       });
 
-      console.log(`✅ Found ${availableEvents.length} available events`);
+      console.log(`✅ Found ${availableEvents.length} available events (legacy)`);
       return { data: availableEvents, error: null };
     } catch (error) {
-      console.error('❌ Error fetching available events:', error);
+      console.error('❌ Error fetching available events (legacy):', error);
       return { 
         data: null, 
         error: { message: `Не удалось получить доступные мероприятия: ${this.getErrorMessage(error)}` } 
@@ -509,10 +539,71 @@ export class EventService {
 
   /**
    * Получить мероприятия пользователя (на которые он откликнулся и которые еще не прошли + созданные им частные мероприятия)
+   * Оптимизированная версия с одним запросом
    */
   static async getUserEvents(telegramId: number, limit: number = 20): Promise<ApiResponse<DatabaseEvent[]>> {
     try {
       console.log('🔍 EventService.getUserEvents fetching user events for:', telegramId);
+      
+      // Используем один оптимизированный запрос с UNION для объединения результатов
+      const { data, error } = await supabase.rpc('get_user_events_optimized', {
+        user_telegram_id: telegramId,
+        events_limit: limit
+      });
+
+      if (error) {
+        console.error('❌ Supabase RPC error in getUserEvents:', error);
+        
+        // Fallback к старому методу если RPC функция не существует
+        return this.getUserEventsLegacy(telegramId, limit);
+      }
+
+      console.log(`✅ Found ${data?.length || 0} user events (optimized)`);
+      return { data: data || [], error: null };
+    } catch (error) {
+      console.error('❌ Error fetching user events (optimized):', error);
+      
+      // Fallback к старому методу
+      return this.getUserEventsLegacy(telegramId, limit);
+    }
+  }
+
+  /**
+   * Получить архивные мероприятия пользователя (оптимизированная версия)
+   */
+  static async getUserArchive(telegramId: number, limit: number = 20): Promise<ApiResponse<DatabaseEvent[]>> {
+    try {
+      console.log('🔍 EventService.getUserArchive fetching archive events for:', telegramId);
+      
+      // Используем один оптимизированный запрос с UNION
+      const { data, error } = await supabase.rpc('get_user_archive_optimized', {
+        user_telegram_id: telegramId,
+        events_limit: limit
+      });
+
+      if (error) {
+        console.error('❌ Supabase RPC error in getUserArchive:', error);
+        
+        // Fallback к старому методу если RPC функция не существует
+        return this.getUserArchiveLegacy(telegramId, limit);
+      }
+
+      console.log(`✅ Found ${data?.length || 0} archive events (optimized)`);
+      return { data: data || [], error: null };
+    } catch (error) {
+      console.error('❌ Error fetching archive events (optimized):', error);
+      
+      // Fallback к старому методу
+      return this.getUserArchiveLegacy(telegramId, limit);
+    }
+  }
+
+  /**
+   * Legacy метод getUserEvents (для fallback)
+   */
+  private static async getUserEventsLegacy(telegramId: number, limit: number = 20): Promise<ApiResponse<DatabaseEvent[]>> {
+    try {
+      console.log('🔍 EventService.getUserEventsLegacy (fallback) for:', telegramId);
       
       // Получаем ID событий, на которые пользователь откликнулся
       const { data: responses, error: responsesError } = await supabase
@@ -588,10 +679,10 @@ export class EventService {
         .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
         .slice(0, limit);
 
-      console.log(`✅ Found ${sortedEvents.length} user events (${respondedEvents?.length || 0} responded + ${createdPrivateEvents?.length || 0} created private, ${uniqueEvents.length} unique)`);
+      console.log(`✅ Found ${sortedEvents.length} user events (legacy: ${respondedEvents?.length || 0} responded + ${createdPrivateEvents?.length || 0} created private, ${uniqueEvents.length} unique)`);
       return { data: sortedEvents, error: null };
     } catch (error) {
-      console.error('❌ Error fetching user events:', error);
+      console.error('❌ Error fetching user events (legacy):', error);
       return { 
         data: null, 
         error: { message: `Не удалось получить мероприятия пользователя: ${this.getErrorMessage(error)}` } 
@@ -600,11 +691,11 @@ export class EventService {
   }
 
   /**
-   * Получить архивные мероприятия пользователя (прошедшие, на которые он откликнулся + созданные им частные мероприятия)
+   * Legacy метод getUserArchive (для fallback)
    */
-  static async getUserArchive(telegramId: number, limit: number = 20): Promise<ApiResponse<DatabaseEvent[]>> {
+  private static async getUserArchiveLegacy(telegramId: number, limit: number = 20): Promise<ApiResponse<DatabaseEvent[]>> {
     try {
-      console.log('🔍 EventService.getUserArchive fetching archive events for:', telegramId);
+      console.log('🔍 EventService.getUserArchiveLegacy (fallback) for:', telegramId);
       
       // Получаем ID событий, на которые пользователь откликнулся
       const { data: responses, error: responsesError } = await supabase
@@ -680,10 +771,10 @@ export class EventService {
         .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
         .slice(0, limit);
 
-      console.log(`✅ Found ${sortedEvents.length} archive events (${respondedEvents?.length || 0} responded + ${createdPrivateEvents?.length || 0} created private, ${uniqueEvents.length} unique)`);
+      console.log(`✅ Found ${sortedEvents.length} archive events (legacy: ${respondedEvents?.length || 0} responded + ${createdPrivateEvents?.length || 0} created private, ${uniqueEvents.length} unique)`);
       return { data: sortedEvents, error: null };
     } catch (error) {
-      console.error('❌ Error fetching archive events:', error);
+      console.error('❌ Error fetching archive events (legacy):', error);
       return { 
         data: null, 
         error: { message: `Не удалось получить архив мероприятий: ${this.getErrorMessage(error)}` } 

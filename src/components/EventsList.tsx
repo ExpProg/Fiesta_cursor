@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { EventService } from '@/services/eventService';
 import { getEventGradient } from '@/utils/gradients';
 import { useYandexMetrika } from '@/hooks/useYandexMetrika';
@@ -275,6 +275,65 @@ const EventCard: React.FC<EventCardProps> = React.memo(({ event, onEventClick, o
 
 EventCard.displayName = 'EventCard';
 
+// Мемоизированный компонент списка событий для предотвращения лишних ре-рендеров
+const EventsGrid: React.FC<{
+  events: DatabaseEvent[];
+  onEventClick?: (event: DatabaseEvent) => void;
+  onMapClick: (event: DatabaseEvent) => void;
+}> = React.memo(({ events, onEventClick, onMapClick }) => {
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {events.map((event) => (
+        <EventCard
+          key={event.id}
+          event={event}
+          onEventClick={onEventClick}
+          onMapClick={onMapClick}
+        />
+      ))}
+    </div>
+  );
+});
+
+EventsGrid.displayName = 'EventsGrid';
+
+// Мемоизированный компонент загрузки
+const LoadingGrid: React.FC = React.memo(() => (
+  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    {[...Array(6)].map((_, i) => (
+      <div key={i} className="bg-white rounded-xl shadow-md overflow-hidden animate-pulse">
+        <div className="h-48 bg-gray-200"></div>
+        <div className="p-6">
+          <div className="h-4 bg-gray-200 rounded mb-3"></div>
+          <div className="h-3 bg-gray-200 rounded mb-2"></div>
+          <div className="h-3 bg-gray-200 rounded w-2/3"></div>
+        </div>
+      </div>
+    ))}
+  </div>
+));
+
+LoadingGrid.displayName = 'LoadingGrid';
+
+// Мемоизированный компонент пустого состояния
+const EmptyState: React.FC<{
+  icon: string;
+  title: string;
+  subtitle: string;
+}> = React.memo(({ icon, title, subtitle }) => (
+  <div className="bg-gray-50 border border-gray-200 rounded-lg p-12 text-center">
+    <div className="text-6xl mb-4">{icon}</div>
+    <div className="text-xl font-medium text-gray-700 mb-2">
+      {title}
+    </div>
+    <div className="text-gray-500">
+      {subtitle}
+    </div>
+  </div>
+));
+
+EmptyState.displayName = 'EmptyState';
+
 export const EventsList: React.FC<EventsListProps> = ({ 
   onEventClick
 }) => {
@@ -286,11 +345,39 @@ export const EventsList: React.FC<EventsListProps> = ({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
-  // Кэш для событий
+  // Кэш для событий с увеличенным временем жизни
   const eventsCache = useRef<Map<TabType, { data: DatabaseEvent[], timestamp: number }>>(new Map());
-  const CACHE_DURATION = 30000; // 30 секунд
+  const CACHE_DURATION = 120000; // 2 минуты для лучшей производительности
 
-  const getTabTitle = (tab: TabType): string => {
+  // Предзагрузка соседних вкладок
+  const preloadAdjacentTabs = useCallback(async (currentTab: TabType) => {
+    const tabOrder: TabType[] = ['all', 'available', 'my', 'archive'];
+    const currentIndex = tabOrder.indexOf(currentTab);
+    
+    // Предзагружаем соседние вкладки в фоне
+    const adjacentTabs = [
+      tabOrder[currentIndex - 1],
+      tabOrder[currentIndex + 1]
+    ].filter(Boolean);
+
+    for (const tab of adjacentTabs) {
+      const cached = eventsCache.current.get(tab);
+      const now = Date.now();
+      
+      // Загружаем только если кэш устарел
+      if (!cached || (now - cached.timestamp) > CACHE_DURATION) {
+        try {
+          await fetchEvents(tab, false, true); // silent preload
+        } catch (error) {
+          // Игнорируем ошибки предзагрузки
+          console.log(`📦 Preload failed for tab ${tab}:`, error);
+        }
+      }
+    }
+  }, []);
+
+  // Мемоизированная функция получения заголовка вкладки
+  const getTabTitle = useCallback((tab: TabType): string => {
     switch (tab) {
       case 'all': return 'Все мероприятия';
       case 'available': return 'Доступные мероприятия';
@@ -298,144 +385,10 @@ export const EventsList: React.FC<EventsListProps> = ({
       case 'archive': return 'Архив мероприятий';
       default: return 'Мероприятия';
     }
-  };
+  }, []);
 
-  // Мемоизированный обработчик клика по карте
-  const handleMapClick = useCallback((event: DatabaseEvent) => {
-    if (event.map_url) {
-      reachGoal('map_click', {
-        event_id: event.id,
-        event_title: event.title.substring(0, 30)
-      });
-      window.open(event.map_url, '_blank', 'noopener,noreferrer');
-    }
-  }, [reachGoal]);
-
-  // Оптимизированная функция загрузки событий
-  const fetchEvents = useCallback(async (tab: TabType, forceRefresh = false) => {
-    // Проверяем кэш
-    const cached = eventsCache.current.get(tab);
-    const now = Date.now();
-    
-    if (!forceRefresh && cached && (now - cached.timestamp) < CACHE_DURATION) {
-      setEvents(cached.data);
-      setLoading(false);
-      return;
-    }
-
-    setLoading(true);
-    setError(null);
-
-    try {
-      let result;
-      
-      // Оптимизированные запросы в зависимости от вкладки
-      switch (tab) {
-        case 'all':
-          result = await EventService.getAll(50);
-          break;
-        case 'available':
-          result = await EventService.getAvailable(50);
-          break;
-        case 'my':
-          if (!user?.id) {
-            setEvents([]);
-            setLoading(false);
-            return;
-          }
-          result = await EventService.getUserEvents(user.id, 50);
-          break;
-        case 'archive':
-          if (!user?.id) {
-            setEvents([]);
-            setLoading(false);
-            return;
-          }
-          result = await EventService.getUserArchive(user.id, 50);
-          break;
-        default:
-          result = await EventService.getAll(50);
-      }
-
-      if (result.error) {
-        throw new Error(result.error.message);
-      }
-
-      let eventsData = result.data || [];
-      
-      // Фильтруем частные мероприятия для общих списков, но оставляем их для организатора
-      if (tab === 'all' || tab === 'available') {
-        eventsData = eventsData.filter(event => 
-          !event.is_private || (user?.id && event.created_by === user.id)
-        );
-      }
-      
-      // Сохраняем в кэш
-      eventsCache.current.set(tab, {
-        data: eventsData,
-        timestamp: now
-      });
-      
-      setEvents(eventsData);
-      
-      // Аналитика
-      reachGoal('events_list_loaded', {
-        tab,
-        events_count: eventsData.length,
-        user_id: user?.id || 0
-      });
-      
-    } catch (err) {
-      console.error('❌ Error fetching events:', err);
-      setError(err instanceof Error ? err.message : 'Ошибка загрузки мероприятий');
-      
-      reachGoal('events_list_error', {
-        tab,
-        error: err instanceof Error ? err.message : 'unknown_error',
-        user_id: user?.id || 0
-      });
-    } finally {
-      setLoading(false);
-    }
-  }, [user?.id, reachGoal]);
-
-  // Мемоизированный обработчик смены вкладки
-  const handleTabChange = useCallback((tab: TabType) => {
-    setActiveTab(tab);
-    fetchEvents(tab);
-  }, [fetchEvents]);
-
-  // Загрузка событий при монтировании и смене пользователя
-  useEffect(() => {
-    fetchEvents(activeTab);
-  }, [fetchEvents, activeTab]);
-
-  // Очистка кэша при смене пользователя
-  useEffect(() => {
-    eventsCache.current.clear();
-  }, [user?.id]);
-
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('ru-RU', {
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric'
-    });
-  };
-
-  const formatTime = (timeString: string | null) => {
-    if (!timeString) return '';
-    return timeString.slice(0, 5); // HH:MM
-  };
-
-  const getEventImage = (event: DatabaseEvent) => {
-    if (event.image_url) return event.image_url;
-    // Используем сохраненный градиент или генерируем детерминированный
-    return getEventGradient(event);
-  };
-
-  const getEmptyStateMessage = (tab: TabType) => {
+  // Мемоизированная функция получения пустого состояния
+  const getEmptyStateMessage = useCallback((tab: TabType) => {
     switch (tab) {
       case 'all':
         return {
@@ -468,26 +421,165 @@ export const EventsList: React.FC<EventsListProps> = ({
           subtitle: 'Скоро здесь появятся интересные события!'
         };
     }
-  };
+  }, []);
+
+  // Мемоизированный обработчик клика по карте
+  const handleMapClick = useCallback((event: DatabaseEvent) => {
+    if (event.map_url) {
+      reachGoal('map_click', {
+        event_id: event.id,
+        event_title: event.title.substring(0, 30)
+      });
+      window.open(event.map_url, '_blank', 'noopener,noreferrer');
+    }
+  }, [reachGoal]);
+
+  // Оптимизированная функция загрузки событий
+  const fetchEvents = useCallback(async (tab: TabType, forceRefresh = false, silent = false) => {
+    // Проверяем кэш
+    const cached = eventsCache.current.get(tab);
+    const now = Date.now();
+    
+    if (!forceRefresh && cached && (now - cached.timestamp) < CACHE_DURATION) {
+      if (!silent) {
+        setEvents(cached.data);
+        setLoading(false);
+      }
+      return cached.data;
+    }
+
+    if (!silent) {
+      setLoading(true);
+      setError(null);
+    }
+
+    try {
+      let result;
+      
+      // Оптимизированные запросы в зависимости от вкладки
+      switch (tab) {
+        case 'all':
+          result = await EventService.getAll(50);
+          break;
+        case 'available':
+          result = await EventService.getAvailable(50);
+          break;
+        case 'my':
+          if (!user?.id) {
+            const emptyResult = { data: [], error: null };
+            if (!silent) {
+              setEvents([]);
+              setLoading(false);
+            }
+            return [];
+          }
+          result = await EventService.getUserEvents(user.id, 50);
+          break;
+        case 'archive':
+          if (!user?.id) {
+            const emptyResult = { data: [], error: null };
+            if (!silent) {
+              setEvents([]);
+              setLoading(false);
+            }
+            return [];
+          }
+          result = await EventService.getUserArchive(user.id, 50);
+          break;
+        default:
+          result = await EventService.getAll(50);
+      }
+
+      if (result.error) {
+        throw new Error(result.error.message);
+      }
+
+      let eventsData = result.data || [];
+      
+      // Фильтруем частные мероприятия для общих списков, но оставляем их для организатора
+      if (tab === 'all' || tab === 'available') {
+        eventsData = eventsData.filter(event => 
+          !event.is_private || (user?.id && event.created_by === user.id)
+        );
+      }
+      
+      // Сохраняем в кэш
+      eventsCache.current.set(tab, {
+        data: eventsData,
+        timestamp: now
+      });
+      
+      if (!silent) {
+        setEvents(eventsData);
+        
+        // Аналитика
+        reachGoal('events_list_loaded', {
+          tab,
+          events_count: eventsData.length,
+          user_id: user?.id || 0,
+          cache_hit: false
+        });
+      }
+
+      // Предзагружаем соседние вкладки после успешной загрузки
+      if (!silent && eventsData.length > 0) {
+        setTimeout(() => preloadAdjacentTabs(tab), 1000);
+      }
+      
+      return eventsData;
+      
+    } catch (err) {
+      console.error('❌ Error fetching events:', err);
+      
+      if (!silent) {
+        setError(err instanceof Error ? err.message : 'Ошибка загрузки мероприятий');
+        
+        reachGoal('events_list_error', {
+          tab,
+          error: err instanceof Error ? err.message : 'unknown_error',
+          user_id: user?.id || 0
+        });
+      }
+      
+      return [];
+    } finally {
+      if (!silent) {
+        setLoading(false);
+      }
+    }
+  }, [user?.id, reachGoal, preloadAdjacentTabs]);
+
+  // Мемоизированный обработчик смены вкладки
+  const handleTabChange = useCallback((tab: TabType) => {
+    setActiveTab(tab);
+    fetchEvents(tab);
+  }, [fetchEvents]);
+
+  // Загрузка событий при монтировании и смене пользователя
+  useEffect(() => {
+    fetchEvents(activeTab);
+  }, [fetchEvents, activeTab]);
+
+  // Очистка кэша при смене пользователя
+  useEffect(() => {
+    eventsCache.current.clear();
+  }, [user?.id]);
+
+  // Мемоизированные значения для предотвращения лишних ре-рендеров
+  const tabTitle = useMemo(() => getTabTitle(activeTab), [getTabTitle, activeTab]);
+  const emptyState = useMemo(() => getEmptyStateMessage(activeTab), [getEmptyStateMessage, activeTab]);
+  const eventsCount = useMemo(() => events.length, [events.length]);
+  const eventsCountText = useMemo(() => {
+    return `${eventsCount} ${eventsCount === 1 ? 'мероприятие' : eventsCount < 5 ? 'мероприятия' : 'мероприятий'}`;
+  }, [eventsCount]);
 
   if (loading) {
     return (
       <div className="w-full">
         <TabNavigation activeTab={activeTab} onTabChange={handleTabChange} />
         <div className="p-6">
-          <h2 className="text-2xl font-bold text-gray-800 mb-6">{getTabTitle(activeTab)}</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {[...Array(3)].map((_, i) => (
-              <div key={i} className="bg-white rounded-xl shadow-md overflow-hidden animate-pulse">
-                <div className="h-48 bg-gray-200"></div>
-                <div className="p-6">
-                  <div className="h-4 bg-gray-200 rounded mb-3"></div>
-                  <div className="h-3 bg-gray-200 rounded mb-2"></div>
-                  <div className="h-3 bg-gray-200 rounded w-2/3"></div>
-                </div>
-              </div>
-            ))}
-          </div>
+          <h2 className="text-2xl font-bold text-gray-800 mb-6">{tabTitle}</h2>
+          <LoadingGrid />
         </div>
       </div>
     );
@@ -498,7 +590,7 @@ export const EventsList: React.FC<EventsListProps> = ({
       <div className="w-full">
         <TabNavigation activeTab={activeTab} onTabChange={handleTabChange} />
         <div className="p-6">
-          <h2 className="text-2xl font-bold text-gray-800 mb-6">{getTabTitle(activeTab)}</h2>
+          <h2 className="text-2xl font-bold text-gray-800 mb-6">{tabTitle}</h2>
           <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
             <div className="text-red-600 mb-2">⚠️ Ошибка загрузки</div>
             <div className="text-gray-600">{error}</div>
@@ -508,23 +600,13 @@ export const EventsList: React.FC<EventsListProps> = ({
     );
   }
 
-  const emptyState = getEmptyStateMessage(activeTab);
-
-  if (events.length === 0) {
+  if (eventsCount === 0) {
     return (
       <div className="w-full">
         <TabNavigation activeTab={activeTab} onTabChange={handleTabChange} />
         <div className="p-6">
-          <h2 className="text-2xl font-bold text-gray-800 mb-6">{getTabTitle(activeTab)}</h2>
-          <div className="bg-gray-50 border border-gray-200 rounded-lg p-12 text-center">
-            <div className="text-6xl mb-4">{emptyState.icon}</div>
-            <div className="text-xl font-medium text-gray-700 mb-2">
-              {emptyState.title}
-            </div>
-            <div className="text-gray-500">
-              {emptyState.subtitle}
-            </div>
-          </div>
+          <h2 className="text-2xl font-bold text-gray-800 mb-6">{tabTitle}</h2>
+          <EmptyState {...emptyState} />
         </div>
       </div>
     );
@@ -535,22 +617,17 @@ export const EventsList: React.FC<EventsListProps> = ({
       <TabNavigation activeTab={activeTab} onTabChange={handleTabChange} />
       <div className="p-6">
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-bold text-gray-800">{getTabTitle(activeTab)}</h2>
+          <h2 className="text-2xl font-bold text-gray-800">{tabTitle}</h2>
           <div className="text-sm text-gray-500">
-            {events.length} {events.length === 1 ? 'мероприятие' : events.length < 5 ? 'мероприятия' : 'мероприятий'}
+            {eventsCountText}
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {events.map((event) => (
-            <EventCard
-              key={event.id}
-              event={event}
-              onEventClick={onEventClick}
-              onMapClick={handleMapClick}
-            />
-          ))}
-        </div>
+        <EventsGrid
+          events={events}
+          onEventClick={onEventClick}
+          onMapClick={handleMapClick}
+        />
       </div>
     </div>
   );
