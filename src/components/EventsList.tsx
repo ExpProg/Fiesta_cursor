@@ -12,7 +12,7 @@ interface EventsListProps {
   onEventClick?: (event: DatabaseEvent) => void;
 }
 
-// Компонент для ленивой загрузки изображений
+// Компонент для ленивой загрузки изображений с оптимизацией
 interface LazyImageProps {
   src: string;
   alt: string;
@@ -26,6 +26,17 @@ const LazyImage: React.FC<LazyImageProps> = ({ src, alt, className, fallbackGrad
   const [hasError, setHasError] = useState(false);
   const imgRef = useRef<HTMLImageElement>(null);
 
+  // Оптимизируем URL изображения для быстрой загрузки
+  const getOptimizedImageUrl = useCallback((url: string) => {
+    // Если это Supabase Storage URL, добавляем параметры оптимизации
+    if (url.includes('supabase') && url.includes('storage')) {
+      // Добавляем параметры для сжатия и изменения размера
+      const separator = url.includes('?') ? '&' : '?';
+      return `${url}${separator}width=400&height=300&resize=cover&quality=75`;
+    }
+    return url;
+  }, []);
+
   useEffect(() => {
     const observer = new IntersectionObserver(
       ([entry]) => {
@@ -36,7 +47,7 @@ const LazyImage: React.FC<LazyImageProps> = ({ src, alt, className, fallbackGrad
       },
       { 
         threshold: 0.1,
-        rootMargin: '50px' // Начинаем загрузку за 50px до появления в viewport
+        rootMargin: '100px' // Увеличиваем до 100px для более плавной загрузки
       }
     );
 
@@ -56,12 +67,14 @@ const LazyImage: React.FC<LazyImageProps> = ({ src, alt, className, fallbackGrad
     setIsLoaded(true);
   }, []);
 
+  const optimizedSrc = useMemo(() => getOptimizedImageUrl(src), [src, getOptimizedImageUrl]);
+
   return (
     <div ref={imgRef} className={className}>
       {!isInView ? (
         // Placeholder пока изображение не в viewport
         <div 
-          className="w-full h-full bg-gray-200 animate-pulse flex items-center justify-center"
+          className="w-full h-full bg-gray-200 flex items-center justify-center"
           style={{ background: fallbackGradient }}
         >
           <div className="text-white/70 text-sm">📷</div>
@@ -79,23 +92,27 @@ const LazyImage: React.FC<LazyImageProps> = ({ src, alt, className, fallbackGrad
           {/* Placeholder пока изображение загружается */}
           {!isLoaded && (
             <div 
-              className="absolute inset-0 bg-gray-200 animate-pulse flex items-center justify-center"
+              className="absolute inset-0 flex items-center justify-center"
               style={{ background: fallbackGradient }}
             >
-              <Loader2 className="w-6 h-6 text-white/70 animate-spin" />
+              <div className="text-white/70 text-xs">Загрузка...</div>
             </div>
           )}
           
           {/* Само изображение */}
           <img
-            src={src}
+            src={optimizedSrc}
             alt={alt}
-            className={`w-full h-full object-cover transition-opacity duration-300 ${
+            className={`w-full h-full object-cover transition-opacity duration-500 ${
               isLoaded ? 'opacity-100' : 'opacity-0'
             }`}
             onLoad={handleLoad}
             onError={handleError}
             loading="lazy"
+            decoding="async"
+            // Добавляем размеры для оптимизации
+            width="400"
+            height="300"
           />
         </>
       )}
@@ -108,9 +125,10 @@ interface EventCardProps {
   event: DatabaseEvent;
   onEventClick?: (event: DatabaseEvent) => void;
   onMapClick: (event: DatabaseEvent) => void;
+  imagesEnabled?: boolean; // Новый проп для управления изображениями
 }
 
-const EventCard: React.FC<EventCardProps> = React.memo(({ event, onEventClick, onMapClick }) => {
+const EventCard: React.FC<EventCardProps> = React.memo(({ event, onEventClick, onMapClick, imagesEnabled = true }) => {
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     return date.toLocaleDateString('ru-RU', {
@@ -146,8 +164,8 @@ const EventCard: React.FC<EventCardProps> = React.memo(({ event, onEventClick, o
       onClick={() => onEventClick && onEventClick(event)}
     >
       {/* Изображение мероприятия */}
-      <div className="relative h-48 overflow-hidden">
-        {event.image_url ? (
+      <div className={`relative overflow-hidden ${imagesEnabled ? 'h-48' : 'h-24'}`}>
+        {imagesEnabled && event.image_url ? (
           <LazyImage
             src={event.image_url}
             alt={event.title}
@@ -156,9 +174,18 @@ const EventCard: React.FC<EventCardProps> = React.memo(({ event, onEventClick, o
           />
         ) : (
           <div 
-            className="w-full h-full group-hover:scale-105 transition-transform duration-300"
+            className={`w-full h-full group-hover:scale-105 transition-transform duration-300 flex items-center justify-center ${
+              !imagesEnabled ? 'text-white font-medium' : ''
+            }`}
             style={{ background: getEventImage(event) }}
-          />
+          >
+            {!imagesEnabled && (
+              <div className="text-center">
+                <div className="text-lg mb-1">🎉</div>
+                <div className="text-sm opacity-90">Быстрый режим</div>
+              </div>
+            )}
+          </div>
         )}
         
         {/* Статус */}
@@ -281,7 +308,8 @@ const EventsGrid: React.FC<{
   events: DatabaseEvent[];
   onEventClick?: (event: DatabaseEvent) => void;
   onMapClick: (event: DatabaseEvent) => void;
-}> = React.memo(({ events, onEventClick, onMapClick }) => {
+  imagesEnabled?: boolean;
+}> = React.memo(({ events, onEventClick, onMapClick, imagesEnabled = true }) => {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
       {events.map((event) => (
@@ -290,6 +318,7 @@ const EventsGrid: React.FC<{
           event={event}
           onEventClick={onEventClick}
           onMapClick={onMapClick}
+          imagesEnabled={imagesEnabled}
         />
       ))}
     </div>
@@ -347,12 +376,31 @@ export const EventsList: React.FC<EventsListProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
+  const [imagesEnabled, setImagesEnabled] = useState(() => {
+    // Инициализируем из localStorage или по умолчанию true
+    const saved = localStorage.getItem('eventsImagesEnabled');
+    return saved !== null ? JSON.parse(saved) : true;
+  }); // Новое состояние для управления изображениями
   
   const ITEMS_PER_PAGE = 5;
   
   // Кэш для событий с пагинацией
   const eventsCache = useRef<Map<string, { data: DatabaseEvent[], timestamp: number, totalItems: number }>>(new Map());
   const CACHE_DURATION = 120000; // 2 минуты
+
+  // Функция для переключения режима изображений
+  const toggleImages = useCallback(() => {
+    setImagesEnabled((prev: boolean) => {
+      const newValue = !prev;
+      localStorage.setItem('eventsImagesEnabled', JSON.stringify(newValue));
+      return newValue;
+    });
+    reachGoal('images_toggle', {
+      enabled: !imagesEnabled,
+      tab: activeTab,
+      user_id: user?.id || 0
+    });
+  }, [imagesEnabled, activeTab, user?.id, reachGoal]);
 
   // Генерируем ключ кэша с учетом пагинации
   const getCacheKey = useCallback((tab: TabType, page: number) => {
@@ -661,12 +709,30 @@ export const EventsList: React.FC<EventsListProps> = ({
       <div className="p-6">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-2xl font-bold text-gray-800">{tabTitle}</h2>
-          <div className="text-right">
-            <div className="text-sm text-gray-500">
-              Страница {currentPage} из {Math.ceil(totalItems / ITEMS_PER_PAGE)}
-            </div>
-            <div className="text-xs text-gray-400">
-              Всего: {totalItems} {totalItems === 1 ? 'мероприятие' : totalItems < 5 ? 'мероприятия' : 'мероприятий'}
+          <div className="flex items-center gap-4">
+            {/* Кнопка переключения изображений */}
+            <button
+              onClick={toggleImages}
+              className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                imagesEnabled
+                  ? 'bg-blue-100 text-blue-700 hover:bg-blue-200'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+              title={imagesEnabled ? 'Отключить изображения для быстрой загрузки' : 'Включить изображения'}
+            >
+              {imagesEnabled ? '🖼️' : '⚡'}
+              <span className="hidden sm:inline">
+                {imagesEnabled ? 'Изображения' : 'Быстрый режим'}
+              </span>
+            </button>
+            
+            <div className="text-right">
+              <div className="text-sm text-gray-500">
+                Страница {currentPage} из {Math.ceil(totalItems / ITEMS_PER_PAGE)}
+              </div>
+              <div className="text-xs text-gray-400">
+                Всего: {totalItems} {totalItems === 1 ? 'мероприятие' : totalItems < 5 ? 'мероприятия' : 'мероприятий'}
+              </div>
             </div>
           </div>
         </div>
@@ -675,6 +741,7 @@ export const EventsList: React.FC<EventsListProps> = ({
           events={events}
           onEventClick={onEventClick}
           onMapClick={handleMapClick}
+          imagesEnabled={imagesEnabled}
         />
 
         {/* Пагинация */}
