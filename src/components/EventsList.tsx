@@ -381,6 +381,8 @@ export const EventsList: React.FC<EventsListProps> = ({
     const saved = localStorage.getItem('eventsImagesEnabled');
     return saved !== null ? JSON.parse(saved) : true;
   }); // Новое состояние для управления изображениями
+  const [showDebug, setShowDebug] = useState(false); // Отладочная панель
+  const [lastLoadTime, setLastLoadTime] = useState<number | null>(null); // Время последней загрузки
   
   const ITEMS_PER_PAGE = 5;
   
@@ -401,6 +403,11 @@ export const EventsList: React.FC<EventsListProps> = ({
       user_id: user?.id || 0
     });
   }, [imagesEnabled, activeTab, user?.id, reachGoal]);
+
+  // Функция переключения отладки
+  const toggleDebug = useCallback(() => {
+    setShowDebug(prev => !prev);
+  }, []);
 
   // Генерируем ключ кэша с учетом пагинации
   const getCacheKey = useCallback((tab: TabType, page: number) => {
@@ -486,6 +493,7 @@ export const EventsList: React.FC<EventsListProps> = ({
 
   // Оптимизированная функция загрузки событий с пагинацией
   const fetchEvents = useCallback(async (tab: TabType, page: number = 1, forceRefresh = false, silent = false) => {
+    const startTime = performance.now(); // Добавляем замер времени
     const cacheKey = getCacheKey(tab, page);
     const cached = eventsCache.current.get(cacheKey);
     const now = Date.now();
@@ -495,6 +503,7 @@ export const EventsList: React.FC<EventsListProps> = ({
         setEvents(cached.data);
         setTotalItems(cached.totalItems);
         setLoading(false);
+        console.log(`⚡ Cache hit for ${tab} page ${page} (${(performance.now() - startTime).toFixed(2)}ms)`);
       }
       return cached.data;
     }
@@ -508,6 +517,9 @@ export const EventsList: React.FC<EventsListProps> = ({
       const offset = (page - 1) * ITEMS_PER_PAGE;
       let result;
       let totalCountResult;
+      
+      console.log(`🔄 Loading ${tab} page ${page} (offset: ${offset}, limit: ${ITEMS_PER_PAGE})`);
+      const apiStartTime = performance.now();
       
       // Запросы с пагинацией и подсчет общего количества
       switch (tab) {
@@ -558,6 +570,9 @@ export const EventsList: React.FC<EventsListProps> = ({
           ]);
       }
 
+      const apiEndTime = performance.now();
+      console.log(`📊 API calls completed in ${(apiEndTime - apiStartTime).toFixed(2)}ms`);
+
       if (result.error) {
         throw new Error(result.error.message);
       }
@@ -569,11 +584,14 @@ export const EventsList: React.FC<EventsListProps> = ({
       let eventsData = result.data || [];
       
       // Фильтруем частные мероприятия для общих списков
+      const filterStartTime = performance.now();
       if (tab === 'all' || tab === 'available') {
         eventsData = eventsData.filter(event => 
           !event.is_private || (user?.id && event.created_by === user.id)
         );
       }
+      const filterEndTime = performance.now();
+      console.log(`🔍 Filtering completed in ${(filterEndTime - filterStartTime).toFixed(2)}ms`);
       
       // Используем точное количество из API или fallback к примерному
       const actualTotal = totalCountResult.data !== null ? totalCountResult.data : 
@@ -588,18 +606,24 @@ export const EventsList: React.FC<EventsListProps> = ({
         timestamp: now
       });
       
+      const totalTime = performance.now() - startTime;
+      console.log(`✅ ${tab} page ${page} loaded: ${eventsData.length} events in ${totalTime.toFixed(2)}ms`);
+      
       if (!silent) {
         setEvents(eventsData);
         setTotalItems(actualTotal);
+        setLastLoadTime(totalTime); // Сохраняем время загрузки
         
-        // Аналитика
+        // Аналитика с временными метриками
         reachGoal('events_list_loaded', {
           tab,
           page,
           events_count: eventsData.length,
           total_count: actualTotal,
           user_id: user?.id || 0,
-          cache_hit: false
+          cache_hit: false,
+          load_time_ms: Math.round(totalTime),
+          api_time_ms: Math.round(apiEndTime - apiStartTime)
         });
       }
 
@@ -611,7 +635,8 @@ export const EventsList: React.FC<EventsListProps> = ({
       return eventsData;
       
     } catch (err) {
-      console.error('❌ Error fetching events:', err);
+      const totalTime = performance.now() - startTime;
+      console.error(`❌ Error fetching events (${totalTime.toFixed(2)}ms):`, err);
       
       if (!silent) {
         setError(err instanceof Error ? err.message : 'Ошибка загрузки мероприятий');
@@ -620,7 +645,8 @@ export const EventsList: React.FC<EventsListProps> = ({
           tab,
           page,
           error: err instanceof Error ? err.message : 'unknown_error',
-          user_id: user?.id || 0
+          user_id: user?.id || 0,
+          load_time_ms: Math.round(totalTime)
         });
       }
       
@@ -631,6 +657,18 @@ export const EventsList: React.FC<EventsListProps> = ({
       }
     }
   }, [user?.id, reachGoal, getCacheKey, preloadAdjacentPages]);
+
+  // Функция принудительного обновления
+  const forceRefresh = useCallback(() => {
+    eventsCache.current.clear();
+    setLastLoadTime(null);
+    fetchEvents(activeTab, currentPage, true);
+    reachGoal('force_refresh', {
+      tab: activeTab,
+      page: currentPage,
+      user_id: user?.id || 0
+    });
+  }, [activeTab, currentPage, fetchEvents, user?.id, reachGoal]);
 
   // Мемоизированный обработчик смены вкладки
   const handleTabChange = useCallback((tab: TabType) => {
@@ -725,6 +763,31 @@ export const EventsList: React.FC<EventsListProps> = ({
                 {imagesEnabled ? 'Изображения' : 'Быстрый режим'}
               </span>
             </button>
+
+            {/* Кнопка принудительного обновления */}
+            <button
+              onClick={forceRefresh}
+              disabled={loading}
+              className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium bg-green-100 text-green-700 hover:bg-green-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              title="Принудительно обновить данные"
+            >
+              🔄
+              <span className="hidden sm:inline">Обновить</span>
+            </button>
+
+            {/* Кнопка отладки */}
+            <button
+              onClick={toggleDebug}
+              className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                showDebug
+                  ? 'bg-orange-100 text-orange-700 hover:bg-orange-200'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+              title="Показать/скрыть отладочную информацию"
+            >
+              🔧
+              <span className="hidden sm:inline">Debug</span>
+            </button>
             
             <div className="text-right">
               <div className="text-sm text-gray-500">
@@ -732,10 +795,55 @@ export const EventsList: React.FC<EventsListProps> = ({
               </div>
               <div className="text-xs text-gray-400">
                 Всего: {totalItems} {totalItems === 1 ? 'мероприятие' : totalItems < 5 ? 'мероприятия' : 'мероприятий'}
+                {lastLoadTime && (
+                  <span className="ml-2 text-blue-500">
+                    ({lastLoadTime.toFixed(0)}ms)
+                  </span>
+                )}
               </div>
             </div>
           </div>
         </div>
+
+        {/* Отладочная панель */}
+        {showDebug && (
+          <div className="mb-6 p-4 bg-gray-50 border border-gray-200 rounded-lg">
+            <h3 className="text-lg font-semibold text-gray-800 mb-3">🔧 Отладочная информация</h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+              <div>
+                <strong>Производительность:</strong>
+                <ul className="mt-1 space-y-1">
+                  <li>Последняя загрузка: {lastLoadTime ? `${lastLoadTime.toFixed(2)}ms` : 'N/A'}</li>
+                  <li>Кэш записей: {eventsCache.current.size}</li>
+                  <li>Изображения: {imagesEnabled ? 'Включены' : 'Отключены'}</li>
+                </ul>
+              </div>
+              <div>
+                <strong>Текущее состояние:</strong>
+                <ul className="mt-1 space-y-1">
+                  <li>Вкладка: {activeTab}</li>
+                  <li>Страница: {currentPage}</li>
+                  <li>Загрузка: {loading ? 'Да' : 'Нет'}</li>
+                  <li>Пользователь: {user?.id || 'Не авторизован'}</li>
+                </ul>
+              </div>
+              <div>
+                <strong>Данные:</strong>
+                <ul className="mt-1 space-y-1">
+                  <li>События на странице: {events.length}</li>
+                  <li>Всего событий: {totalItems}</li>
+                  <li>Элементов на страницу: {ITEMS_PER_PAGE}</li>
+                  <li>Ошибка: {error || 'Нет'}</li>
+                </ul>
+              </div>
+            </div>
+            <div className="mt-4 pt-3 border-t border-gray-300">
+              <p className="text-xs text-gray-600">
+                💡 Если загрузка медленная, попробуйте отключить изображения или проверьте консоль браузера для подробной информации.
+              </p>
+            </div>
+          </div>
+        )}
 
         <EventsGrid
           events={events}
