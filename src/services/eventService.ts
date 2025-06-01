@@ -444,15 +444,15 @@ export class EventService {
   /**
    * Получить все мероприятия
    */
-  static async getAll(limit: number = 20): Promise<ApiResponse<DatabaseEvent[]>> {
+  static async getAll(limit: number = 5, offset: number = 0): Promise<ApiResponse<DatabaseEvent[]>> {
     try {
-      console.log('🔍 EventService.getAll fetching all events');
+      console.log(`🔍 EventService.getAll fetching events (limit: ${limit}, offset: ${offset})`);
       
       const { data, error } = await supabase
         .from('events')
         .select('*')
-        .order('date', { ascending: true })
-        .limit(limit);
+        .order('created_at', { ascending: false }) // Сортировка по дате создания (новые сначала)
+        .range(offset, offset + limit - 1);
 
       if (error) {
         console.error('❌ Supabase error in getAll:', error);
@@ -474,20 +474,21 @@ export class EventService {
    * Получить доступные мероприятия (активные, в будущем, есть места)
    * Оптимизированная версия
    */
-  static async getAvailable(limit: number = 20): Promise<ApiResponse<DatabaseEvent[]>> {
+  static async getAvailable(limit: number = 5, offset: number = 0): Promise<ApiResponse<DatabaseEvent[]>> {
     try {
-      console.log('🔍 EventService.getAvailable fetching available events');
+      console.log(`🔍 EventService.getAvailable fetching available events (limit: ${limit}, offset: ${offset})`);
       
       // Используем оптимизированную RPC функцию
       const { data, error } = await supabase.rpc('get_available_events_optimized', {
-        events_limit: limit
+        events_limit: limit,
+        events_offset: offset
       });
 
       if (error) {
         console.error('❌ Supabase RPC error in getAvailable:', error);
         
         // Fallback к старому методу если RPC функция не существует
-        return this.getAvailableLegacy(limit);
+        return this.getAvailableLegacy(limit, offset);
       }
 
       console.log(`✅ Found ${data?.length || 0} available events (optimized)`);
@@ -496,24 +497,24 @@ export class EventService {
       console.error('❌ Error fetching available events (optimized):', error);
       
       // Fallback к старому методу
-      return this.getAvailableLegacy(limit);
+      return this.getAvailableLegacy(limit, offset);
     }
   }
 
   /**
    * Legacy метод getAvailable (для fallback)
    */
-  private static async getAvailableLegacy(limit: number = 20): Promise<ApiResponse<DatabaseEvent[]>> {
+  private static async getAvailableLegacy(limit: number = 5, offset: number = 0): Promise<ApiResponse<DatabaseEvent[]>> {
     try {
-      console.log('🔍 EventService.getAvailableLegacy (fallback)');
+      console.log(`🔍 EventService.getAvailableLegacy (fallback) (limit: ${limit}, offset: ${offset})`);
       
       const { data, error } = await supabase
         .from('events')
         .select('*')
         .eq('status', 'active')
         .gte('date', new Date().toISOString())
-        .order('date', { ascending: true })
-        .limit(limit);
+        .order('created_at', { ascending: false }) // Сортировка по дате создания
+        .range(offset, offset + limit - 1);
 
       if (error) {
         console.error('❌ Supabase error in getAvailable:', error);
@@ -541,21 +542,22 @@ export class EventService {
    * Получить мероприятия пользователя (на которые он откликнулся и которые еще не прошли + созданные им частные мероприятия)
    * Оптимизированная версия с одним запросом
    */
-  static async getUserEvents(telegramId: number, limit: number = 20): Promise<ApiResponse<DatabaseEvent[]>> {
+  static async getUserEvents(telegramId: number, limit: number = 5, offset: number = 0): Promise<ApiResponse<DatabaseEvent[]>> {
     try {
-      console.log('🔍 EventService.getUserEvents fetching user events for:', telegramId);
+      console.log(`🔍 EventService.getUserEvents fetching user events for: ${telegramId} (limit: ${limit}, offset: ${offset})`);
       
       // Используем один оптимизированный запрос с UNION для объединения результатов
       const { data, error } = await supabase.rpc('get_user_events_optimized', {
         user_telegram_id: telegramId,
-        events_limit: limit
+        events_limit: limit,
+        events_offset: offset
       });
 
       if (error) {
         console.error('❌ Supabase RPC error in getUserEvents:', error);
         
         // Fallback к старому методу если RPC функция не существует
-        return this.getUserEventsLegacy(telegramId, limit);
+        return this.getUserEventsLegacy(telegramId, limit, offset);
       }
 
       console.log(`✅ Found ${data?.length || 0} user events (optimized)`);
@@ -564,28 +566,29 @@ export class EventService {
       console.error('❌ Error fetching user events (optimized):', error);
       
       // Fallback к старому методу
-      return this.getUserEventsLegacy(telegramId, limit);
+      return this.getUserEventsLegacy(telegramId, limit, offset);
     }
   }
 
   /**
    * Получить архивные мероприятия пользователя (оптимизированная версия)
    */
-  static async getUserArchive(telegramId: number, limit: number = 20): Promise<ApiResponse<DatabaseEvent[]>> {
+  static async getUserArchive(telegramId: number, limit: number = 5, offset: number = 0): Promise<ApiResponse<DatabaseEvent[]>> {
     try {
-      console.log('🔍 EventService.getUserArchive fetching archive events for:', telegramId);
+      console.log(`🔍 EventService.getUserArchive fetching archive events for: ${telegramId} (limit: ${limit}, offset: ${offset})`);
       
       // Используем один оптимизированный запрос с UNION
       const { data, error } = await supabase.rpc('get_user_archive_optimized', {
         user_telegram_id: telegramId,
-        events_limit: limit
+        events_limit: limit,
+        events_offset: offset
       });
 
       if (error) {
         console.error('❌ Supabase RPC error in getUserArchive:', error);
         
         // Fallback к старому методу если RPC функция не существует
-        return this.getUserArchiveLegacy(telegramId, limit);
+        return this.getUserArchiveLegacy(telegramId, limit, offset);
       }
 
       console.log(`✅ Found ${data?.length || 0} archive events (optimized)`);
@@ -594,16 +597,16 @@ export class EventService {
       console.error('❌ Error fetching archive events (optimized):', error);
       
       // Fallback к старому методу
-      return this.getUserArchiveLegacy(telegramId, limit);
+      return this.getUserArchiveLegacy(telegramId, limit, offset);
     }
   }
 
   /**
    * Legacy метод getUserEvents (для fallback)
    */
-  private static async getUserEventsLegacy(telegramId: number, limit: number = 20): Promise<ApiResponse<DatabaseEvent[]>> {
+  private static async getUserEventsLegacy(telegramId: number, limit: number = 5, offset: number = 0): Promise<ApiResponse<DatabaseEvent[]>> {
     try {
-      console.log('🔍 EventService.getUserEventsLegacy (fallback) for:', telegramId);
+      console.log(`🔍 EventService.getUserEventsLegacy (fallback) for: ${telegramId} (limit: ${limit}, offset: ${offset})`);
       
       // Получаем ID событий, на которые пользователь откликнулся
       const { data: responses, error: responsesError } = await supabase
@@ -629,8 +632,8 @@ export class EventService {
           .eq('created_by', telegramId)
           .eq('is_private', true)
           .gte('date', new Date().toISOString())
-          .order('date', { ascending: true })
-          .limit(limit);
+          .order('created_at', { ascending: false }) // Сортировка по дате создания
+          .range(offset, offset + limit - 1);
 
         if (error) {
           console.error('❌ Supabase error in getUserEvents (no responses):', error);
@@ -647,7 +650,7 @@ export class EventService {
         .select('*')
         .in('id', eventIds)
         .gte('date', new Date().toISOString())
-        .order('date', { ascending: true });
+        .order('created_at', { ascending: false }); // Сортировка по дате создания
 
       if (respondedError) {
         console.error('❌ Supabase error getting responded events:', respondedError);
@@ -661,7 +664,7 @@ export class EventService {
         .eq('created_by', telegramId)
         .eq('is_private', true)
         .gte('date', new Date().toISOString())
-        .order('date', { ascending: true });
+        .order('created_at', { ascending: false }); // Сортировка по дате создания
 
       if (createdError) {
         console.error('❌ Supabase error getting created private events:', createdError);
@@ -674,10 +677,10 @@ export class EventService {
         index === self.findIndex(e => e.id === event.id)
       );
 
-      // Сортируем по дате и ограничиваем количество
+      // Сортируем по дате создания и применяем пагинацию
       const sortedEvents = uniqueEvents
-        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-        .slice(0, limit);
+        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+        .slice(offset, offset + limit);
 
       console.log(`✅ Found ${sortedEvents.length} user events (legacy: ${respondedEvents?.length || 0} responded + ${createdPrivateEvents?.length || 0} created private, ${uniqueEvents.length} unique)`);
       return { data: sortedEvents, error: null };
@@ -693,9 +696,9 @@ export class EventService {
   /**
    * Legacy метод getUserArchive (для fallback)
    */
-  private static async getUserArchiveLegacy(telegramId: number, limit: number = 20): Promise<ApiResponse<DatabaseEvent[]>> {
+  private static async getUserArchiveLegacy(telegramId: number, limit: number = 5, offset: number = 0): Promise<ApiResponse<DatabaseEvent[]>> {
     try {
-      console.log('🔍 EventService.getUserArchiveLegacy (fallback) for:', telegramId);
+      console.log(`🔍 EventService.getUserArchiveLegacy (fallback) for: ${telegramId} (limit: ${limit}, offset: ${offset})`);
       
       // Получаем ID событий, на которые пользователь откликнулся
       const { data: responses, error: responsesError } = await supabase
@@ -721,8 +724,8 @@ export class EventService {
           .eq('created_by', telegramId)
           .eq('is_private', true)
           .lt('date', new Date().toISOString())
-          .order('date', { ascending: false })
-          .limit(limit);
+          .order('created_at', { ascending: false }) // Сортировка по дате создания
+          .range(offset, offset + limit - 1);
 
         if (error) {
           console.error('❌ Supabase error in getUserArchive (no responses):', error);
@@ -739,7 +742,7 @@ export class EventService {
         .select('*')
         .in('id', eventIds)
         .lt('date', new Date().toISOString())
-        .order('date', { ascending: false });
+        .order('created_at', { ascending: false }); // Сортировка по дате создания
 
       if (respondedError) {
         console.error('❌ Supabase error getting responded archive events:', respondedError);
@@ -753,7 +756,7 @@ export class EventService {
         .eq('created_by', telegramId)
         .eq('is_private', true)
         .lt('date', new Date().toISOString())
-        .order('date', { ascending: false });
+        .order('created_at', { ascending: false }); // Сортировка по дате создания
 
       if (createdError) {
         console.error('❌ Supabase error getting created private archive events:', createdError);
@@ -766,10 +769,10 @@ export class EventService {
         index === self.findIndex(e => e.id === event.id)
       );
 
-      // Сортируем по дате (сначала более свежие) и ограничиваем количество
+      // Сортируем по дате создания и применяем пагинацию
       const sortedEvents = uniqueEvents
-        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-        .slice(0, limit);
+        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+        .slice(offset, offset + limit);
 
       console.log(`✅ Found ${sortedEvents.length} archive events (legacy: ${respondedEvents?.length || 0} responded + ${createdPrivateEvents?.length || 0} created private, ${uniqueEvents.length} unique)`);
       return { data: sortedEvents, error: null };
@@ -778,6 +781,189 @@ export class EventService {
       return { 
         data: null, 
         error: { message: `Не удалось получить архив мероприятий: ${this.getErrorMessage(error)}` } 
+      };
+    }
+  }
+
+  /**
+   * Получить общее количество всех мероприятий
+   */
+  static async getTotalCount(): Promise<ApiResponse<number>> {
+    try {
+      console.log('🔍 EventService.getTotalCount counting all events');
+      
+      const { count, error } = await supabase
+        .from('events')
+        .select('*', { count: 'exact', head: true });
+
+      if (error) {
+        console.error('❌ Supabase error in getTotalCount:', error);
+        throw error;
+      }
+
+      console.log(`✅ Total events count: ${count}`);
+      return { data: count || 0, error: null };
+    } catch (error) {
+      console.error('❌ Error counting all events:', error);
+      return { 
+        data: null, 
+        error: { message: `Не удалось получить количество мероприятий: ${this.getErrorMessage(error)}` } 
+      };
+    }
+  }
+
+  /**
+   * Получить общее количество доступных мероприятий
+   */
+  static async getAvailableTotalCount(): Promise<ApiResponse<number>> {
+    try {
+      console.log('🔍 EventService.getAvailableTotalCount counting available events');
+      
+      const { count, error } = await supabase
+        .from('events')
+        .select('*', { count: 'exact', head: true })
+        .eq('status', 'active')
+        .eq('is_private', false)
+        .gte('date', new Date().toISOString());
+
+      if (error) {
+        console.error('❌ Supabase error in getAvailableTotalCount:', error);
+        throw error;
+      }
+
+      console.log(`✅ Available events count: ${count}`);
+      return { data: count || 0, error: null };
+    } catch (error) {
+      console.error('❌ Error counting available events:', error);
+      return { 
+        data: null, 
+        error: { message: `Не удалось получить количество доступных мероприятий: ${this.getErrorMessage(error)}` } 
+      };
+    }
+  }
+
+  /**
+   * Получить общее количество мероприятий пользователя
+   */
+  static async getUserEventsTotalCount(telegramId: number): Promise<ApiResponse<number>> {
+    try {
+      console.log(`🔍 EventService.getUserEventsTotalCount counting user events for: ${telegramId}`);
+      
+      // Получаем ID событий, на которые пользователь откликнулся
+      const { data: responses, error: responsesError } = await supabase
+        .from('event_responses')
+        .select('event_id')
+        .eq('user_telegram_id', telegramId)
+        .eq('response_status', 'attending');
+
+      if (responsesError) {
+        console.error('❌ Supabase error getting user responses:', responsesError);
+        throw responsesError;
+      }
+
+      const eventIds = responses?.map(r => r.event_id) || [];
+
+      // Считаем события, на которые пользователь откликнулся
+      let respondedCount = 0;
+      if (eventIds.length > 0) {
+        const { count: respondedCountResult, error: respondedError } = await supabase
+          .from('events')
+          .select('*', { count: 'exact', head: true })
+          .in('id', eventIds)
+          .gte('date', new Date().toISOString());
+
+        if (respondedError) {
+          console.error('❌ Supabase error counting responded events:', respondedError);
+          throw respondedError;
+        }
+
+        respondedCount = respondedCountResult || 0;
+      }
+
+      // Считаем созданные пользователем частные мероприятия
+      const { count: createdCount, error: createdError } = await supabase
+        .from('events')
+        .select('*', { count: 'exact', head: true })
+        .eq('created_by', telegramId)
+        .eq('is_private', true)
+        .gte('date', new Date().toISOString());
+
+      if (createdError) {
+        console.error('❌ Supabase error counting created private events:', createdError);
+        throw createdError;
+      }
+
+      const totalCount = respondedCount + (createdCount || 0);
+      console.log(`✅ User events count: ${totalCount} (${respondedCount} responded + ${createdCount || 0} created private)`);
+      return { data: totalCount, error: null };
+    } catch (error) {
+      console.error('❌ Error counting user events:', error);
+      return { 
+        data: null, 
+        error: { message: `Не удалось получить количество мероприятий пользователя: ${this.getErrorMessage(error)}` } 
+      };
+    }
+  }
+
+  /**
+   * Получить общее количество архивных мероприятий пользователя
+   */
+  static async getUserArchiveTotalCount(telegramId: number): Promise<ApiResponse<number>> {
+    try {
+      console.log(`🔍 EventService.getUserArchiveTotalCount counting archive events for: ${telegramId}`);
+      
+      // Получаем ID событий, на которые пользователь откликнулся
+      const { data: responses, error: responsesError } = await supabase
+        .from('event_responses')
+        .select('event_id')
+        .eq('user_telegram_id', telegramId)
+        .eq('response_status', 'attending');
+
+      if (responsesError) {
+        console.error('❌ Supabase error getting user responses:', responsesError);
+        throw responsesError;
+      }
+
+      const eventIds = responses?.map(r => r.event_id) || [];
+
+      // Считаем прошедшие события, на которые пользователь откликнулся
+      let respondedCount = 0;
+      if (eventIds.length > 0) {
+        const { count: respondedCountResult, error: respondedError } = await supabase
+          .from('events')
+          .select('*', { count: 'exact', head: true })
+          .in('id', eventIds)
+          .lt('date', new Date().toISOString());
+
+        if (respondedError) {
+          console.error('❌ Supabase error counting responded archive events:', respondedError);
+          throw respondedError;
+        }
+
+        respondedCount = respondedCountResult || 0;
+      }
+
+      // Считаем созданные пользователем частные мероприятия
+      const { count: createdCount, error: createdError } = await supabase
+        .from('events')
+        .select('*', { count: 'exact', head: true })
+        .eq('created_by', telegramId)
+        .eq('is_private', true)
+        .lt('date', new Date().toISOString());
+
+      if (createdError) {
+        console.error('❌ Supabase error counting created private archive events:', createdError);
+        throw createdError;
+      }
+
+      const totalCount = respondedCount + (createdCount || 0);
+      console.log(`✅ Archive events count: ${totalCount} (${respondedCount} responded + ${createdCount || 0} created private)`);
+      return { data: totalCount, error: null };
+    } catch (error) {
+      console.error('❌ Error counting archive events:', error);
+      return { 
+        data: null, 
+        error: { message: `Не удалось получить количество архивных мероприятий: ${this.getErrorMessage(error)}` } 
       };
     }
   }

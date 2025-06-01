@@ -33,7 +33,8 @@ ON events(date, status);
 -- Функция для получения событий пользователя (оптимизированная)
 CREATE OR REPLACE FUNCTION get_user_events_optimized(
     user_telegram_id BIGINT,
-    events_limit INTEGER DEFAULT 20
+    events_limit INTEGER DEFAULT 5,
+    events_offset INTEGER DEFAULT 0
 )
 RETURNS TABLE (
     id UUID,
@@ -58,7 +59,15 @@ RETURNS TABLE (
 ) AS $$
 BEGIN
     RETURN QUERY
-    (
+    SELECT combined_events.id, combined_events.title, combined_events.description, 
+           combined_events.image_url, combined_events.date, combined_events.event_time,
+           combined_events.end_date, combined_events.end_time, combined_events.location, 
+           combined_events.map_url, combined_events.max_participants,
+           combined_events.current_participants, combined_events.status, 
+           combined_events.created_by, combined_events.host_id,
+           combined_events.gradient_background, combined_events.is_private, 
+           combined_events.created_at, combined_events.updated_at
+    FROM (
         -- События, на которые пользователь откликнулся
         SELECT DISTINCT e.id, e.title, e.description, e.image_url, e.date, e.event_time,
                e.end_date, e.end_time, e.location, e.map_url, e.max_participants,
@@ -83,16 +92,17 @@ BEGIN
           AND e.is_private = true
           AND e.date >= CURRENT_DATE
           AND e.status = 'active'
-    )
-    ORDER BY date ASC
-    LIMIT events_limit;
+    ) AS combined_events
+    ORDER BY combined_events.created_at DESC
+    LIMIT events_limit OFFSET events_offset;
 END;
 $$ LANGUAGE plpgsql STABLE;
 
 -- Функция для получения архива событий пользователя (оптимизированная)
 CREATE OR REPLACE FUNCTION get_user_archive_optimized(
     user_telegram_id BIGINT,
-    events_limit INTEGER DEFAULT 20
+    events_limit INTEGER DEFAULT 5,
+    events_offset INTEGER DEFAULT 0
 )
 RETURNS TABLE (
     id UUID,
@@ -117,7 +127,15 @@ RETURNS TABLE (
 ) AS $$
 BEGIN
     RETURN QUERY
-    (
+    SELECT combined_events.id, combined_events.title, combined_events.description, 
+           combined_events.image_url, combined_events.date, combined_events.event_time,
+           combined_events.end_date, combined_events.end_time, combined_events.location, 
+           combined_events.map_url, combined_events.max_participants,
+           combined_events.current_participants, combined_events.status, 
+           combined_events.created_by, combined_events.host_id,
+           combined_events.gradient_background, combined_events.is_private, 
+           combined_events.created_at, combined_events.updated_at
+    FROM (
         -- Прошедшие события, на которые пользователь откликнулся
         SELECT DISTINCT e.id, e.title, e.description, e.image_url, e.date, e.event_time,
                e.end_date, e.end_time, e.location, e.map_url, e.max_participants,
@@ -140,9 +158,9 @@ BEGIN
         WHERE e.created_by = user_telegram_id
           AND e.is_private = true
           AND e.date < CURRENT_DATE
-    )
-    ORDER BY date DESC
-    LIMIT events_limit;
+    ) AS combined_events
+    ORDER BY combined_events.created_at DESC
+    LIMIT events_limit OFFSET events_offset;
 END;
 $$ LANGUAGE plpgsql STABLE;
 
@@ -152,7 +170,8 @@ $$ LANGUAGE plpgsql STABLE;
 
 -- Функция для быстрого получения доступных событий
 CREATE OR REPLACE FUNCTION get_available_events_optimized(
-    events_limit INTEGER DEFAULT 20
+    events_limit INTEGER DEFAULT 5,
+    events_offset INTEGER DEFAULT 0
 )
 RETURNS TABLE (
     id UUID,
@@ -186,8 +205,8 @@ BEGIN
       AND e.date >= CURRENT_DATE
       AND e.is_private = false
       AND (e.max_participants IS NULL OR e.current_participants < e.max_participants)
-    ORDER BY e.date ASC
-    LIMIT events_limit;
+    ORDER BY e.created_at DESC
+    LIMIT events_limit OFFSET events_offset;
 END;
 $$ LANGUAGE plpgsql STABLE;
 
@@ -225,13 +244,13 @@ $$ LANGUAGE plpgsql STABLE;
 -- КОММЕНТАРИИ ДЛЯ ДОКУМЕНТАЦИИ
 -- ========================================
 
-COMMENT ON FUNCTION get_user_events_optimized(BIGINT, INTEGER) IS 
+COMMENT ON FUNCTION get_user_events_optimized(BIGINT, INTEGER, INTEGER) IS 
 'Оптимизированная функция для получения событий пользователя с использованием UNION и составных индексов';
 
-COMMENT ON FUNCTION get_user_archive_optimized(BIGINT, INTEGER) IS 
+COMMENT ON FUNCTION get_user_archive_optimized(BIGINT, INTEGER, INTEGER) IS 
 'Оптимизированная функция для получения архива событий пользователя';
 
-COMMENT ON FUNCTION get_available_events_optimized(INTEGER) IS 
+COMMENT ON FUNCTION get_available_events_optimized(INTEGER, INTEGER) IS 
 'Оптимизированная функция для получения доступных событий';
 
 COMMENT ON INDEX idx_events_status_date IS 

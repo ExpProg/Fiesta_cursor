@@ -4,6 +4,7 @@ import { getEventGradient } from '@/utils/gradients';
 import { useYandexMetrika } from '@/hooks/useYandexMetrika';
 import { useTelegramWebApp } from '@/hooks/useTelegramWebApp';
 import { TabNavigation, TabType } from './TabNavigation';
+import { Pagination } from './Pagination';
 import type { DatabaseEvent } from '@/types/database';
 import { Calendar, MapPin, Users, Star, Clock, Loader2 } from 'lucide-react';
 
@@ -344,37 +345,38 @@ export const EventsList: React.FC<EventsListProps> = ({
   const [events, setEvents] = useState<DatabaseEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
   
-  // Кэш для событий с увеличенным временем жизни
-  const eventsCache = useRef<Map<TabType, { data: DatabaseEvent[], timestamp: number }>>(new Map());
-  const CACHE_DURATION = 120000; // 2 минуты для лучшей производительности
+  const ITEMS_PER_PAGE = 5;
+  
+  // Кэш для событий с пагинацией
+  const eventsCache = useRef<Map<string, { data: DatabaseEvent[], timestamp: number, totalItems: number }>>(new Map());
+  const CACHE_DURATION = 120000; // 2 минуты
 
-  // Предзагрузка соседних вкладок
-  const preloadAdjacentTabs = useCallback(async (currentTab: TabType) => {
-    const tabOrder: TabType[] = ['all', 'available', 'my', 'archive'];
-    const currentIndex = tabOrder.indexOf(currentTab);
+  // Генерируем ключ кэша с учетом пагинации
+  const getCacheKey = useCallback((tab: TabType, page: number) => {
+    return `${tab}_page_${page}`;
+  }, []);
+
+  // Предзагрузка соседних страниц
+  const preloadAdjacentPages = useCallback(async (tab: TabType, page: number) => {
+    const adjacentPages = [page - 1, page + 1].filter(p => p > 0);
     
-    // Предзагружаем соседние вкладки в фоне
-    const adjacentTabs = [
-      tabOrder[currentIndex - 1],
-      tabOrder[currentIndex + 1]
-    ].filter(Boolean);
-
-    for (const tab of adjacentTabs) {
-      const cached = eventsCache.current.get(tab);
+    for (const adjacentPage of adjacentPages) {
+      const cacheKey = getCacheKey(tab, adjacentPage);
+      const cached = eventsCache.current.get(cacheKey);
       const now = Date.now();
       
-      // Загружаем только если кэш устарел
       if (!cached || (now - cached.timestamp) > CACHE_DURATION) {
         try {
-          await fetchEvents(tab, false, true); // silent preload
+          await fetchEvents(tab, adjacentPage, false, true); // silent preload
         } catch (error) {
-          // Игнорируем ошибки предзагрузки
-          console.log(`📦 Preload failed for tab ${tab}:`, error);
+          console.log(`📦 Preload failed for ${tab} page ${adjacentPage}:`, error);
         }
       }
     }
-  }, []);
+  }, [getCacheKey]);
 
   // Мемоизированная функция получения заголовка вкладки
   const getTabTitle = useCallback((tab: TabType): string => {
@@ -434,15 +436,16 @@ export const EventsList: React.FC<EventsListProps> = ({
     }
   }, [reachGoal]);
 
-  // Оптимизированная функция загрузки событий
-  const fetchEvents = useCallback(async (tab: TabType, forceRefresh = false, silent = false) => {
-    // Проверяем кэш
-    const cached = eventsCache.current.get(tab);
+  // Оптимизированная функция загрузки событий с пагинацией
+  const fetchEvents = useCallback(async (tab: TabType, page: number = 1, forceRefresh = false, silent = false) => {
+    const cacheKey = getCacheKey(tab, page);
+    const cached = eventsCache.current.get(cacheKey);
     const now = Date.now();
     
     if (!forceRefresh && cached && (now - cached.timestamp) < CACHE_DURATION) {
       if (!silent) {
         setEvents(cached.data);
+        setTotalItems(cached.totalItems);
         setLoading(false);
       }
       return cached.data;
@@ -454,76 +457,107 @@ export const EventsList: React.FC<EventsListProps> = ({
     }
 
     try {
+      const offset = (page - 1) * ITEMS_PER_PAGE;
       let result;
+      let totalCountResult;
       
-      // Оптимизированные запросы в зависимости от вкладки
+      // Запросы с пагинацией и подсчет общего количества
       switch (tab) {
         case 'all':
-          result = await EventService.getAll(50);
+          [result, totalCountResult] = await Promise.all([
+            EventService.getAll(ITEMS_PER_PAGE, offset),
+            EventService.getTotalCount()
+          ]);
           break;
         case 'available':
-          result = await EventService.getAvailable(50);
+          [result, totalCountResult] = await Promise.all([
+            EventService.getAvailable(ITEMS_PER_PAGE, offset),
+            EventService.getAvailableTotalCount()
+          ]);
           break;
         case 'my':
           if (!user?.id) {
-            const emptyResult = { data: [], error: null };
             if (!silent) {
               setEvents([]);
+              setTotalItems(0);
               setLoading(false);
             }
             return [];
           }
-          result = await EventService.getUserEvents(user.id, 50);
+          [result, totalCountResult] = await Promise.all([
+            EventService.getUserEvents(user.id, ITEMS_PER_PAGE, offset),
+            EventService.getUserEventsTotalCount(user.id)
+          ]);
           break;
         case 'archive':
           if (!user?.id) {
-            const emptyResult = { data: [], error: null };
             if (!silent) {
               setEvents([]);
+              setTotalItems(0);
               setLoading(false);
             }
             return [];
           }
-          result = await EventService.getUserArchive(user.id, 50);
+          [result, totalCountResult] = await Promise.all([
+            EventService.getUserArchive(user.id, ITEMS_PER_PAGE, offset),
+            EventService.getUserArchiveTotalCount(user.id)
+          ]);
           break;
         default:
-          result = await EventService.getAll(50);
+          [result, totalCountResult] = await Promise.all([
+            EventService.getAll(ITEMS_PER_PAGE, offset),
+            EventService.getTotalCount()
+          ]);
       }
 
       if (result.error) {
         throw new Error(result.error.message);
       }
 
+      if (totalCountResult.error) {
+        console.warn('⚠️ Error getting total count:', totalCountResult.error.message);
+      }
+
       let eventsData = result.data || [];
       
-      // Фильтруем частные мероприятия для общих списков, но оставляем их для организатора
+      // Фильтруем частные мероприятия для общих списков
       if (tab === 'all' || tab === 'available') {
         eventsData = eventsData.filter(event => 
           !event.is_private || (user?.id && event.created_by === user.id)
         );
       }
       
+      // Используем точное количество из API или fallback к примерному
+      const actualTotal = totalCountResult.data !== null ? totalCountResult.data : 
+        (eventsData.length < ITEMS_PER_PAGE ? 
+          (page - 1) * ITEMS_PER_PAGE + eventsData.length : 
+          eventsData.length * 10);
+      
       // Сохраняем в кэш
-      eventsCache.current.set(tab, {
+      eventsCache.current.set(cacheKey, {
         data: eventsData,
+        totalItems: actualTotal,
         timestamp: now
       });
       
       if (!silent) {
         setEvents(eventsData);
+        setTotalItems(actualTotal);
         
         // Аналитика
         reachGoal('events_list_loaded', {
           tab,
+          page,
           events_count: eventsData.length,
+          total_count: actualTotal,
           user_id: user?.id || 0,
           cache_hit: false
         });
       }
 
-      // Предзагружаем соседние вкладки после успешной загрузки
+      // Предзагружаем соседние страницы
       if (!silent && eventsData.length > 0) {
-        setTimeout(() => preloadAdjacentTabs(tab), 1000);
+        setTimeout(() => preloadAdjacentPages(tab, page), 1000);
       }
       
       return eventsData;
@@ -536,6 +570,7 @@ export const EventsList: React.FC<EventsListProps> = ({
         
         reachGoal('events_list_error', {
           tab,
+          page,
           error: err instanceof Error ? err.message : 'unknown_error',
           user_id: user?.id || 0
         });
@@ -547,31 +582,39 @@ export const EventsList: React.FC<EventsListProps> = ({
         setLoading(false);
       }
     }
-  }, [user?.id, reachGoal, preloadAdjacentTabs]);
+  }, [user?.id, reachGoal, getCacheKey, preloadAdjacentPages]);
 
   // Мемоизированный обработчик смены вкладки
   const handleTabChange = useCallback((tab: TabType) => {
     setActiveTab(tab);
-    fetchEvents(tab);
+    setCurrentPage(1); // Сбрасываем на первую страницу
+    fetchEvents(tab, 1);
   }, [fetchEvents]);
 
-  // Загрузка событий при монтировании и смене пользователя
+  // Обработчик смены страницы
+  const handlePageChange = useCallback((page: number) => {
+    setCurrentPage(page);
+    fetchEvents(activeTab, page);
+    
+    // Скроллим наверх при смене страницы
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [activeTab, fetchEvents]);
+
+  // Загрузка событий при монтировании
   useEffect(() => {
-    fetchEvents(activeTab);
-  }, [fetchEvents, activeTab]);
+    fetchEvents(activeTab, currentPage);
+  }, [fetchEvents, activeTab, currentPage]);
 
   // Очистка кэша при смене пользователя
   useEffect(() => {
     eventsCache.current.clear();
+    setCurrentPage(1);
   }, [user?.id]);
 
-  // Мемоизированные значения для предотвращения лишних ре-рендеров
+  // Мемоизированные значения
   const tabTitle = useMemo(() => getTabTitle(activeTab), [getTabTitle, activeTab]);
   const emptyState = useMemo(() => getEmptyStateMessage(activeTab), [getEmptyStateMessage, activeTab]);
   const eventsCount = useMemo(() => events.length, [events.length]);
-  const eventsCountText = useMemo(() => {
-    return `${eventsCount} ${eventsCount === 1 ? 'мероприятие' : eventsCount < 5 ? 'мероприятия' : 'мероприятий'}`;
-  }, [eventsCount]);
 
   if (loading) {
     return (
@@ -619,7 +662,7 @@ export const EventsList: React.FC<EventsListProps> = ({
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-2xl font-bold text-gray-800">{tabTitle}</h2>
           <div className="text-sm text-gray-500">
-            {eventsCountText}
+            Страница {currentPage}
           </div>
         </div>
 
@@ -627,6 +670,15 @@ export const EventsList: React.FC<EventsListProps> = ({
           events={events}
           onEventClick={onEventClick}
           onMapClick={handleMapClick}
+        />
+
+        {/* Пагинация */}
+        <Pagination
+          currentPage={currentPage}
+          totalItems={totalItems}
+          itemsPerPage={ITEMS_PER_PAGE}
+          onPageChange={handlePageChange}
+          loading={loading}
         />
       </div>
     </div>
