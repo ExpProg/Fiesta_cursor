@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react';
 
 interface PaginationProps {
   currentPage: number;
@@ -18,37 +17,11 @@ export const Pagination: React.FC<PaginationProps> = ({
 }) => {
   const [jumpToPage, setJumpToPage] = useState('');
   const totalPages = Math.ceil(totalItems / itemsPerPage);
-  const hasNextPage = currentPage < totalPages;
-  const hasPrevPage = currentPage > 1;
 
   // Если всего одна страница или меньше, не показываем пагинацию
   if (totalPages <= 1) {
     return null;
   }
-
-  const handleFirstPage = () => {
-    if (currentPage !== 1 && !loading) {
-      onPageChange(1);
-    }
-  };
-
-  const handlePrevPage = () => {
-    if (hasPrevPage && !loading) {
-      onPageChange(currentPage - 1);
-    }
-  };
-
-  const handleNextPage = () => {
-    if (hasNextPage && !loading) {
-      onPageChange(currentPage + 1);
-    }
-  };
-
-  const handleLastPage = () => {
-    if (currentPage !== totalPages && !loading) {
-      onPageChange(totalPages);
-    }
-  };
 
   const handleJumpToPage = (e: React.FormEvent) => {
     e.preventDefault();
@@ -99,37 +72,41 @@ export const Pagination: React.FC<PaginationProps> = ({
   return (
     <div className="flex items-center justify-between px-4 py-3 bg-white border-t border-gray-200 sm:px-6">
       {/* Мобильная версия */}
-      <div className="flex justify-between flex-1 sm:hidden">
-        <button
-          onClick={handlePrevPage}
-          disabled={!hasPrevPage || loading}
-          className={`relative inline-flex items-center px-4 py-2 text-sm font-medium rounded-md ${
-            !hasPrevPage || loading
-              ? 'text-gray-300 cursor-not-allowed bg-gray-100'
-              : 'text-gray-700 bg-white border border-gray-300 hover:bg-gray-50'
-          }`}
-        >
-          Назад
-        </button>
-        
-        <div className="flex items-center px-4">
-          <span className="text-sm text-gray-700">
-            Страница <span className="font-medium">{currentPage}</span> из{' '}
-            <span className="font-medium">{totalPages}</span>
-          </span>
-        </div>
+      <div className="flex justify-center flex-1 sm:hidden">
+        <div className="flex items-center space-x-1">
+          {pageNumbers.map((pageNumber, index) => {
+            if (pageNumber === '...') {
+              return (
+                <span
+                  key={`dots-${index}`}
+                  className="px-2 py-1 text-sm text-gray-500"
+                >
+                  ...
+                </span>
+              );
+            }
 
-        <button
-          onClick={handleNextPage}
-          disabled={!hasNextPage || loading}
-          className={`relative inline-flex items-center px-4 py-2 text-sm font-medium rounded-md ${
-            !hasNextPage || loading
-              ? 'text-gray-300 cursor-not-allowed bg-gray-100'
-              : 'text-gray-700 bg-white border border-gray-300 hover:bg-gray-50'
-          }`}
-        >
-          Вперед
-        </button>
+            const isCurrentPage = pageNumber === currentPage;
+
+            return (
+              <button
+                key={pageNumber}
+                onClick={() => !loading && onPageChange(pageNumber as number)}
+                disabled={loading}
+                className={`px-3 py-2 text-sm font-medium rounded-md ${
+                  isCurrentPage
+                    ? 'bg-blue-600 text-white'
+                    : loading
+                    ? 'text-gray-300 cursor-not-allowed bg-gray-100'
+                    : 'text-gray-700 bg-white border border-gray-300 hover:bg-gray-50'
+                }`}
+                title={`Страница ${pageNumber}`}
+              >
+                {pageNumber}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {/* Десктопная версия */}
@@ -184,36 +161,6 @@ export const Pagination: React.FC<PaginationProps> = ({
         
         <div>
           <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
-            {/* Кнопка "В начало" */}
-            <button
-              onClick={handleFirstPage}
-              disabled={currentPage === 1 || loading}
-              className={`relative inline-flex items-center px-2 py-2 rounded-l-md border text-sm font-medium ${
-                currentPage === 1 || loading
-                  ? 'text-gray-300 bg-gray-50 border-gray-300 cursor-not-allowed'
-                  : 'text-gray-500 bg-white border-gray-300 hover:bg-gray-50'
-              }`}
-              title="Первая страница"
-            >
-              <span className="sr-only">Первая страница</span>
-              <ChevronsLeft className="h-5 w-5" aria-hidden="true" />
-            </button>
-
-            {/* Кнопка "Назад" */}
-            <button
-              onClick={handlePrevPage}
-              disabled={!hasPrevPage || loading}
-              className={`relative inline-flex items-center px-2 py-2 border text-sm font-medium ${
-                !hasPrevPage || loading
-                  ? 'text-gray-300 bg-gray-50 border-gray-300 cursor-not-allowed'
-                  : 'text-gray-500 bg-white border-gray-300 hover:bg-gray-50'
-              }`}
-              title="Предыдущая страница"
-            >
-              <span className="sr-only">Предыдущая</span>
-              <ChevronLeft className="h-5 w-5" aria-hidden="true" />
-            </button>
-
             {/* Номера страниц */}
             {pageNumbers.map((pageNumber, index) => {
               if (pageNumber === '...') {
@@ -228,6 +175,8 @@ export const Pagination: React.FC<PaginationProps> = ({
               }
 
               const isCurrentPage = pageNumber === currentPage;
+              const isFirstPage = index === 0;
+              const isLastPage = index === pageNumbers.length - 1;
 
               return (
                 <button
@@ -235,6 +184,10 @@ export const Pagination: React.FC<PaginationProps> = ({
                   onClick={() => !loading && onPageChange(pageNumber as number)}
                   disabled={loading}
                   className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
+                    isFirstPage ? 'rounded-l-md' : ''
+                  } ${
+                    isLastPage ? 'rounded-r-md' : ''
+                  } ${
                     isCurrentPage
                       ? 'z-10 bg-blue-50 border-blue-500 text-blue-600'
                       : loading
@@ -247,36 +200,6 @@ export const Pagination: React.FC<PaginationProps> = ({
                 </button>
               );
             })}
-
-            {/* Кнопка "Вперед" */}
-            <button
-              onClick={handleNextPage}
-              disabled={!hasNextPage || loading}
-              className={`relative inline-flex items-center px-2 py-2 border text-sm font-medium ${
-                !hasNextPage || loading
-                  ? 'text-gray-300 bg-gray-50 border-gray-300 cursor-not-allowed'
-                  : 'text-gray-500 bg-white border-gray-300 hover:bg-gray-50'
-              }`}
-              title="Следующая страница"
-            >
-              <span className="sr-only">Следующая</span>
-              <ChevronRight className="h-5 w-5" aria-hidden="true" />
-            </button>
-
-            {/* Кнопка "В конец" */}
-            <button
-              onClick={handleLastPage}
-              disabled={currentPage === totalPages || loading}
-              className={`relative inline-flex items-center px-2 py-2 rounded-r-md border text-sm font-medium ${
-                currentPage === totalPages || loading
-                  ? 'text-gray-300 bg-gray-50 border-gray-300 cursor-not-allowed'
-                  : 'text-gray-500 bg-white border-gray-300 hover:bg-gray-50'
-              }`}
-              title="Последняя страница"
-            >
-              <span className="sr-only">Последняя страница</span>
-              <ChevronsRight className="h-5 w-5" aria-hidden="true" />
-            </button>
           </nav>
         </div>
       </div>
