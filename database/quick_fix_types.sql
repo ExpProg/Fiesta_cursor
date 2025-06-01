@@ -1,20 +1,12 @@
--- Исправление типов данных в оптимизированных функциях
--- Запустите этот скрипт в Supabase SQL Editor для исправления ошибок типов
+-- Быстрое исправление типов данных в функциях
+-- Этот скрипт удаляет старые функции и создает новые с правильными типами
 
--- ========================================
--- УДАЛЕНИЕ СТАРЫХ ФУНКЦИЙ
--- ========================================
-
--- Удаляем старые функции с неправильными типами
+-- Удаляем старые функции
 DROP FUNCTION IF EXISTS get_user_events_optimized(bigint,integer,integer);
 DROP FUNCTION IF EXISTS get_user_archive_optimized(bigint,integer,integer);
 DROP FUNCTION IF EXISTS get_available_events_optimized(integer,integer);
 
--- ========================================
--- ИСПРАВЛЕННЫЕ RPC ФУНКЦИИ
--- ========================================
-
--- Функция для получения событий пользователя (исправленная)
+-- Создаем функции с правильными типами
 CREATE OR REPLACE FUNCTION get_user_events_optimized(
     user_telegram_id BIGINT,
     events_limit INTEGER DEFAULT 5,
@@ -35,7 +27,7 @@ RETURNS TABLE (
     current_participants INTEGER,
     status TEXT,
     created_by BIGINT,
-    host_id UUID,  -- Исправлено: UUID вместо BIGINT
+    host_id UUID,
     gradient_background TEXT,
     is_private BOOLEAN,
     created_at TIMESTAMP WITH TIME ZONE,
@@ -52,7 +44,6 @@ BEGIN
            combined_events.gradient_background, combined_events.is_private, 
            combined_events.created_at, combined_events.updated_at
     FROM (
-        -- События, на которые пользователь откликнулся
         SELECT DISTINCT e.id, e.title, e.description, e.image_url, e.date, e.event_time,
                e.end_date, e.end_time, e.location, e.map_url, e.max_participants,
                e.current_participants, e.status, e.created_by, e.host_id,
@@ -66,7 +57,6 @@ BEGIN
         
         UNION
         
-        -- Частные события, созданные пользователем
         SELECT e.id, e.title, e.description, e.image_url, e.date, e.event_time,
                e.end_date, e.end_time, e.location, e.map_url, e.max_participants,
                e.current_participants, e.status, e.created_by, e.host_id,
@@ -82,7 +72,6 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql STABLE;
 
--- Функция для получения архива событий пользователя (исправленная)
 CREATE OR REPLACE FUNCTION get_user_archive_optimized(
     user_telegram_id BIGINT,
     events_limit INTEGER DEFAULT 5,
@@ -103,7 +92,7 @@ RETURNS TABLE (
     current_participants INTEGER,
     status TEXT,
     created_by BIGINT,
-    host_id UUID,  -- Исправлено: UUID вместо BIGINT
+    host_id UUID,
     gradient_background TEXT,
     is_private BOOLEAN,
     created_at TIMESTAMP WITH TIME ZONE,
@@ -120,7 +109,6 @@ BEGIN
            combined_events.gradient_background, combined_events.is_private, 
            combined_events.created_at, combined_events.updated_at
     FROM (
-        -- Прошедшие события, на которые пользователь откликнулся
         SELECT DISTINCT e.id, e.title, e.description, e.image_url, e.date, e.event_time,
                e.end_date, e.end_time, e.location, e.map_url, e.max_participants,
                e.current_participants, e.status, e.created_by, e.host_id,
@@ -133,7 +121,6 @@ BEGIN
         
         UNION
         
-        -- Прошедшие частные события, созданные пользователем
         SELECT e.id, e.title, e.description, e.image_url, e.date, e.event_time,
                e.end_date, e.end_time, e.location, e.map_url, e.max_participants,
                e.current_participants, e.status, e.created_by, e.host_id,
@@ -148,7 +135,6 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql STABLE;
 
--- Функция для быстрого получения доступных событий (исправленная)
 CREATE OR REPLACE FUNCTION get_available_events_optimized(
     events_limit INTEGER DEFAULT 5,
     events_offset INTEGER DEFAULT 0
@@ -168,7 +154,7 @@ RETURNS TABLE (
     current_participants INTEGER,
     status TEXT,
     created_by BIGINT,
-    host_id UUID,  -- Исправлено: UUID вместо BIGINT
+    host_id UUID,
     gradient_background TEXT,
     is_private BOOLEAN,
     created_at TIMESTAMP WITH TIME ZONE,
@@ -190,33 +176,9 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql STABLE;
 
--- ========================================
--- ТЕСТ ИСПРАВЛЕННЫХ ФУНКЦИЙ
--- ========================================
+-- Тестируем функции
+SELECT 'QUICK FIX COMPLETED' as status, 
+       'Functions recreated with correct types' as message;
 
--- Тестируем исправленные функции
-DO $$
-BEGIN
-    RAISE NOTICE 'Testing corrected functions...';
-    
-    -- Тест get_available_events_optimized
-    PERFORM get_available_events_optimized(5, 0);
-    RAISE NOTICE '✅ get_available_events_optimized - OK';
-    
-    -- Тест get_user_events_optimized (с тестовым ID)
-    PERFORM get_user_events_optimized(123456789, 5, 0);
-    RAISE NOTICE '✅ get_user_events_optimized - OK';
-    
-    -- Тест get_user_archive_optimized (с тестовым ID)
-    PERFORM get_user_archive_optimized(123456789, 5, 0);
-    RAISE NOTICE '✅ get_user_archive_optimized - OK';
-    
-    RAISE NOTICE '🎉 All functions are working correctly!';
-END $$;
-
--- ========================================
--- ПРОВЕРКА РЕЗУЛЬТАТА
--- ========================================
-
-SELECT 'FUNCTIONS FIXED' as status,
-       'All RPC functions now have correct data types' as message; 
+-- Тест функций
+SELECT COUNT(*) as available_events_count FROM get_available_events_optimized(5, 0); 

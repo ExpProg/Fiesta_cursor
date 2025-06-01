@@ -51,10 +51,23 @@ ERROR: structure of query does not match function result type
 DETAIL: Returned type uuid does not match expected type bigint in column 15
 ```
 
+Или ошибка:
+```
+ERROR: cannot change return type of existing function
+DETAIL: Row type defined by OUT parameters is different.
+HINT: Use DROP FUNCTION get_user_events_optimized(bigint,integer,integer) first.
+```
+
 **Решение:**
 1. Откройте Supabase Dashboard → SQL Editor
-2. Выполните скрипт `database/fix_performance_types.sql`
-3. Повторите проверку с `database/check_performance.sql`
+2. Выполните **быстрое исправление**: `database/quick_fix_types.sql`
+3. Или выполните полное исправление: `database/fix_performance_types.sql`
+4. Повторите проверку с `database/check_performance.sql`
+
+**Что делает исправление:**
+- Удаляет старые функции с неправильными типами данных
+- Создает новые функции с правильным типом `host_id UUID`
+- Тестирует работоспособность функций
 
 ## 🔍 Типичные проблемы и решения
 
