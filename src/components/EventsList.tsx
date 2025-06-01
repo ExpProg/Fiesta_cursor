@@ -498,6 +498,18 @@ export const EventsList: React.FC<EventsListProps> = ({
     const cached = eventsCache.current.get(cacheKey);
     const now = Date.now();
     
+    // Диагностика
+    console.log('🔍 EventsList.fetchEvents called:', {
+      tab,
+      page,
+      forceRefresh,
+      silent,
+      hasUser: !!user?.id,
+      userId: user?.id,
+      supabaseUrl: import.meta.env.VITE_SUPABASE_URL,
+      hasSupabaseKey: !!import.meta.env.VITE_SUPABASE_ANON_KEY
+    });
+    
     if (!forceRefresh && cached && (now - cached.timestamp) < CACHE_DURATION) {
       if (!silent) {
         setEvents(cached.data);
@@ -521,9 +533,25 @@ export const EventsList: React.FC<EventsListProps> = ({
       console.log(`🔄 Loading ${tab} page ${page} (offset: ${offset}, limit: ${ITEMS_PER_PAGE})`);
       const apiStartTime = performance.now();
       
+      // Простая проверка подключения к Supabase
+      try {
+        const { supabase } = await import('@/hooks/useSupabase');
+        console.log('🔍 Testing Supabase connection...');
+        const { data: testData, error: testError } = await supabase.from('events').select('count').limit(1);
+        if (testError) {
+          console.error('❌ Supabase connection test failed:', testError);
+          throw new Error(`Ошибка подключения к базе данных: ${testError.message}`);
+        }
+        console.log('✅ Supabase connection test passed');
+      } catch (connectionError) {
+        console.error('❌ Supabase connection error:', connectionError);
+        throw connectionError;
+      }
+      
       // Запросы с пагинацией и подсчет общего количества
       switch (tab) {
         case 'all':
+          console.log('🔄 Fetching all events...');
           [result, totalCountResult] = await Promise.all([
             EventService.getAll(ITEMS_PER_PAGE, offset),
             EventService.getTotalCount()
@@ -708,6 +736,19 @@ export const EventsList: React.FC<EventsListProps> = ({
         <TabNavigation activeTab={activeTab} onTabChange={handleTabChange} />
         <div className="p-6">
           <h2 className="text-2xl font-bold text-gray-800 mb-6">{tabTitle}</h2>
+          
+          {/* Визуальная диагностика загрузки */}
+          <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <div className="text-blue-800 font-medium mb-2">🔄 Загрузка мероприятий...</div>
+            <div className="text-sm text-blue-600 space-y-1">
+              <div>Вкладка: {activeTab}</div>
+              <div>Страница: {currentPage}</div>
+              <div>Пользователь: {user?.id ? `ID ${user.id}` : 'Не авторизован'}</div>
+              <div>Supabase URL: {import.meta.env.VITE_SUPABASE_URL ? '✅ Настроен' : '❌ Не настроен'}</div>
+              <div>Supabase Key: {import.meta.env.VITE_SUPABASE_ANON_KEY ? '✅ Настроен' : '❌ Не настроен'}</div>
+            </div>
+          </div>
+          
           <LoadingGrid />
         </div>
       </div>
@@ -720,9 +761,43 @@ export const EventsList: React.FC<EventsListProps> = ({
         <TabNavigation activeTab={activeTab} onTabChange={handleTabChange} />
         <div className="p-6">
           <h2 className="text-2xl font-bold text-gray-800 mb-6">{tabTitle}</h2>
-          <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
-            <div className="text-red-600 mb-2">⚠️ Ошибка загрузки</div>
-            <div className="text-gray-600">{error}</div>
+          
+          {/* Расширенная информация об ошибке */}
+          <div className="bg-red-50 border border-red-200 rounded-lg p-6">
+            <div className="text-red-600 mb-4 text-center">
+              <div className="text-2xl mb-2">⚠️</div>
+              <div className="font-medium">Ошибка загрузки мероприятий</div>
+            </div>
+            
+            <div className="text-gray-700 mb-4">
+              <strong>Сообщение:</strong> {error}
+            </div>
+            
+            <div className="bg-white p-3 rounded border text-sm space-y-2">
+              <div><strong>Диагностика:</strong></div>
+              <div>• Вкладка: {activeTab}</div>
+              <div>• Страница: {currentPage}</div>
+              <div>• Пользователь: {user?.id ? `ID ${user.id}` : 'Не авторизован'}</div>
+              <div>• Supabase URL: {import.meta.env.VITE_SUPABASE_URL || 'НЕ НАСТРОЕН'}</div>
+              <div>• Supabase Key: {import.meta.env.VITE_SUPABASE_ANON_KEY ? 'Настроен' : 'НЕ НАСТРОЕН'}</div>
+              <div>• Время: {new Date().toLocaleTimeString()}</div>
+            </div>
+            
+            <div className="mt-4 space-y-2">
+              <button
+                onClick={forceRefresh}
+                className="w-full bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors"
+              >
+                🔄 Попробовать снова
+              </button>
+              
+              <button
+                onClick={() => setShowDebug(true)}
+                className="w-full bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors"
+              >
+                🔧 Показать подробную диагностику
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -735,6 +810,29 @@ export const EventsList: React.FC<EventsListProps> = ({
         <TabNavigation activeTab={activeTab} onTabChange={handleTabChange} />
         <div className="p-6">
           <h2 className="text-2xl font-bold text-gray-800 mb-6">{tabTitle}</h2>
+          
+          {/* Диагностика пустого состояния */}
+          <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+            <div className="text-yellow-800 font-medium mb-2">ℹ️ Диагностика загрузки</div>
+            <div className="text-sm text-yellow-700 space-y-1">
+              <div>• Загрузка завершена: ✅</div>
+              <div>• Ошибок нет: ✅</div>
+              <div>• Количество событий: {events.length}</div>
+              <div>• Общее количество: {totalItems}</div>
+              <div>• Вкладка: {activeTab}</div>
+              <div>• Пользователь: {user?.id ? `ID ${user.id}` : 'Не авторизован'}</div>
+              <div>• Время загрузки: {lastLoadTime ? `${lastLoadTime.toFixed(0)}ms` : 'N/A'}</div>
+              <div>• Кэш записей: {eventsCache.current.size}</div>
+            </div>
+            
+            <button
+              onClick={forceRefresh}
+              className="mt-3 w-full bg-yellow-600 text-white px-4 py-2 rounded-lg hover:bg-yellow-700 transition-colors"
+            >
+              🔄 Обновить данные
+            </button>
+          </div>
+          
           <EmptyState {...emptyState} />
         </div>
       </div>
