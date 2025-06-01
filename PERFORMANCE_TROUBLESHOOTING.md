@@ -36,8 +36,25 @@
 ```bash
 # Если диагностика показала отсутствие оптимизаций
 cd database
+
+# Сначала примените основные оптимизации
 ./apply_optimizations.sh
+
+# Если есть ошибки типов данных, выполните исправление
+# В Supabase SQL Editor запустите: database/fix_performance_types.sql
 ```
+
+#### Исправление ошибок типов данных
+Если при выполнении `check_performance.sql` возникает ошибка:
+```
+ERROR: structure of query does not match function result type
+DETAIL: Returned type uuid does not match expected type bigint in column 15
+```
+
+**Решение:**
+1. Откройте Supabase Dashboard → SQL Editor
+2. Выполните скрипт `database/fix_performance_types.sql`
+3. Повторите проверку с `database/check_performance.sql`
 
 ## 🔍 Типичные проблемы и решения
 
