@@ -839,18 +839,6 @@ export const EventsList: React.FC<EventsListProps> = ({
                 <div>Supabase Key: {import.meta.env.VITE_SUPABASE_ANON_KEY ? '✅ Настроен' : '❌ Не настроен'}</div>
                 <div>Время: {new Date().toLocaleTimeString()}</div>
               </div>
-              
-              {/* Кнопка принудительной остановки загрузки */}
-              <button
-                onClick={() => {
-                  setLoading(false);
-                  setLoadingStage('Остановлено пользователем');
-                  setError('Загрузка была остановлена пользователем');
-                }}
-                className="mt-3 w-full bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors"
-              >
-                ⏹️ Остановить загрузку
-              </button>
             </div>
           )}
           
@@ -933,13 +921,6 @@ export const EventsList: React.FC<EventsListProps> = ({
                 <div>• Время загрузки: {lastLoadTime ? `${lastLoadTime.toFixed(0)}ms` : 'N/A'}</div>
                 <div>• Кэш записей: {eventsCache.current.size}</div>
               </div>
-              
-              <button
-                onClick={forceRefresh}
-                className="mt-3 w-full bg-yellow-600 text-white px-4 py-2 rounded-lg hover:bg-yellow-700 transition-colors"
-              >
-                🔄 Обновить данные
-              </button>
             </div>
           )}
           
@@ -956,66 +937,20 @@ export const EventsList: React.FC<EventsListProps> = ({
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-2xl font-bold text-gray-800">{tabTitle}</h2>
           <div className="flex items-center gap-4">
-            {/* Кнопки администратора */}
+            {/* Кнопка отладки только для администраторов */}
             {isAdmin && !adminLoading && (
-              <>
-                {/* Кнопка переключения быстрого режима */}
-                <button
-                  onClick={toggleFastMode}
-                  className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    fastMode
-                      ? 'bg-green-100 text-green-700 hover:bg-green-200'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
-                  title={fastMode ? 'Отключить быстрый режим (включить полную функциональность)' : 'Включить быстрый режим (упрощенная загрузка)'}
-                >
-                  {fastMode ? '⚡' : '🔧'}
-                  <span className="hidden sm:inline">
-                    {fastMode ? 'Быстро' : 'Полный'}
-                  </span>
-                </button>
-
-                {/* Кнопка переключения изображений */}
-                <button
-                  onClick={toggleImages}
-                  className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    imagesEnabled
-                      ? 'bg-blue-100 text-blue-700 hover:bg-blue-200'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
-                  title={imagesEnabled ? 'Отключить изображения для быстрой загрузки' : 'Включить изображения'}
-                >
-                  {imagesEnabled ? '🖼️' : '⚡'}
-                  <span className="hidden sm:inline">
-                    {imagesEnabled ? 'Изображения' : 'Быстрый режим'}
-                  </span>
-                </button>
-
-                {/* Кнопка принудительного обновления */}
-                <button
-                  onClick={forceRefresh}
-                  disabled={loading}
-                  className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium bg-green-100 text-green-700 hover:bg-green-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                  title="Принудительно обновить данные"
-                >
-                  🔄
-                  <span className="hidden sm:inline">Обновить</span>
-                </button>
-
-                {/* Кнопка отладки */}
-                <button
-                  onClick={toggleDebug}
-                  className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    showDebug
-                      ? 'bg-orange-100 text-orange-700 hover:bg-orange-200'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
-                  title="Показать/скрыть отладочную информацию"
-                >
-                  🔧
-                  <span className="hidden sm:inline">Debug</span>
-                </button>
-              </>
+              <button
+                onClick={toggleDebug}
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  showDebug
+                    ? 'bg-orange-100 text-orange-700 hover:bg-orange-200'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+                title="Показать/скрыть отладочную информацию"
+              >
+                🔧
+                <span className="hidden sm:inline">Debug</span>
+              </button>
             )}
             
             <div className="text-right">
