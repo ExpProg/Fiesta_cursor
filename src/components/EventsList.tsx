@@ -3,6 +3,7 @@ import { EventService } from '@/services/eventService';
 import { getEventGradient } from '@/utils/gradients';
 import { useYandexMetrika } from '@/hooks/useYandexMetrika';
 import { useTelegramWebApp } from '@/hooks/useTelegramWebApp';
+import { useAdminStatus } from '@/hooks/useAdminStatus';
 import { TabNavigation, TabType } from './TabNavigation';
 import { Pagination } from './Pagination';
 import type { DatabaseEvent } from '@/types/database';
@@ -369,6 +370,7 @@ export const EventsList: React.FC<EventsListProps> = ({
 }) => {
   const { user } = useTelegramWebApp();
   const { reachGoal } = useYandexMetrika();
+  const { isAdmin, isLoading: adminLoading } = useAdminStatus();
   
   const [activeTab, setActiveTab] = useState<TabType>('all');
   const [events, setEvents] = useState<DatabaseEvent[]>([]);
@@ -593,7 +595,7 @@ export const EventsList: React.FC<EventsListProps> = ({
       switch (tab) {
         case 'all':
           console.log('🔄 Fetching all events...');
-          if (!silent) setLoadingStage(`Загрузка всех мероприятий${fastMode ? ' (быстрый режим)' : ''}...`);
+          if (!silent) setLoadingStage(isAdmin && !adminLoading ? `Загрузка всех мероприятий${fastMode ? ' (быстрый режим)' : ''}...` : 'Загрузка мероприятий...');
           if (fastMode) {
             [result, totalCountResult] = await Promise.all([
               EventService.getAllFast(ITEMS_PER_PAGE, offset),
@@ -607,7 +609,7 @@ export const EventsList: React.FC<EventsListProps> = ({
           }
           break;
         case 'available':
-          if (!silent) setLoadingStage(`Загрузка доступных мероприятий${fastMode ? ' (быстрый режим)' : ''}...`);
+          if (!silent) setLoadingStage(isAdmin && !adminLoading ? `Загрузка доступных мероприятий${fastMode ? ' (быстрый режим)' : ''}...` : 'Загрузка доступных мероприятий...');
           if (fastMode) {
             [result, totalCountResult] = await Promise.all([
               EventService.getAvailableFast(ITEMS_PER_PAGE, offset),
@@ -630,7 +632,7 @@ export const EventsList: React.FC<EventsListProps> = ({
             }
             return [];
           }
-          if (!silent) setLoadingStage(`Загрузка ваших мероприятий${fastMode ? ' (быстрый режим)' : ''}...`);
+          if (!silent) setLoadingStage(isAdmin && !adminLoading ? `Загрузка ваших мероприятий${fastMode ? ' (быстрый режим)' : ''}...` : 'Загрузка ваших мероприятий...');
           if (fastMode) {
             [result, totalCountResult] = await Promise.all([
               EventService.getUserEventsFast(user.id, ITEMS_PER_PAGE, offset),
@@ -653,7 +655,7 @@ export const EventsList: React.FC<EventsListProps> = ({
             }
             return [];
           }
-          if (!silent) setLoadingStage(`Загрузка архива${fastMode ? ' (быстрый режим)' : ''}...`);
+          if (!silent) setLoadingStage(isAdmin && !adminLoading ? `Загрузка архива${fastMode ? ' (быстрый режим)' : ''}...` : 'Загрузка архива...');
           if (fastMode) {
             [result, totalCountResult] = await Promise.all([
               EventService.getUserArchiveFast(user.id, ITEMS_PER_PAGE, offset),
@@ -667,7 +669,7 @@ export const EventsList: React.FC<EventsListProps> = ({
           }
           break;
         default:
-          if (!silent) setLoadingStage(`Загрузка по умолчанию${fastMode ? ' (быстрый режим)' : ''}...`);
+          if (!silent) setLoadingStage(isAdmin && !adminLoading ? `Загрузка по умолчанию${fastMode ? ' (быстрый режим)' : ''}...` : 'Загрузка...');
           if (fastMode) {
             [result, totalCountResult] = await Promise.all([
               EventService.getAllFast(ITEMS_PER_PAGE, offset),
@@ -861,9 +863,6 @@ export const EventsList: React.FC<EventsListProps> = ({
       <div className="w-full">
         <TabNavigation activeTab={activeTab} onTabChange={handleTabChange} />
         <div className="p-6">
-          <h2 className="text-2xl font-bold text-gray-800 mb-6">{tabTitle}</h2>
-          
-          {/* Расширенная информация об ошибке */}
           <div className="bg-red-50 border border-red-200 rounded-lg p-6">
             <div className="text-red-600 mb-4 text-center">
               <div className="text-2xl mb-2">⚠️</div>
@@ -874,15 +873,18 @@ export const EventsList: React.FC<EventsListProps> = ({
               <strong>Сообщение:</strong> {error}
             </div>
             
-            <div className="bg-white p-3 rounded border text-sm space-y-2">
-              <div><strong>Диагностика:</strong></div>
-              <div>• Вкладка: {activeTab}</div>
-              <div>• Страница: {currentPage}</div>
-              <div>• Пользователь: {user?.id ? `ID ${user.id}` : 'Не авторизован'}</div>
-              <div>• Supabase URL: {import.meta.env.VITE_SUPABASE_URL || 'НЕ НАСТРОЕН'}</div>
-              <div>• Supabase Key: {import.meta.env.VITE_SUPABASE_ANON_KEY ? 'Настроен' : 'НЕ НАСТРОЕН'}</div>
-              <div>• Время: {new Date().toLocaleTimeString()}</div>
-            </div>
+            {/* Диагностика только для администраторов */}
+            {isAdmin && !adminLoading && (
+              <div className="bg-white p-3 rounded border text-sm space-y-2">
+                <div><strong>Диагностика (только для администраторов):</strong></div>
+                <div>• Вкладка: {activeTab}</div>
+                <div>• Страница: {currentPage}</div>
+                <div>• Пользователь: {user?.id ? `ID ${user.id}` : 'Не авторизован'}</div>
+                <div>• Supabase URL: {import.meta.env.VITE_SUPABASE_URL || 'НЕ НАСТРОЕН'}</div>
+                <div>• Supabase Key: {import.meta.env.VITE_SUPABASE_ANON_KEY ? 'Настроен' : 'НЕ НАСТРОЕН'}</div>
+                <div>• Время: {new Date().toLocaleTimeString()}</div>
+              </div>
+            )}
             
             <div className="mt-4 space-y-2">
               <button
@@ -892,12 +894,15 @@ export const EventsList: React.FC<EventsListProps> = ({
                 🔄 Попробовать снова
               </button>
               
-              <button
-                onClick={() => setShowDebug(true)}
-                className="w-full bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors"
-              >
-                🔧 Показать подробную диагностику
-              </button>
+              {/* Кнопка отладки только для администраторов */}
+              {isAdmin && !adminLoading && (
+                <button
+                  onClick={() => setShowDebug(true)}
+                  className="w-full bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors"
+                >
+                  🔧 Показать подробную диагностику
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -912,27 +917,29 @@ export const EventsList: React.FC<EventsListProps> = ({
         <div className="p-6">
           <h2 className="text-2xl font-bold text-gray-800 mb-6">{tabTitle}</h2>
           
-          {/* Диагностика пустого состояния */}
-          <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-            <div className="text-yellow-800 font-medium mb-2">ℹ️ Диагностика загрузки</div>
-            <div className="text-sm text-yellow-700 space-y-1">
-              <div>• Загрузка завершена: ✅</div>
-              <div>• Ошибок нет: ✅</div>
-              <div>• Количество событий: {events.length}</div>
-              <div>• Общее количество: {totalItems}</div>
-              <div>• Вкладка: {activeTab}</div>
-              <div>• Пользователь: {user?.id ? `ID ${user.id}` : 'Не авторизован'}</div>
-              <div>• Время загрузки: {lastLoadTime ? `${lastLoadTime.toFixed(0)}ms` : 'N/A'}</div>
-              <div>• Кэш записей: {eventsCache.current.size}</div>
+          {/* Диагностика пустого состояния только для администраторов */}
+          {isAdmin && !adminLoading && (
+            <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+              <div className="text-yellow-800 font-medium mb-2">ℹ️ Диагностика загрузки (только для администраторов)</div>
+              <div className="text-sm text-yellow-700 space-y-1">
+                <div>• Загрузка завершена: ✅</div>
+                <div>• Ошибок нет: ✅</div>
+                <div>• Количество событий: {events.length}</div>
+                <div>• Общее количество: {totalItems}</div>
+                <div>• Вкладка: {activeTab}</div>
+                <div>• Пользователь: {user?.id ? `ID ${user.id}` : 'Не авторизован'}</div>
+                <div>• Время загрузки: {lastLoadTime ? `${lastLoadTime.toFixed(0)}ms` : 'N/A'}</div>
+                <div>• Кэш записей: {eventsCache.current.size}</div>
+              </div>
+              
+              <button
+                onClick={forceRefresh}
+                className="mt-3 w-full bg-yellow-600 text-white px-4 py-2 rounded-lg hover:bg-yellow-700 transition-colors"
+              >
+                🔄 Обновить данные
+              </button>
             </div>
-            
-            <button
-              onClick={forceRefresh}
-              className="mt-3 w-full bg-yellow-600 text-white px-4 py-2 rounded-lg hover:bg-yellow-700 transition-colors"
-            >
-              🔄 Обновить данные
-            </button>
-          </div>
+          )}
           
           <EmptyState {...emptyState} />
         </div>
@@ -947,62 +954,67 @@ export const EventsList: React.FC<EventsListProps> = ({
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-2xl font-bold text-gray-800">{tabTitle}</h2>
           <div className="flex items-center gap-4">
-            {/* Кнопка переключения быстрого режима */}
-            <button
-              onClick={toggleFastMode}
-              className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                fastMode
-                  ? 'bg-green-100 text-green-700 hover:bg-green-200'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-              title={fastMode ? 'Отключить быстрый режим (включить полную функциональность)' : 'Включить быстрый режим (упрощенная загрузка)'}
-            >
-              {fastMode ? '⚡' : '🔧'}
-              <span className="hidden sm:inline">
-                {fastMode ? 'Быстро' : 'Полный'}
-              </span>
-            </button>
+            {/* Кнопки администратора */}
+            {isAdmin && !adminLoading && (
+              <>
+                {/* Кнопка переключения быстрого режима */}
+                <button
+                  onClick={toggleFastMode}
+                  className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    fastMode
+                      ? 'bg-green-100 text-green-700 hover:bg-green-200'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                  title={fastMode ? 'Отключить быстрый режим (включить полную функциональность)' : 'Включить быстрый режим (упрощенная загрузка)'}
+                >
+                  {fastMode ? '⚡' : '🔧'}
+                  <span className="hidden sm:inline">
+                    {fastMode ? 'Быстро' : 'Полный'}
+                  </span>
+                </button>
 
-            {/* Кнопка переключения изображений */}
-            <button
-              onClick={toggleImages}
-              className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                imagesEnabled
-                  ? 'bg-blue-100 text-blue-700 hover:bg-blue-200'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-              title={imagesEnabled ? 'Отключить изображения для быстрой загрузки' : 'Включить изображения'}
-            >
-              {imagesEnabled ? '🖼️' : '⚡'}
-              <span className="hidden sm:inline">
-                {imagesEnabled ? 'Изображения' : 'Быстрый режим'}
-              </span>
-            </button>
+                {/* Кнопка переключения изображений */}
+                <button
+                  onClick={toggleImages}
+                  className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    imagesEnabled
+                      ? 'bg-blue-100 text-blue-700 hover:bg-blue-200'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                  title={imagesEnabled ? 'Отключить изображения для быстрой загрузки' : 'Включить изображения'}
+                >
+                  {imagesEnabled ? '🖼️' : '⚡'}
+                  <span className="hidden sm:inline">
+                    {imagesEnabled ? 'Изображения' : 'Быстрый режим'}
+                  </span>
+                </button>
 
-            {/* Кнопка принудительного обновления */}
-            <button
-              onClick={forceRefresh}
-              disabled={loading}
-              className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium bg-green-100 text-green-700 hover:bg-green-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              title="Принудительно обновить данные"
-            >
-              🔄
-              <span className="hidden sm:inline">Обновить</span>
-            </button>
+                {/* Кнопка принудительного обновления */}
+                <button
+                  onClick={forceRefresh}
+                  disabled={loading}
+                  className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium bg-green-100 text-green-700 hover:bg-green-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  title="Принудительно обновить данные"
+                >
+                  🔄
+                  <span className="hidden sm:inline">Обновить</span>
+                </button>
 
-            {/* Кнопка отладки */}
-            <button
-              onClick={toggleDebug}
-              className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                showDebug
-                  ? 'bg-orange-100 text-orange-700 hover:bg-orange-200'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-              title="Показать/скрыть отладочную информацию"
-            >
-              🔧
-              <span className="hidden sm:inline">Debug</span>
-            </button>
+                {/* Кнопка отладки */}
+                <button
+                  onClick={toggleDebug}
+                  className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    showDebug
+                      ? 'bg-orange-100 text-orange-700 hover:bg-orange-200'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                  title="Показать/скрыть отладочную информацию"
+                >
+                  🔧
+                  <span className="hidden sm:inline">Debug</span>
+                </button>
+              </>
+            )}
             
             <div className="text-right">
               <div className="text-sm text-gray-500">
@@ -1010,7 +1022,8 @@ export const EventsList: React.FC<EventsListProps> = ({
               </div>
               <div className="text-xs text-gray-400">
                 Всего: {totalItems} {totalItems === 1 ? 'мероприятие' : totalItems < 5 ? 'мероприятия' : 'мероприятий'}
-                {lastLoadTime && (
+                {/* Время загрузки только для администраторов */}
+                {isAdmin && !adminLoading && lastLoadTime && (
                   <span className="ml-2 text-blue-500">
                     ({lastLoadTime.toFixed(0)}ms)
                   </span>
@@ -1020,10 +1033,10 @@ export const EventsList: React.FC<EventsListProps> = ({
           </div>
         </div>
 
-        {/* Отладочная панель */}
-        {showDebug && (
+        {/* Отладочная панель только для администраторов */}
+        {isAdmin && !adminLoading && showDebug && (
           <div className="mb-6 p-4 bg-gray-50 border border-gray-200 rounded-lg">
-            <h3 className="text-lg font-semibold text-gray-800 mb-3">🔧 Отладочная информация</h3>
+            <h3 className="text-lg font-semibold text-gray-800 mb-3">🔧 Отладочная информация (только для администраторов)</h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
               <div>
                 <strong>Производительность:</strong>
