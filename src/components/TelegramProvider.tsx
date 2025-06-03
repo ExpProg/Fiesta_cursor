@@ -1,5 +1,8 @@
-import React, { createContext, useContext, ReactNode } from 'react';
+import React, { createContext, useContext, ReactNode, useEffect, useState, useMemo, useCallback } from 'react';
 import { useTelegramWebApp, UseTelegramWebAppReturn } from '@/hooks/useTelegramWebApp';
+import { useYandexMetrika } from '@/hooks/useYandexMetrika';
+import { useAdminStatus } from '@/hooks/useAdminStatus';
+import type { TelegramWebAppUser } from '@/types/telegram';
 
 // Создаем контекст
 const TelegramContext = createContext<UseTelegramWebAppReturn | null>(null);
@@ -153,6 +156,7 @@ export const TelegramUserInfo: React.FC<{
   showPremium = false
 }) => {
   const { user, safeUserData } = useTelegram();
+  const { isAdmin, isLoading: adminLoading } = useAdminStatus();
 
   if (!user) {
     return null;
@@ -167,14 +171,43 @@ export const TelegramUserInfo: React.FC<{
     <div className={`flex items-center space-x-3 ${className}`}>
       {/* Имя и сокращенная фамилия слева */}
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium text-gray-900 truncate">
-          {safeUserData.firstName} {shortLastName}
-        </p>
+        <div className="flex items-center gap-2">
+          <p className="text-sm font-medium text-gray-900 truncate">
+            {safeUserData.firstName} {shortLastName}
+          </p>
+          
+          {/* Админский бейдж */}
+          {isAdmin && !adminLoading && (
+            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800 border border-red-200">
+              <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M10 2L13 9H20L14 14L16 21L10 17L4 21L6 14L0 9H7L10 2Z" clipRule="evenodd" />
+              </svg>
+              Админ
+            </span>
+          )}
+          
+          {/* Premium бейдж (если включен) */}
+          {showPremium && safeUserData.isPremium && (
+            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 border border-yellow-200">
+              <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+              </svg>
+              Premium
+            </span>
+          )}
+        </div>
       </div>
       
       {/* Аватарка справа */}
       {showAvatar && (
-        <div className="w-10 h-10 bg-telegram-blue rounded-full flex items-center justify-center text-white font-medium">
+        <div className={`relative w-10 h-10 bg-telegram-blue rounded-full flex items-center justify-center text-white font-medium ${isAdmin ? 'ring-2 ring-red-300' : ''}`}>
+          {isAdmin && (
+            <div className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center">
+              <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M10 2L13 9H20L14 14L16 21L10 17L4 21L6 14L0 9H7L10 2Z" clipRule="evenodd" />
+              </svg>
+            </div>
+          )}
           {safeUserData.firstName.charAt(0).toUpperCase()}
         </div>
       )}

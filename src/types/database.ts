@@ -65,6 +65,7 @@ export interface DatabaseUser {
   bio: string | null;
   is_premium: boolean;
   is_verified: boolean;
+  is_admin: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -82,6 +83,7 @@ export interface DatabaseUserInsert {
   bio?: string | null;
   is_premium?: boolean;
   is_verified?: boolean;
+  is_admin?: boolean;
   created_at?: string;
   updated_at?: string;
 }
@@ -98,6 +100,7 @@ export interface DatabaseUserUpdate {
   bio?: string | null;
   is_premium?: boolean;
   is_verified?: boolean;
+  is_admin?: boolean;
   updated_at?: string;
 }
 

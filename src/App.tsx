@@ -18,6 +18,7 @@ import { EventPage } from './components/EventPage';
 import { EditEventForm } from './components/EditEventForm';
 import { EditEventPage } from './components/EditEventPage';
 import { Dashboard } from './components/Dashboard';
+import { AdminPanel } from './components/AdminPanel';
 import { UserMenu } from './components/UserMenu';
 import { UserService } from '@/services/userService';
 import type { DatabaseUser, DatabaseEvent } from '@/types/database';
@@ -44,6 +45,7 @@ function AppContent() {
   const [editingEvent, setEditingEvent] = useState<DatabaseEvent | null>(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [showDashboard, setShowDashboard] = useState(false);
+  const [showAdminPanel, setShowAdminPanel] = useState(false);
 
   // Безопасные данные пользователя для отображения
   const safeUserData = {
@@ -234,8 +236,16 @@ function AppContent() {
 
   return (
     <div className="min-h-screen bg-white text-gray-900">
-      {/* Если показываем дэшборд */}
-      {showDashboard ? (
+      {/* Если показываем админ-панель */}
+      {showAdminPanel ? (
+        <AdminPanel
+          onBack={() => {
+            setShowAdminPanel(false);
+            impactOccurred('light');
+          }}
+        />
+      ) : /* Если показываем дэшборд */
+      showDashboard ? (
         <Dashboard
           onBack={() => {
             setShowDashboard(false);
@@ -346,6 +356,11 @@ function AppContent() {
                     onCreateEvent={() => {
                       setShowCreateEvent(true);
                       reachGoal('header_create_event_clicked');
+                      impactOccurred('light');
+                    }}
+                    onAdminPanel={() => {
+                      setShowAdminPanel(true);
+                      reachGoal('header_admin_panel_clicked');
                       impactOccurred('light');
                     }}
                     userFirstName={telegramUser?.first_name}
