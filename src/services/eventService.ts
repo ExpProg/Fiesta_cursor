@@ -975,10 +975,32 @@ export class EventService {
     try {
       console.log(`⚡ EventService.getAllFast fetching events (limit: ${limit}, offset: ${offset})`);
       
+      // Выбираем только необходимые поля для быстрой загрузки
       const { data, error } = await supabase
         .from('events')
-        .select('*')
-        .order('created_at', { ascending: false })
+        .select(`
+          id,
+          title,
+          description,
+          image_url,
+          gradient_background,
+          date,
+          event_time,
+          end_date,
+          end_time,
+          location,
+          map_url,
+          max_participants,
+          current_participants,
+          created_by,
+          host_id,
+          status,
+          is_private,
+          created_at,
+          updated_at
+        `)
+        .eq('status', 'active') // Только активные события
+        .order('date', { ascending: true }) // Сортируем по дате для лучшей производительности
         .range(offset, offset + limit - 1);
 
       if (error) {
@@ -1004,12 +1026,35 @@ export class EventService {
     try {
       console.log(`⚡ EventService.getAvailableFast fetching events (limit: ${limit}, offset: ${offset})`);
       
+      // Сегодняшняя дата в формате YYYY-MM-DD для быстрого сравнения
+      const today = new Date().toISOString().split('T')[0];
+      
       const { data, error } = await supabase
         .from('events')
-        .select('*')
+        .select(`
+          id,
+          title,
+          description,
+          image_url,
+          gradient_background,
+          date,
+          event_time,
+          end_date,
+          end_time,
+          location,
+          map_url,
+          max_participants,
+          current_participants,
+          created_by,
+          host_id,
+          status,
+          is_private,
+          created_at,
+          updated_at
+        `)
         .eq('status', 'active')
-        .gte('date', new Date().toISOString().split('T')[0]) // Только дата без времени
-        .order('created_at', { ascending: false })
+        .gte('date', today) // Только будущие события
+        .order('date', { ascending: true }) // Сортируем по дате
         .range(offset, offset + limit - 1);
 
       if (error) {
@@ -1038,9 +1083,29 @@ export class EventService {
       // Простой запрос только созданных пользователем мероприятий
       const { data, error } = await supabase
         .from('events')
-        .select('*')
+        .select(`
+          id,
+          title,
+          description,
+          image_url,
+          gradient_background,
+          date,
+          event_time,
+          end_date,
+          end_time,
+          location,
+          map_url,
+          max_participants,
+          current_participants,
+          created_by,
+          host_id,
+          status,
+          is_private,
+          created_at,
+          updated_at
+        `)
         .eq('created_by', telegramId)
-        .order('created_at', { ascending: false })
+        .order('date', { ascending: false }) // Сначала новые
         .range(offset, offset + limit - 1);
 
       if (error) {
@@ -1066,13 +1131,35 @@ export class EventService {
     try {
       console.log(`⚡ EventService.getUserArchiveFast for user: ${telegramId} (limit: ${limit}, offset: ${offset})`);
       
+      const today = new Date().toISOString().split('T')[0];
+      
       // Простой запрос завершенных мероприятий пользователя
       const { data, error } = await supabase
         .from('events')
-        .select('*')
+        .select(`
+          id,
+          title,
+          description,
+          image_url,
+          gradient_background,
+          date,
+          event_time,
+          end_date,
+          end_time,
+          location,
+          map_url,
+          max_participants,
+          current_participants,
+          created_by,
+          host_id,
+          status,
+          is_private,
+          created_at,
+          updated_at
+        `)
         .eq('created_by', telegramId)
-        .or('status.eq.completed,date.lt.' + new Date().toISOString().split('T')[0])
-        .order('created_at', { ascending: false })
+        .lt('date', today) // Только прошедшие события
+        .order('date', { ascending: false }) // Сначала новые
         .range(offset, offset + limit - 1);
 
       if (error) {

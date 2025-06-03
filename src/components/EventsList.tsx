@@ -27,13 +27,13 @@ const LazyImage: React.FC<LazyImageProps> = ({ src, alt, className, fallbackGrad
   const [hasError, setHasError] = useState(false);
   const imgRef = useRef<HTMLImageElement>(null);
 
-  // Оптимизируем URL изображения для быстрой загрузки
+  // Агрессивная оптимизация URL изображения для быстрой загрузки
   const getOptimizedImageUrl = useCallback((url: string) => {
     // Если это Supabase Storage URL, добавляем параметры оптимизации
     if (url.includes('supabase') && url.includes('storage')) {
-      // Добавляем параметры для сжатия и изменения размера
+      // Более агрессивная оптимизация для быстрой загрузки
       const separator = url.includes('?') ? '&' : '?';
-      return `${url}${separator}width=400&height=300&resize=cover&quality=75`;
+      return `${url}${separator}width=300&height=200&resize=cover&quality=60&format=webp`;
     }
     return url;
   }, []);
@@ -48,7 +48,7 @@ const LazyImage: React.FC<LazyImageProps> = ({ src, alt, className, fallbackGrad
       },
       { 
         threshold: 0.1,
-        rootMargin: '100px' // Увеличиваем до 100px для более плавной загрузки
+        rootMargin: '200px' // Увеличиваем до 200px для более ранней загрузки
       }
     );
 
@@ -104,16 +104,16 @@ const LazyImage: React.FC<LazyImageProps> = ({ src, alt, className, fallbackGrad
           <img
             src={optimizedSrc}
             alt={alt}
-            className={`w-full h-full object-cover transition-opacity duration-500 ${
+            className={`w-full h-full object-cover transition-opacity duration-300 ${
               isLoaded ? 'opacity-100' : 'opacity-0'
             }`}
             onLoad={handleLoad}
             onError={handleError}
             loading="lazy"
             decoding="async"
-            // Добавляем размеры для оптимизации
-            width="400"
-            height="300"
+            // Оптимизированные размеры
+            width="300"
+            height="200"
           />
         </>
       )}
@@ -374,25 +374,25 @@ export const EventsList: React.FC<EventsListProps> = ({
   
   const [activeTab, setActiveTab] = useState<TabType>('all');
   const [events, setEvents] = useState<DatabaseEvent[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalItems, setTotalItems] = useState(0);
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [totalItems, setTotalItems] = useState<number>(0);
   const [imagesEnabled, setImagesEnabled] = useState(() => {
     // Инициализируем из localStorage или по умолчанию true
     const saved = localStorage.getItem('eventsImagesEnabled');
     return saved !== null ? JSON.parse(saved) : true;
   }); // Новое состояние для управления изображениями
   const [showDebug, setShowDebug] = useState(false); // Отладочная панель
-  const [lastLoadTime, setLastLoadTime] = useState<number | null>(null); // Время последней загрузки
-  const [loadingStage, setLoadingStage] = useState<string>('Инициализация...'); // Этап загрузки
+  const [lastLoadTime, setLastLoadTime] = useState<number>(0); // Время последней загрузки
+  const [loadingStage, setLoadingStage] = useState<string>(''); // Этап загрузки для диагностики
   const [fastMode, setFastMode] = useState(() => {
-    // Инициализируем из localStorage или по умолчанию false
+    // Инициализируем из localStorage или по умолчанию true для быстрой загрузки
     const saved = localStorage.getItem('eventsFastMode');
-    return saved !== null ? JSON.parse(saved) : false;
+    return saved !== null ? JSON.parse(saved) : true;
   }); // Быстрый режим загрузки
   
-  const ITEMS_PER_PAGE = 5;
+  const ITEMS_PER_PAGE = 10; // Увеличиваем до 10 для меньшего количества запросов
   
   // Кэш для событий с пагинацией
   const eventsCache = useRef<Map<string, { data: DatabaseEvent[], timestamp: number, totalItems: number }>>(new Map());
@@ -519,33 +519,17 @@ export const EventsList: React.FC<EventsListProps> = ({
 
   // Оптимизированная функция загрузки событий с пагинацией
   const fetchEvents = useCallback(async (tab: TabType, page: number = 1, forceRefresh = false, silent = false) => {
-    const startTime = performance.now(); // Добавляем замер времени
+    const startTime = performance.now();
     const cacheKey = getCacheKey(tab, page);
     const cached = eventsCache.current.get(cacheKey);
     const now = Date.now();
     
-    if (!silent) {
-      setLoadingStage('Проверка кэша...');
-    }
-    
-    // Диагностика
-    console.log('🔍 EventsList.fetchEvents called:', {
-      tab,
-      page,
-      forceRefresh,
-      silent,
-      hasUser: !!user?.id,
-      userId: user?.id,
-      supabaseUrl: import.meta.env.VITE_SUPABASE_URL,
-      hasSupabaseKey: !!import.meta.env.VITE_SUPABASE_ANON_KEY
-    });
-    
+    // Проверяем кэш первым делом
     if (!forceRefresh && cached && (now - cached.timestamp) < CACHE_DURATION) {
       if (!silent) {
         setEvents(cached.data);
         setTotalItems(cached.totalItems);
         setLoading(false);
-        setLoadingStage('Завершено');
         console.log(`⚡ Cache hit for ${tab} page ${page} (${(performance.now() - startTime).toFixed(2)}ms)`);
       }
       return cached.data;
@@ -554,7 +538,7 @@ export const EventsList: React.FC<EventsListProps> = ({
     if (!silent) {
       setLoading(true);
       setError(null);
-      setLoadingStage('Подключение к базе данных...');
+      setLoadingStage('Загрузка...');
     }
 
     try {
@@ -565,62 +549,22 @@ export const EventsList: React.FC<EventsListProps> = ({
       console.log(`🔄 Loading ${tab} page ${page} (offset: ${offset}, limit: ${ITEMS_PER_PAGE})`);
       const apiStartTime = performance.now();
       
-      // Простая проверка подключения к Supabase с таймаутом
-      try {
-        if (!silent) setLoadingStage('Тестирование подключения...');
-        const { supabase } = await import('@/hooks/useSupabase');
-        console.log('🔍 Testing Supabase connection...');
-        
-        // Добавляем таймаут для запроса
-        const connectionPromise = supabase.from('events').select('count').limit(1);
-        const timeoutPromise = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Таймаут подключения (10 секунд)')), 10000)
-        );
-        
-        const { data: testData, error: testError } = await Promise.race([connectionPromise, timeoutPromise]) as any;
-        
-        if (testError) {
-          console.error('❌ Supabase connection test failed:', testError);
-          throw new Error(`Ошибка подключения к базе данных: ${testError.message}`);
-        }
-        console.log('✅ Supabase connection test passed');
-        if (!silent) setLoadingStage('Подключение успешно! Загрузка данных...');
-      } catch (connectionError) {
-        console.error('❌ Supabase connection error:', connectionError);
-        if (!silent) setLoadingStage('Ошибка подключения');
-        throw connectionError;
-      }
+      // Убираем проверку подключения - она замедляет загрузку
+      // Сразу загружаем данные, используем быстрый режим для лучшей производительности
       
-      // Запросы с пагинацией и подсчет общего количества
       switch (tab) {
         case 'all':
-          console.log('🔄 Fetching all events...');
-          if (!silent) setLoadingStage(isAdmin && !adminLoading ? `Загрузка всех мероприятий${fastMode ? ' (быстрый режим)' : ''}...` : 'Загрузка мероприятий...');
-          if (fastMode) {
-            [result, totalCountResult] = await Promise.all([
-              EventService.getAllFast(ITEMS_PER_PAGE, offset),
-              EventService.getTotalCount()
-            ]);
-          } else {
-            [result, totalCountResult] = await Promise.all([
-              EventService.getAll(ITEMS_PER_PAGE, offset),
-              EventService.getTotalCount()
-            ]);
-          }
+          console.log('🔄 Fetching all events (fast mode)...');
+          [result, totalCountResult] = await Promise.all([
+            EventService.getAllFast(ITEMS_PER_PAGE, offset),
+            EventService.getTotalCount()
+          ]);
           break;
         case 'available':
-          if (!silent) setLoadingStage(isAdmin && !adminLoading ? `Загрузка доступных мероприятий${fastMode ? ' (быстрый режим)' : ''}...` : 'Загрузка доступных мероприятий...');
-          if (fastMode) {
-            [result, totalCountResult] = await Promise.all([
-              EventService.getAvailableFast(ITEMS_PER_PAGE, offset),
-              EventService.getAvailableTotalCount()
-            ]);
-          } else {
-            [result, totalCountResult] = await Promise.all([
-              EventService.getAvailable(ITEMS_PER_PAGE, offset),
-              EventService.getAvailableTotalCount()
-            ]);
-          }
+          [result, totalCountResult] = await Promise.all([
+            EventService.getAvailableFast(ITEMS_PER_PAGE, offset),
+            EventService.getAvailableTotalCount()
+          ]);
           break;
         case 'my':
           if (!user?.id) {
@@ -628,22 +572,13 @@ export const EventsList: React.FC<EventsListProps> = ({
               setEvents([]);
               setTotalItems(0);
               setLoading(false);
-              setLoadingStage('Пользователь не авторизован');
             }
             return [];
           }
-          if (!silent) setLoadingStage(isAdmin && !adminLoading ? `Загрузка ваших мероприятий${fastMode ? ' (быстрый режим)' : ''}...` : 'Загрузка ваших мероприятий...');
-          if (fastMode) {
-            [result, totalCountResult] = await Promise.all([
-              EventService.getUserEventsFast(user.id, ITEMS_PER_PAGE, offset),
-              EventService.getUserEventsTotalCount(user.id)
-            ]);
-          } else {
-            [result, totalCountResult] = await Promise.all([
-              EventService.getUserEvents(user.id, ITEMS_PER_PAGE, offset),
-              EventService.getUserEventsTotalCount(user.id)
-            ]);
-          }
+          [result, totalCountResult] = await Promise.all([
+            EventService.getUserEventsFast(user.id, ITEMS_PER_PAGE, offset),
+            EventService.getUserEventsTotalCount(user.id)
+          ]);
           break;
         case 'archive':
           if (!user?.id) {
@@ -651,39 +586,21 @@ export const EventsList: React.FC<EventsListProps> = ({
               setEvents([]);
               setTotalItems(0);
               setLoading(false);
-              setLoadingStage('Пользователь не авторизован');
             }
             return [];
           }
-          if (!silent) setLoadingStage(isAdmin && !adminLoading ? `Загрузка архива${fastMode ? ' (быстрый режим)' : ''}...` : 'Загрузка архива...');
-          if (fastMode) {
-            [result, totalCountResult] = await Promise.all([
-              EventService.getUserArchiveFast(user.id, ITEMS_PER_PAGE, offset),
-              EventService.getUserArchiveTotalCount(user.id)
-            ]);
-          } else {
-            [result, totalCountResult] = await Promise.all([
-              EventService.getUserArchive(user.id, ITEMS_PER_PAGE, offset),
-              EventService.getUserArchiveTotalCount(user.id)
-            ]);
-          }
+          [result, totalCountResult] = await Promise.all([
+            EventService.getUserArchiveFast(user.id, ITEMS_PER_PAGE, offset),
+            EventService.getUserArchiveTotalCount(user.id)
+          ]);
           break;
         default:
-          if (!silent) setLoadingStage(isAdmin && !adminLoading ? `Загрузка по умолчанию${fastMode ? ' (быстрый режим)' : ''}...` : 'Загрузка...');
-          if (fastMode) {
-            [result, totalCountResult] = await Promise.all([
-              EventService.getAllFast(ITEMS_PER_PAGE, offset),
-              EventService.getTotalCount()
-            ]);
-          } else {
-            [result, totalCountResult] = await Promise.all([
-              EventService.getAll(ITEMS_PER_PAGE, offset),
-              EventService.getTotalCount()
-            ]);
-          }
+          [result, totalCountResult] = await Promise.all([
+            EventService.getAllFast(ITEMS_PER_PAGE, offset),
+            EventService.getTotalCount()
+          ]);
       }
 
-      if (!silent) setLoadingStage('Обработка данных...');
       const apiEndTime = performance.now();
       console.log(`📊 API calls completed in ${(apiEndTime - apiStartTime).toFixed(2)}ms`);
 
@@ -697,25 +614,19 @@ export const EventsList: React.FC<EventsListProps> = ({
 
       let eventsData = result.data || [];
       
-      // Фильтруем частные мероприятия для общих списков
-      if (!silent) setLoadingStage('Фильтрация данных...');
-      const filterStartTime = performance.now();
+      // Быстрая фильтрация частных мероприятий
       if (tab === 'all' || tab === 'available') {
         eventsData = eventsData.filter(event => 
           !event.is_private || (user?.id && event.created_by === user.id)
         );
       }
-      const filterEndTime = performance.now();
-      console.log(`🔍 Filtering completed in ${(filterEndTime - filterStartTime).toFixed(2)}ms`);
       
-      // Используем точное количество из API или fallback к примерному
       const actualTotal = totalCountResult.data !== null ? totalCountResult.data : 
         (eventsData.length < ITEMS_PER_PAGE ? 
           (page - 1) * ITEMS_PER_PAGE + eventsData.length : 
           eventsData.length * 10);
       
       // Сохраняем в кэш
-      if (!silent) setLoadingStage('Сохранение в кэш...');
       eventsCache.current.set(cacheKey, {
         data: eventsData,
         totalItems: actualTotal,
@@ -728,10 +639,10 @@ export const EventsList: React.FC<EventsListProps> = ({
       if (!silent) {
         setEvents(eventsData);
         setTotalItems(actualTotal);
-        setLastLoadTime(totalTime); // Сохраняем время загрузки
-        setLoadingStage('Завершено успешно!');
+        setLastLoadTime(totalTime);
+        setLoadingStage('Завершено');
         
-        // Аналитика с временными метриками
+        // Аналитика
         reachGoal('events_list_loaded', {
           tab,
           page,
@@ -744,9 +655,9 @@ export const EventsList: React.FC<EventsListProps> = ({
         });
       }
 
-      // Предзагружаем соседние страницы
+      // Предзагружаем соседние страницы в фоне
       if (!silent && eventsData.length > 0) {
-        setTimeout(() => preloadAdjacentPages(tab, page), 1000);
+        setTimeout(() => preloadAdjacentPages(tab, page), 500);
       }
       
       return eventsData;
@@ -774,12 +685,12 @@ export const EventsList: React.FC<EventsListProps> = ({
         setLoading(false);
       }
     }
-  }, [user?.id, reachGoal, getCacheKey, preloadAdjacentPages, fastMode]);
+  }, [user?.id, reachGoal, getCacheKey, preloadAdjacentPages, isAdmin, adminLoading]);
 
   // Функция принудительного обновления
   const forceRefresh = useCallback(() => {
     eventsCache.current.clear();
-    setLastLoadTime(null);
+    setLastLoadTime(0);
     fetchEvents(activeTab, currentPage, true);
     reachGoal('force_refresh', {
       tab: activeTab,
@@ -804,10 +715,21 @@ export const EventsList: React.FC<EventsListProps> = ({
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [activeTab, fetchEvents]);
 
-  // Загрузка событий при монтировании
+  // Загружаем события при инициализации
   useEffect(() => {
-    fetchEvents(activeTab, currentPage);
-  }, [fetchEvents, activeTab, currentPage]);
+    fetchEvents(activeTab, 1);
+  }, [activeTab, fetchEvents]);
+
+  // Автоматическое отключение изображений при медленной загрузке
+  useEffect(() => {
+    if (lastLoadTime > 5000 && imagesEnabled) { // Если загрузка дольше 5 секунд
+      console.log('🐌 Slow loading detected, suggesting to disable images for better performance');
+      setImagesEnabled(false);
+      localStorage.setItem('eventsImagesEnabled', JSON.stringify(false));
+      // Перезагружаем данные без изображений
+      setTimeout(() => fetchEvents(activeTab, currentPage, true), 500);
+    }
+  }, [lastLoadTime, imagesEnabled, activeTab, currentPage, fetchEvents]);
 
   // Очистка кэша при смене пользователя
   useEffect(() => {
@@ -957,41 +879,26 @@ export const EventsList: React.FC<EventsListProps> = ({
 
         {/* Отладочная панель только для администраторов */}
         {isAdmin && !adminLoading && showDebug && (
-          <div className="mb-6 p-4 bg-gray-50 border border-gray-200 rounded-lg">
-            <h3 className="text-lg font-semibold text-gray-800 mb-3">🔧 Отладочная информация (только для администраторов)</h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-              <div>
-                <strong>Производительность:</strong>
-                <ul className="mt-1 space-y-1">
-                  <li>Последняя загрузка: {lastLoadTime ? `${lastLoadTime.toFixed(2)}ms` : 'N/A'}</li>
-                  <li>Кэш записей: {eventsCache.current.size}</li>
-                  <li>Изображения: {imagesEnabled ? 'Включены' : 'Отключены'}</li>
-                  <li>Режим загрузки: {fastMode ? 'Быстрый' : 'Полный'}</li>
-                </ul>
-              </div>
-              <div>
-                <strong>Текущее состояние:</strong>
-                <ul className="mt-1 space-y-1">
-                  <li>Вкладка: {activeTab}</li>
-                  <li>Страница: {currentPage}</li>
-                  <li>Загрузка: {loading ? 'Да' : 'Нет'}</li>
-                  <li>Пользователь: {user?.id || 'Не авторизован'}</li>
-                </ul>
-              </div>
-              <div>
-                <strong>Данные:</strong>
-                <ul className="mt-1 space-y-1">
-                  <li>События на странице: {events.length}</li>
-                  <li>Всего событий: {totalItems}</li>
-                  <li>Элементов на страницу: {ITEMS_PER_PAGE}</li>
-                  <li>Ошибка: {error || 'Нет'}</li>
-                </ul>
-              </div>
-            </div>
-            <div className="mt-4 pt-3 border-t border-gray-300">
-              <p className="text-xs text-gray-600">
-                💡 Если загрузка медленная, попробуйте отключить изображения или проверьте консоль браузера для подробной информации.
-              </p>
+          <div className="mb-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+            <h3 className="text-sm font-medium text-blue-900 mb-2">🔧 Диагностика загрузки</h3>
+            <div className="text-xs text-blue-700 space-y-1">
+              <div>• Текущий этап: {loadingStage}</div>
+              <div>• Время последней загрузки: {lastLoadTime > 0 ? `${lastLoadTime.toFixed(0)}ms` : 'не измерено'}</div>
+              <div>• Статус производительности: {
+                lastLoadTime === 0 ? '⚪ не известен' : 
+                lastLoadTime < 1000 ? '🟢 отличная (< 1с)' :
+                lastLoadTime < 2000 ? '🟡 хорошая (< 2с)' :
+                lastLoadTime < 5000 ? '🟠 средняя (< 5с)' :
+                '🔴 медленная (> 5с)'
+              }</div>
+              <div>• Быстрый режим: {fastMode ? '✅ включен' : '❌ выключен'}</div>
+              <div>• Изображения: {imagesEnabled ? '✅ включены' : '❌ выключены'}</div>
+              <div>• Кэш: {eventsCache.current.size} страниц</div>
+              <div>• Элементов на странице: {ITEMS_PER_PAGE}</div>
+              <div>• Пагинация: страница {currentPage} из {Math.ceil(totalItems / ITEMS_PER_PAGE)}</div>
+              <div>• Всего элементов: {totalItems}</div>
+              <div>• Supabase URL: {import.meta.env.VITE_SUPABASE_URL?.substring(0, 30)}...</div>
+              <div>• API ключ: {import.meta.env.VITE_SUPABASE_ANON_KEY ? '✅ установлен' : '❌ отсутствует'}</div>
             </div>
           </div>
         )}
