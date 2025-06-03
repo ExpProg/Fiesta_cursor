@@ -1,8 +1,11 @@
 import React from 'react';
 import { DebugInfo } from './DebugInfo';
 import { SupabaseTest } from './SupabaseTest';
+import { useAdminStatus } from '@/hooks/useAdminStatus';
 
 export const TestMode: React.FC = () => {
+  const { isAdmin, isLoading: adminLoading } = useAdminStatus();
+
   return (
     <div className="min-h-screen bg-gray-50 p-4">
       <div className="max-w-md mx-auto space-y-4">
@@ -55,8 +58,13 @@ export const TestMode: React.FC = () => {
           </div>
         </div>
 
-        <SupabaseTest />
-        <DebugInfo />
+        {/* Отладочные компоненты только для администраторов */}
+        {isAdmin && !adminLoading && (
+          <>
+            <SupabaseTest />
+            <DebugInfo />
+          </>
+        )}
       </div>
     </div>
   );

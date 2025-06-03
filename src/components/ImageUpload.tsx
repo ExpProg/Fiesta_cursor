@@ -3,6 +3,8 @@ import { ImageService } from '@/services/imageService';
 import { useYandexMetrika } from '@/hooks/useYandexMetrika';
 import { useImageStorage } from '@/hooks/useImageStorage';
 import { Upload, X, Image as ImageIcon, Loader2, AlertCircle } from 'lucide-react';
+import { useTelegram } from './TelegramProvider';
+import { useAdminStatus } from '@/hooks/useAdminStatus';
 
 interface ImageUploadProps {
   currentImageUrl?: string;
@@ -21,6 +23,8 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
 }) => {
   const { reachGoal } = useYandexMetrika();
   const { isInitialized, isInitializing, error: storageError, initializationLog, isTelegramWebApp } = useImageStorage();
+  const { user } = useTelegram();
+  const { isAdmin, isLoading: adminLoading } = useAdminStatus();
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const [isUploading, setIsUploading] = useState(false);
@@ -364,11 +368,11 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
         Рекомендуемый размер: 1200x600 пикселей. Поддерживаются форматы JPEG, PNG, WebP размером до 5MB.
       </p>
       
-      {/* Диагностика (только в режиме разработки) */}
-      {import.meta.env.DEV && (
+      {/* Диагностика (только для администраторов) */}
+      {isAdmin && !adminLoading && (
         <details className="mt-2" open={!!storageError || isInitializing || isTelegramWebApp}>
           <summary className="text-xs text-gray-400 cursor-pointer hover:text-gray-600">
-            🔧 Диагностика (только для разработки)
+            🔧 Диагностика (только для администраторов)
           </summary>
           <div className="mt-2 p-2 bg-gray-50 rounded text-xs space-y-1">
             <div>UserId: {userId}</div>
@@ -391,85 +395,6 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
                 ))}
               </div>
             )}
-            
-            <div className="flex gap-1 mt-2">
-              <button
-                type="button"
-                onClick={() => {
-                  console.log('🔧 Manual Storage Check');
-                  window.location.reload();
-                }}
-                className="px-2 py-1 bg-blue-500 text-white rounded text-xs"
-              >
-                Перезагрузить
-              </button>
-              <button
-                type="button"
-                onClick={async () => {
-                  console.log('🔍 Testing Supabase connection...');
-                  try {
-                    const { ImageService } = await import('@/services/imageService');
-                    
-                    console.log('🔍 Environment variables check...');
-                    const envCheck = ImageService.checkEnvironmentVariables();
-                    
-                    console.log('🔍 Connection test...');
-                    const connectionTest = await ImageService.checkConnection();
-                    
-                    console.log('🔍 Bucket test...');
-                    const bucketTest = await ImageService.checkBucketExists();
-                    
-                    const results = {
-                      env: envCheck,
-                      connection: connectionTest,
-                      bucket: bucketTest
-                    };
-                    
-                    console.log('Test results:', results);
-                    
-                    const message = [
-                      `Environment: ${envCheck.isValid ? '✅' : '❌'}`,
-                      `Missing vars: ${envCheck.missing.length > 0 ? envCheck.missing.join(', ') : 'None'}`,
-                      `Connection: ${connectionTest.isConnected ? '✅' : '❌'}`,
-                      `Bucket exists: ${bucketTest ? '✅' : '❌'}`,
-                      `Error: ${connectionTest.error || 'None'}`
-                    ].join('\n');
-                    
-                    alert(message);
-                  } catch (error) {
-                    console.error('Test failed:', error);
-                    alert(`Test failed: ${error}`);
-                  }
-                }}
-                className="px-2 py-1 bg-green-500 text-white rounded text-xs"
-              >
-                Тест
-              </button>
-              {isInitializing && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    console.log('🛑 Force stopping initialization...');
-                    window.location.reload();
-                  }}
-                  className="px-2 py-1 bg-red-500 text-white rounded text-xs"
-                >
-                  Стоп
-                </button>
-              )}
-              {isInitializing && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    console.log('⏭️ Skipping Storage initialization...');
-                    setSkipStorage(true);
-                  }}
-                  className="px-2 py-1 bg-yellow-500 text-white rounded text-xs"
-                >
-                  Пропустить
-                </button>
-              )}
-            </div>
           </div>
         </details>
       )}

@@ -6,11 +6,12 @@ import {
   TelegramGate,
   useTelegram 
 } from '@/components/TelegramProvider';
-import { DebugInfo } from '@/components/DebugInfo';
+import { AdminDebugPanel } from '@/components/AdminDebugPanel';
 import { TestMode } from '@/components/TestMode';
 import { useTelegramTheme } from '@/hooks/useTelegramTheme';
 import { useEventSharing } from '@/hooks/useEventSharing';
 import { useYandexMetrika } from '@/hooks/useYandexMetrika';
+import { useAdminStatus } from '@/hooks/useAdminStatus';
 import { CreateEventForm } from './components/CreateEventForm';
 import { CreateEventPage } from './components/CreateEventPage';
 import { EventsList } from './components/EventsList';
@@ -36,6 +37,7 @@ function AppContent() {
   const { isDark } = useTelegramTheme();
   const { sharedEvent, isLoadingSharedEvent, sharedEventError, clearSharedEvent } = useEventSharing();
   const { reachGoal, userParams } = useYandexMetrika();
+  const { isAdmin, isLoading: adminLoading } = useAdminStatus();
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [user, setUser] = useState<DatabaseUser | null>(null);
@@ -148,12 +150,12 @@ function AppContent() {
           <h2 className="text-lg font-semibold mb-2 text-center">Ошибка инициализации</h2>
           <p className="text-gray-600 mb-4 text-sm">{error}</p>
           
-          {/* Показываем детали ошибки в режиме разработки ИЛИ в Telegram */}
-          {(import.meta.env.MODE === 'development' || typeof window !== 'undefined' && 'Telegram' in window) && errorDetails && (
+          {/* Показываем детали ошибки только администраторам */}
+          {isAdmin && !adminLoading && errorDetails && (
             <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
               <details className="text-xs">
                 <summary className="font-medium text-red-800 cursor-pointer mb-2">
-                  🔧 Детали ошибки ({import.meta.env.MODE === 'development' ? 'режим разработки' : 'Telegram диагностика'})
+                  🔧 Детали ошибки (только для администраторов)
                 </summary>
                 <div className="space-y-2 text-red-700">
                   <div><strong>Сообщение:</strong> {errorDetails.message}</div>
@@ -185,45 +187,49 @@ function AppContent() {
               Попробовать снова
             </button>
             
-            {/* Кнопка для тестирования подключения к Supabase */}
-            <button
-              onClick={async () => {
-                try {
-                  console.log('🔄 Testing Supabase connection...');
-                  const { supabase } = await import('@/hooks/useSupabase');
-                  const { data, error } = await supabase.from('users').select('count').limit(1);
-                  if (error) {
-                    console.error('❌ Supabase test failed:', error);
-                    alert(`Ошибка Supabase: ${error.message}`);
-                  } else {
-                    console.log('✅ Supabase connection OK');
-                    alert('✅ Подключение к Supabase работает');
-                  }
-                } catch (err) {
-                  console.error('❌ Supabase test error:', err);
-                  alert(`Ошибка тестирования: ${err}`);
-                }
-              }}
-              className="w-full bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors text-sm"
-            >
-              🔧 Тест подключения к базе данных
-            </button>
-            
-            {/* Ссылки на диагностические страницы */}
-            <a
-              href="/telegram-debug.html"
-              target="_blank"
-              className="block w-full bg-purple-500 text-white px-4 py-2 rounded-lg hover:bg-purple-600 transition-colors text-sm text-center mb-2"
-            >
-              🔍 Диагностика Telegram WebApp
-            </a>
-            <a
-              href="/debug.html"
-              target="_blank"
-              className="block w-full bg-purple-500 text-white px-4 py-2 rounded-lg hover:bg-purple-600 transition-colors text-sm text-center"
-            >
-              🔧 Полная диагностика
-            </a>
+            {/* Кнопки диагностики только для администраторов */}
+            {isAdmin && !adminLoading && (
+              <>
+                <button
+                  onClick={async () => {
+                    try {
+                      console.log('🔄 Testing Supabase connection...');
+                      const { supabase } = await import('@/hooks/useSupabase');
+                      const { data, error } = await supabase.from('users').select('count').limit(1);
+                      if (error) {
+                        console.error('❌ Supabase test failed:', error);
+                        alert(`Ошибка Supabase: ${error.message}`);
+                      } else {
+                        console.log('✅ Supabase connection OK');
+                        alert('✅ Подключение к Supabase работает');
+                      }
+                    } catch (err) {
+                      console.error('❌ Supabase test error:', err);
+                      alert(`Ошибка тестирования: ${err}`);
+                    }
+                  }}
+                  className="w-full bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors text-sm"
+                >
+                  🔧 Тест подключения к базе данных
+                </button>
+                
+                {/* Ссылки на диагностические страницы */}
+                <a
+                  href="/telegram-debug.html"
+                  target="_blank"
+                  className="block w-full bg-purple-500 text-white px-4 py-2 rounded-lg hover:bg-purple-600 transition-colors text-sm text-center mb-2"
+                >
+                  🔍 Диагностика Telegram WebApp
+                </a>
+                <a
+                  href="/debug.html"
+                  target="_blank"
+                  className="block w-full bg-purple-500 text-white px-4 py-2 rounded-lg hover:bg-purple-600 transition-colors text-sm text-center"
+                >
+                  🔧 Полная диагностика
+                </a>
+              </>
+            )}
           </div>
         </div>
       </div>
@@ -386,12 +392,8 @@ function AppContent() {
               }}
             />
 
-            {/* Debug информация только в режиме разработки */}
-            {import.meta.env.MODE === 'development' && (
-              <div className="p-4">
-                <DebugInfo className="mt-4" />
-              </div>
-            )}
+            {/* Admin Debug Panel - только для администраторов */}
+            <AdminDebugPanel className="mt-4" />
           </main>
         </>
       )}

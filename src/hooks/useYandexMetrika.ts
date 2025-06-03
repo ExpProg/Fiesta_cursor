@@ -33,8 +33,8 @@ export const useYandexMetrika = () => {
   const isAvailable = useCallback((): boolean => {
     const available = typeof window !== 'undefined' && typeof window.ym === 'function';
     
-    // Логируем состояние только в development или если это Telegram
-    if (import.meta.env.MODE === 'development' || typeof window !== 'undefined' && 'Telegram' in window) {
+    // Логируем состояние только для debug целей (будет использоваться AdminService)
+    if (import.meta.env.MODE === 'development') {
       console.log('🔍 YM availability check:', {
         available,
         hasWindow: typeof window !== 'undefined',
