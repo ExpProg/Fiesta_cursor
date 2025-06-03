@@ -952,21 +952,6 @@ export const EventsList: React.FC<EventsListProps> = ({
                 <span className="hidden sm:inline">Debug</span>
               </button>
             )}
-            
-            <div className="text-right">
-              <div className="text-sm text-gray-500">
-                Страница {currentPage} из {Math.ceil(totalItems / ITEMS_PER_PAGE)}
-              </div>
-              <div className="text-xs text-gray-400">
-                Всего: {totalItems} {totalItems === 1 ? 'мероприятие' : totalItems < 5 ? 'мероприятия' : 'мероприятий'}
-                {/* Время загрузки только для администраторов */}
-                {isAdmin && !adminLoading && lastLoadTime && (
-                  <span className="ml-2 text-blue-500">
-                    ({lastLoadTime.toFixed(0)}ms)
-                  </span>
-                )}
-              </div>
-            </div>
           </div>
         </div>
 
