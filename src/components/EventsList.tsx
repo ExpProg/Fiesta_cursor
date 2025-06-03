@@ -388,10 +388,10 @@ export const EventsList: React.FC<EventsListProps> = ({
   const [loadingStage, setLoadingStage] = useState<string>(''); // Этап загрузки для диагностики
   const [loadingTimings, setLoadingTimings] = useState<{[key: string]: number}>({}); // Детальные тайминги
   const [fastMode, setFastMode] = useState(() => {
-    // Инициализируем из localStorage или по умолчанию true для быстрой загрузки
+    // Инициализируем из localStorage или по умолчанию false для обычной загрузки
     const saved = localStorage.getItem('eventsFastMode');
-    return saved !== null ? JSON.parse(saved) : true;
-  }); // Быстрый режим загрузки
+    return saved !== null ? JSON.parse(saved) : false;
+  }); // Обычный режим загрузки (быстрый режим отключен)
   
   const ITEMS_PER_PAGE = 10; // Увеличиваем до 10 для меньшего количества запросов
   
@@ -583,10 +583,12 @@ export const EventsList: React.FC<EventsListProps> = ({
       
       switch (tab) {
         case 'all':
-          console.log('🔄 Fetching all events (fast mode)...');
+          console.log(`🔄 Fetching all events (${fastMode ? 'fast' : 'normal'} mode)...`);
           const allEventsStart = performance.now();
-          result = await EventService.getAllFast(ITEMS_PER_PAGE, offset);
-          markTiming('API: getAllFast');
+          result = fastMode ? 
+            await EventService.getAllFast(ITEMS_PER_PAGE, offset) :
+            await EventService.getAll(ITEMS_PER_PAGE, offset);
+          markTiming(fastMode ? 'API: getAllFast' : 'API: getAll');
           
           const allCountStart = performance.now();
           totalCountResult = await EventService.getTotalCount();
@@ -595,8 +597,10 @@ export const EventsList: React.FC<EventsListProps> = ({
           
         case 'available':
           const availableEventsStart = performance.now();
-          result = await EventService.getAvailableFast(ITEMS_PER_PAGE, offset);
-          markTiming('API: getAvailableFast');
+          result = fastMode ?
+            await EventService.getAvailableFast(ITEMS_PER_PAGE, offset) :
+            await EventService.getAvailable(ITEMS_PER_PAGE, offset);
+          markTiming(fastMode ? 'API: getAvailableFast' : 'API: getAvailable');
           
           const availableCountStart = performance.now();
           totalCountResult = await EventService.getAvailableTotalCount();
@@ -613,8 +617,10 @@ export const EventsList: React.FC<EventsListProps> = ({
             return [];
           }
           const myEventsStart = performance.now();
-          result = await EventService.getUserEventsFast(user.id, ITEMS_PER_PAGE, offset);
-          markTiming('API: getUserEventsFast');
+          result = fastMode ?
+            await EventService.getUserEventsFast(user.id, ITEMS_PER_PAGE, offset) :
+            await EventService.getUserEvents(user.id, ITEMS_PER_PAGE, offset);
+          markTiming(fastMode ? 'API: getUserEventsFast' : 'API: getUserEvents');
           
           const myCountStart = performance.now();
           totalCountResult = await EventService.getUserEventsTotalCount(user.id);
@@ -631,8 +637,10 @@ export const EventsList: React.FC<EventsListProps> = ({
             return [];
           }
           const archiveEventsStart = performance.now();
-          result = await EventService.getUserArchiveFast(user.id, ITEMS_PER_PAGE, offset);
-          markTiming('API: getUserArchiveFast');
+          result = fastMode ?
+            await EventService.getUserArchiveFast(user.id, ITEMS_PER_PAGE, offset) :
+            await EventService.getUserArchive(user.id, ITEMS_PER_PAGE, offset);
+          markTiming(fastMode ? 'API: getUserArchiveFast' : 'API: getUserArchive');
           
           const archiveCountStart = performance.now();
           totalCountResult = await EventService.getUserArchiveTotalCount(user.id);
@@ -641,8 +649,10 @@ export const EventsList: React.FC<EventsListProps> = ({
           
         default:
           const defaultEventsStart = performance.now();
-          result = await EventService.getAllFast(ITEMS_PER_PAGE, offset);
-          markTiming('API: getAllFast (default)');
+          result = fastMode ?
+            await EventService.getAllFast(ITEMS_PER_PAGE, offset) :
+            await EventService.getAll(ITEMS_PER_PAGE, offset);
+          markTiming(fastMode ? 'API: getAllFast (default)' : 'API: getAll (default)');
           
           const defaultCountStart = performance.now();
           totalCountResult = await EventService.getTotalCount();
@@ -826,18 +836,20 @@ export const EventsList: React.FC<EventsListProps> = ({
     }
   }, [lastLoadTime, imagesEnabled, activeTab, currentPage, fetchEvents]);
 
-  // Детектор очень медленной загрузки - если первая загрузка занимает >10 секунд
+  // Детектор очень медленной загрузки - если первая загрузка занимает >15 секунд
   useEffect(() => {
-    if (lastLoadTime > 10000 && events.length === 0) {
-      console.warn('🆘 Emergency mode triggered due to very slow initial loading');
+    if (lastLoadTime > 15000 && events.length === 0) {
+      console.warn('🆘 Emergency mode triggered due to extremely slow initial loading (>15s)');
       
-      // Автоматически переключаемся в экстренный режим
+      // Автоматически переключаемся в экстренный режим только при критично медленной загрузке
       if (!fastMode) {
+        console.log('🔄 Auto-enabling fast mode due to critical performance issues');
         setFastMode(true);
         localStorage.setItem('eventsFastMode', JSON.stringify(true));
       }
       
       if (imagesEnabled) {
+        console.log('🖼️ Auto-disabling images due to critical performance issues');
         setImagesEnabled(false);
         localStorage.setItem('eventsImagesEnabled', JSON.stringify(false));
       }
@@ -1008,7 +1020,7 @@ export const EventsList: React.FC<EventsListProps> = ({
                 lastLoadTime < 5000 ? '🟠 средняя (< 5с)' :
                 '🔴 медленная (> 5с)'
               }</div>
-              <div>• Быстрый режим: {fastMode ? '✅ включен' : '❌ выключен'}</div>
+              <div>• Быстрый режим: {fastMode ? '✅ включен' : '❌ выключен (обычный режим)'}</div>
               <div>• Изображения: {imagesEnabled ? '✅ включены' : '❌ выключены'}</div>
               <div>• Кэш: {eventsCache.current.size} страниц</div>
               <div>• Элементов на странице: {ITEMS_PER_PAGE}</div>
