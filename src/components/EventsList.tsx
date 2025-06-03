@@ -382,7 +382,7 @@ export const EventsList: React.FC<EventsListProps> = ({
     // Инициализируем из localStorage или по умолчанию true
     const saved = localStorage.getItem('eventsImagesEnabled');
     return saved !== null ? JSON.parse(saved) : true;
-  }); // Новое состояние для управления изображениями
+  }); // Изображения включены по умолчанию
   const [showDebug, setShowDebug] = useState(false); // Отладочная панель
   const [lastLoadTime, setLastLoadTime] = useState<number>(0); // Время последней загрузки
   const [loadingStage, setLoadingStage] = useState<string>(''); // Этап загрузки для диагностики
@@ -775,6 +775,12 @@ export const EventsList: React.FC<EventsListProps> = ({
   const forceRefresh = useCallback(() => {
     eventsCache.current.clear();
     setLastLoadTime(0);
+    
+    // Сбрасываем настройки изображений к значению по умолчанию для повторного тестирования производительности
+    console.log('🔄 Resetting image settings to default for performance re-testing');
+    setImagesEnabled(true);
+    localStorage.setItem('eventsImagesEnabled', JSON.stringify(true));
+    
     fetchEvents(activeTab, currentPage, true);
     reachGoal('force_refresh', {
       tab: activeTab,
@@ -804,10 +810,18 @@ export const EventsList: React.FC<EventsListProps> = ({
     fetchEvents(activeTab, 1);
   }, [activeTab, fetchEvents]);
 
-  // Автоматическое отключение изображений при медленной загрузке
+  // Автоматическое управление изображениями в зависимости от производительности
   useEffect(() => {
-    if (lastLoadTime > 5000 && imagesEnabled) { // Если загрузка дольше 5 секунд
-      console.log('🐌 Slow loading detected, suggesting to disable images for better performance');
+    // Автоматическое включение изображений при быстрой загрузке
+    if (lastLoadTime > 0 && lastLoadTime < 2000 && !imagesEnabled) {
+      console.log('🚀 Fast loading detected, enabling images for better experience');
+      setImagesEnabled(true);
+      localStorage.setItem('eventsImagesEnabled', JSON.stringify(true));
+    }
+    
+    // Автоматическое отключение изображений при медленной загрузке
+    if (lastLoadTime > 5000 && imagesEnabled) {
+      console.log('🐌 Slow loading detected, disabling images for better performance');
       setImagesEnabled(false);
       localStorage.setItem('eventsImagesEnabled', JSON.stringify(false));
       // Перезагружаем данные без изображений
