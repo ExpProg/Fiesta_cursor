@@ -553,6 +553,16 @@ export const EventsList: React.FC<EventsListProps> = ({
 
     markTiming('Проверка кэша');
 
+    // Если есть старые данные в кэше (даже просроченные), показываем их сразу
+    // и загружаем свежие данные в фоне
+    if (cached && !silent) {
+      console.log(`🔄 Showing stale cache while loading fresh data for ${tab} page ${page}`);
+      setEvents(cached.data);
+      setTotalItems(cached.totalItems);
+      setLoading(true); // Показываем, что идет обновление
+      setLoadingStage('Обновление...');
+    }
+
     if (!silent) {
       setLoading(true);
       setError(null);
@@ -793,7 +803,50 @@ export const EventsList: React.FC<EventsListProps> = ({
       // Перезагружаем данные без изображений
       setTimeout(() => fetchEvents(activeTab, currentPage, true), 500);
     }
+    
+    // Если загрузка дольше 15 секунд, выводим предупреждение
+    if (lastLoadTime > 15000) {
+      console.warn('🚨 Very slow connection detected:', {
+        loadTime: lastLoadTime,
+        tab: activeTab,
+        page: currentPage,
+        suggestions: [
+          'Check internet connection',
+          'Try switching to mobile data',
+          'Contact support if issue persists'
+        ]
+      });
+      
+      // Показываем уведомление пользователю (если доступно Telegram Web App)
+      if (window.Telegram?.WebApp?.showAlert) {
+        window.Telegram.WebApp.showAlert(
+          'Медленное соединение. Попробуйте проверить интернет-подключение или переключиться на мобильные данные.'
+        );
+      }
+    }
   }, [lastLoadTime, imagesEnabled, activeTab, currentPage, fetchEvents]);
+
+  // Детектор очень медленной загрузки - если первая загрузка занимает >10 секунд
+  useEffect(() => {
+    if (lastLoadTime > 10000 && events.length === 0) {
+      console.warn('🆘 Emergency mode triggered due to very slow initial loading');
+      
+      // Автоматически переключаемся в экстренный режим
+      if (!fastMode) {
+        setFastMode(true);
+        localStorage.setItem('eventsFastMode', JSON.stringify(true));
+      }
+      
+      if (imagesEnabled) {
+        setImagesEnabled(false);
+        localStorage.setItem('eventsImagesEnabled', JSON.stringify(false));
+      }
+      
+      // Очищаем кэш и пробуем снова
+      eventsCache.current.clear();
+      setTimeout(() => fetchEvents(activeTab, 1, true), 1000);
+    }
+  }, [lastLoadTime, events.length, fastMode, imagesEnabled, activeTab, fetchEvents]);
 
   // Очистка кэша при смене пользователя
   useEffect(() => {
@@ -966,73 +1019,115 @@ export const EventsList: React.FC<EventsListProps> = ({
               
               {/* Детальный разбор времени загрузки */}
               {Object.keys(loadingTimings).length > 0 && (
-                <div className="mt-3 pt-2 border-t border-blue-200">
-                  <div className="font-medium text-blue-800 mb-1">📊 Детальный разбор времени:</div>
-                  {Object.entries(loadingTimings).map(([stage, time]) => (
-                    <div key={stage} className="ml-2 flex justify-between">
-                      <span>• {stage}:</span>
-                      <span className={`font-mono ${
-                        time > 1000 ? 'text-red-600 font-bold' :
-                        time > 500 ? 'text-orange-600' :
-                        time > 100 ? 'text-yellow-600' :
-                        'text-green-600'
-                      }`}>
-                        {time.toFixed(1)}ms
-                      </span>
-                    </div>
-                  ))}
-                  
-                  {/* Анализ узких мест */}
-                  <div className="mt-2 pt-2 border-t border-blue-200">
-                    <div className="font-medium text-blue-800 mb-1">🔍 Анализ производительности:</div>
-                    {(() => {
-                      const slowStages = Object.entries(loadingTimings).filter(([_, time]) => time > 1000);
-                      const apiStages = Object.entries(loadingTimings).filter(([stage, _]) => stage.startsWith('API:'));
-                      const totalApiTime = apiStages.reduce((sum, [_, time]) => sum + time, 0);
-                      const nonApiTime = lastLoadTime - totalApiTime;
+                <div className="mt-3 pt-3 border-t border-blue-200">
+                  <div className="text-sm font-medium text-blue-900 mb-2">📊 Детальный разбор времени:</div>
+                  <div className="space-y-1">
+                    {Object.entries(loadingTimings).map(([key, time]) => {
+                      // Определяем цвет на основе времени
+                      const getTimeColor = (time: number) => {
+                        if (time < 100) return 'text-green-600';
+                        if (time < 500) return 'text-yellow-600';
+                        if (time < 1000) return 'text-orange-600';
+                        return 'text-red-600';
+                      };
                       
                       return (
-                        <div className="space-y-1 text-xs">
-                          {slowStages.length > 0 && (
-                            <div className="text-red-600 font-medium">
-                              ⚠️ Медленные этапы (&gt;1с): {slowStages.map(([stage, time]) => `${stage} (${time.toFixed(0)}ms)`).join(', ')}
-                            </div>
-                          )}
-                          <div>• Время API запросов: <span className="font-mono">{totalApiTime.toFixed(0)}ms</span> ({((totalApiTime / lastLoadTime) * 100).toFixed(1)}%)</div>
-                          <div>• Время обработки в клиенте: <span className="font-mono">{nonApiTime.toFixed(0)}ms</span> ({((nonApiTime / lastLoadTime) * 100).toFixed(1)}%)</div>
-                          
-                          {totalApiTime > 8000 && (
-                            <div className="text-red-600 font-medium mt-1">
-                              🚨 Проблема: API запросы очень медленные (&gt;8с). Возможные причины:
-                              <div className="ml-2 mt-1">
-                                • Медленное интернет-соединение
-                                • Проблемы с Supabase сервером
-                                • Неоптимизированные запросы к БД
-                                • Недостаток индексов в базе данных
-                              </div>
-                            </div>
-                          )}
-                          
-                          {nonApiTime > 2000 && (
-                            <div className="text-orange-600 font-medium mt-1">
-                              ⚠️ Медленная обработка на клиенте (&gt;{nonApiTime.toFixed(0)}ms). Возможные причины:
-                              <div className="ml-2 mt-1">
-                                • Медленный CPU устройства
-                                • Блокирующие операции в UI
-                                • Большое количество данных для обработки
-                              </div>
-                            </div>
-                          )}
-                          
-                          {slowStages.length === 0 && totalApiTime < 2000 && nonApiTime < 1000 && (
-                            <div className="text-green-600 font-medium">
-                              ✅ Все этапы работают нормально
-                            </div>
-                          )}
+                        <div key={key} className={`text-xs ${getTimeColor(time)}`}>
+                          • {key}: {time < 1 ? '0.0' : time.toFixed(1)}ms
                         </div>
                       );
-                    })()}
+                    })}
                   </div>
+                  
+                  {/* Анализ производительности */}
+                  {lastLoadTime > 0 && (
+                    <div className="mt-3 pt-3 border-t border-blue-200">
+                      <div className="text-sm font-medium text-blue-900 mb-2">Анализ производительности:</div>
+                      
+                      {/* Медленные этапы */}
+                      {(() => {
+                        const slowStages = Object.entries(loadingTimings).filter(([_, time]) => time > 1000);
+                        if (slowStages.length > 0) {
+                          return (
+                            <div className="text-xs text-orange-700 mb-2">
+                              <div>⚠️ Медленные этапы (&gt;1с): {slowStages.map(([key, time]) => `${key} (${time.toFixed(0)}ms)`).join(', ')}</div>
+                            </div>
+                          );
+                        }
+                        return null;
+                      })()}
+                      
+                      {/* API vs Client время */}
+                      {(() => {
+                        const apiTimes = Object.entries(loadingTimings)
+                          .filter(([key]) => key.startsWith('API:'))
+                          .reduce((sum, [_, time]) => sum + time, 0);
+                        const totalTime = lastLoadTime;
+                        const clientTime = totalTime - apiTimes;
+                        
+                        const apiPercent = (apiTimes / totalTime * 100).toFixed(1);
+                        const clientPercent = (clientTime / totalTime * 100).toFixed(1);
+                        
+                        return (
+                          <div className="text-xs text-blue-700 space-y-1">
+                            <div>• Время API запросов: {apiTimes.toFixed(0)}ms ({apiPercent}%)</div>
+                            <div>• Время обработки в клиенте: {clientTime.toFixed(0)}ms ({clientPercent}%)</div>
+                          </div>
+                        );
+                      })()}
+                      
+                      {/* Рекомендации по производительности */}
+                      {(() => {
+                        const apiTimes = Object.entries(loadingTimings)
+                          .filter(([key]) => key.startsWith('API:'))
+                          .reduce((sum, [_, time]) => sum + time, 0);
+                        const clientTime = lastLoadTime - apiTimes;
+                        
+                        if (apiTimes > 8000) {
+                          return (
+                            <div className="text-xs text-red-700 mt-2">
+                              <div>🚨 Проблема: API запросы очень медленные (&gt;8с). Возможные причины:</div>
+                              <div className="ml-2 space-y-1">
+                                <div>• Медленное интернет-соединение</div>
+                                <div>• Проблемы с Supabase сервером</div>
+                                <div>• Неоптимизированные запросы к БД</div>
+                                <div>• Недостаток индексов в базе данных</div>
+                              </div>
+                            </div>
+                          );
+                        } else if (clientTime > 2000) {
+                          return (
+                            <div className="text-xs text-red-700 mt-2">
+                              <div>🚨 Проблема: Медленная обработка в клиенте (&gt;2с). Возможные причины:</div>
+                              <div className="ml-2 space-y-1">
+                                <div>• Медленное устройство</div>
+                                <div>• Проблемы с браузером</div>
+                                <div>• Слишком много данных для обработки</div>
+                              </div>
+                            </div>
+                          );
+                        } else if (lastLoadTime > 5000) {
+                          return (
+                            <div className="text-xs text-orange-700 mt-2">
+                              <div>⚠️ Общая производительность ниже нормы. Рекомендации:</div>
+                              <div className="ml-2 space-y-1">
+                                <div>• Включите быстрый режим</div>
+                                <div>• Отключите изображения</div>
+                                <div>• Проверьте интернет-соединение</div>
+                              </div>
+                            </div>
+                          );
+                        } else if (lastLoadTime < 1000) {
+                          return (
+                            <div className="text-xs text-green-700 mt-2">
+                              <div>✅ Отличная производительность! Все оптимизации работают корректно.</div>
+                            </div>
+                          );
+                        }
+                        return null;
+                      })()}
+                    </div>
+                  )}
                 </div>
               )}
             </div>

@@ -792,9 +792,9 @@ export class EventService {
     try {
       console.log('🔍 EventService.getTotalCount counting all events');
       
-      // Увеличиваем таймаут до 15 секунд для count запроса
+      // Уменьшаем таймаут до 3 секунд для count запроса
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 секунд таймаут для count запроса
+      const timeoutId = setTimeout(() => controller.abort(), 3000); // 3 секунды таймаут для count запроса
       
       try {
         const { count, error } = await supabase
@@ -820,9 +820,9 @@ export class EventService {
       console.error('❌ Error counting all events:', error);
       
       if (error instanceof Error && error.name === 'AbortError') {
-        console.warn('⚠️ Count request timed out, using estimated count');
+        console.warn('⚠️ Count request timed out (3s), using estimated count');
         // Возвращаем приблизительное количество вместо ошибки
-        return { data: 100, error: null }; // Увеличиваем оценку для лучшей пагинации
+        return { data: 50, error: null }; // Уменьшаем оценку для реалистичности
       }
       
       return { 
@@ -839,9 +839,9 @@ export class EventService {
     try {
       console.log('🔍 EventService.getAvailableTotalCount counting available events');
       
-      // Увеличиваем таймаут до 15 секунд
+      // Уменьшаем таймаут до 3 секунд
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 секунд таймаут
+      const timeoutId = setTimeout(() => controller.abort(), 3000); // 3 секунды таймаут
       
       try {
         const { count, error } = await supabase
@@ -869,8 +869,8 @@ export class EventService {
       console.error('❌ Error counting available events:', error);
       
       if (error instanceof Error && error.name === 'AbortError') {
-        console.warn('⚠️ Available count request timed out, using estimated count');
-        return { data: 50, error: null }; // Примерное количество
+        console.warn('⚠️ Available count request timed out (3s), using estimated count');
+        return { data: 30, error: null }; // Примерное количество
       }
       
       return { 
@@ -1013,34 +1013,24 @@ export class EventService {
     try {
       console.log(`⚡ EventService.getAllFast fetching events (limit: ${limit}, offset: ${offset})`);
       
-      // Увеличиваем таймаут до 30 секунд для медленных соединений
+      // Уменьшаем таймаут до 5 секунд для быстрого переключения на fallback
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 секунд таймаут
+      const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 секунд таймаут
       
       try {
-        // Сначала пробуем полный запрос
+        // Сначала пробуем минимальный запрос (только важные поля)
         const { data, error } = await supabase
           .from('events')
           .select(`
             id,
             title,
-            description,
-            image_url,
-            gradient_background,
             date,
-            event_time,
-            end_date,
-            end_time,
             location,
-            map_url,
             max_participants,
             current_participants,
-            created_by,
-            host_id,
             status,
             is_private,
-            created_at,
-            updated_at
+            created_by
           `)
           .eq('status', 'active') // Только активные события
           .order('date', { ascending: true }) // Сортируем по дате для лучшей производительности
@@ -1054,30 +1044,141 @@ export class EventService {
           throw error;
         }
 
-        console.log(`⚡ Fast loaded ${data?.length || 0} events`);
-        return { data: data || [], error: null };
+        // Дополняем недостающие поля значениями по умолчанию
+        const enrichedData = (data || []).map(event => ({
+          ...event,
+          description: null,
+          image_url: null,
+          gradient_background: null,
+          event_time: null,
+          end_date: null,
+          end_time: null,
+          map_url: null,
+          host_id: null,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }));
+
+        console.log(`⚡ Fast loaded ${enrichedData.length} events (minimal fields)`);
+        return { data: enrichedData, error: null };
       } catch (fetchError) {
         clearTimeout(timeoutId);
         
-        // Если основной запрос не удался, пробуем минимальный fallback
+        // Если основной запрос не удался, сразу пробуем emergency fallback
         if (fetchError instanceof Error && fetchError.name === 'AbortError') {
-          console.warn('🔄 Main request timed out, trying minimal fallback...');
-          return this.getAllFallback(limit, offset);
+          console.warn('🔄 Main request timed out (5s), trying emergency fallback...');
+          return this.getAllEmergencyFallback(limit, offset);
         }
         throw fetchError;
       }
     } catch (error) {
       console.error('❌ Error in getAllFast:', error);
       
-      // Если запрос завис или упал, пробуем fallback
+      // Если запрос завис или упал, пробуем emergency fallback
       if (error instanceof Error && error.name === 'AbortError') {
-        console.warn('🔄 Request aborted, trying fallback...');
-        return this.getAllFallback(limit, offset);
+        console.warn('🔄 Request aborted, trying emergency fallback...');
+        return this.getAllEmergencyFallback(limit, offset);
       }
       
       return { 
         data: null, 
         error: { message: `Ошибка быстрой загрузки: ${this.getErrorMessage(error)}` } 
+      };
+    }
+  }
+
+  /**
+   * Emergency fallback метод с минимальными данными и еще более коротким таймаутом
+   */
+  private static async getAllEmergencyFallback(limit: number = 5, offset: number = 0): Promise<ApiResponse<DatabaseEvent[]>> {
+    try {
+      console.log(`🆘 EventService.getAllEmergencyFallback - ultra minimal data (limit: ${limit}, offset: ${offset})`);
+      
+      // Запрашиваем только самые критичные поля с минимальным таймаутом
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 2000); // 2 секунды для emergency
+      
+      try {
+        const { data, error } = await supabase
+          .from('events')
+          .select(`
+            id,
+            title,
+            date,
+            status
+          `)
+          .eq('status', 'active')
+          .order('date', { ascending: true })
+          .range(offset, offset + limit - 1)
+          .abortSignal(controller.signal);
+
+        clearTimeout(timeoutId);
+
+        if (error) {
+          throw error;
+        }
+
+        // Дополняем все недостающие поля значениями по умолчанию
+        const enrichedData = (data || []).map(event => ({
+          ...event,
+          description: 'Загрузка...',
+          image_url: null,
+          gradient_background: null,
+          event_time: null,
+          end_date: null,
+          end_time: null,
+          location: 'Уточняется',
+          map_url: null,
+          max_participants: null,
+          current_participants: 0,
+          created_by: 0,
+          host_id: null,
+          is_private: false,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }));
+
+        console.log(`🆘 Emergency fallback loaded ${enrichedData.length} events (ultra minimal)`);
+        return { data: enrichedData, error: null };
+      } catch (fallbackError) {
+        clearTimeout(timeoutId);
+        throw fallbackError;
+      }
+    } catch (error) {
+      console.error('❌ Even emergency fallback failed:', error);
+      
+      // В крайнем случае возвращаем заглушки для демонстрации работы интерфейса
+      if (offset === 0) {
+        const mockEvents = Array.from({ length: Math.min(limit, 3) }, (_, i) => ({
+          id: `mock-${i}`,
+          title: `Мероприятие ${i + 1}`,
+          description: 'Проблемы с подключением',
+          image_url: null,
+          gradient_background: null,
+          date: new Date().toISOString().split('T')[0],
+          event_time: null,
+          end_date: null,
+          end_time: null,
+          location: 'Не определено',
+          map_url: null,
+          max_participants: null,
+          current_participants: 0,
+          created_by: 0,
+          host_id: null,
+          status: 'active',
+          is_private: false,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }));
+        
+        console.log(`🆘 Using mock data due to connection issues`);
+        return { data: mockEvents as any, error: { message: 'Медленное соединение. Показаны демо-данные.' } };
+      }
+      
+      // Возвращаем пустой массив для других страниц
+      return { 
+        data: [], 
+        error: { message: `Соединение слишком медленное. Попробуйте позже или проверьте интернет-соединение.` } 
       };
     }
   }
@@ -1091,7 +1192,7 @@ export class EventService {
       
       // Запрашиваем только самые важные поля
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 секунд для fallback
+      const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 секунд для fallback
       
       try {
         const { data, error } = await supabase
@@ -1137,16 +1238,19 @@ export class EventService {
         return { data: enrichedData, error: null };
       } catch (fallbackError) {
         clearTimeout(timeoutId);
+        
+        // Если и fallback не работает, пробуем emergency
+        if (fallbackError instanceof Error && fallbackError.name === 'AbortError') {
+          console.warn('🆘 Fallback timed out, trying emergency...');
+          return this.getAllEmergencyFallback(limit, offset);
+        }
         throw fallbackError;
       }
     } catch (error) {
       console.error('❌ Even fallback failed:', error);
       
-      // В крайнем случае возвращаем пустой массив
-      return { 
-        data: [], 
-        error: { message: `Соединение слишком медленное. Попробуйте позже или проверьте интернет-соединение.` } 
-      };
+      // В крайнем случае пробуем emergency
+      return this.getAllEmergencyFallback(limit, offset);
     }
   }
 
@@ -1157,9 +1261,9 @@ export class EventService {
     try {
       console.log(`⚡ EventService.getAvailableFast fetching events (limit: ${limit}, offset: ${offset})`);
       
-      // Увеличиваем таймаут до 30 секунд
+      // Уменьшаем таймаут до 5 секунд
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 секунд таймаут
+      const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 секунд таймаут
       
       try {
         // Сегодняшняя дата в формате YYYY-MM-DD для быстрого сравнения
@@ -1170,23 +1274,13 @@ export class EventService {
           .select(`
             id,
             title,
-            description,
-            image_url,
-            gradient_background,
             date,
-            event_time,
-            end_date,
-            end_time,
             location,
-            map_url,
             max_participants,
             current_participants,
-            created_by,
-            host_id,
             status,
             is_private,
-            created_at,
-            updated_at
+            created_by
           `)
           .eq('status', 'active')
           .eq('is_private', false) // Добавляем фильтр по частным мероприятиям для быстрой работы
@@ -1202,8 +1296,23 @@ export class EventService {
           throw error;
         }
 
-        console.log(`⚡ Fast loaded ${data?.length || 0} available events`);
-        return { data: data || [], error: null };
+        // Дополняем недостающие поля
+        const enrichedData = (data || []).map(event => ({
+          ...event,
+          description: null,
+          image_url: null,
+          gradient_background: null,
+          event_time: null,
+          end_date: null,
+          end_time: null,
+          map_url: null,
+          host_id: null,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }));
+
+        console.log(`⚡ Fast loaded ${enrichedData.length} available events`);
+        return { data: enrichedData, error: null };
       } catch (fetchError) {
         clearTimeout(timeoutId);
         
@@ -1224,75 +1333,6 @@ export class EventService {
       return { 
         data: null, 
         error: { message: `Ошибка быстрой загрузки доступных: ${this.getErrorMessage(error)}` } 
-      };
-    }
-  }
-
-  /**
-   * Fallback метод для доступных мероприятий
-   */
-  private static async getAvailableFallback(limit: number = 5, offset: number = 0): Promise<ApiResponse<DatabaseEvent[]>> {
-    try {
-      console.log(`🔄 EventService.getAvailableFallback - minimal data (limit: ${limit}, offset: ${offset})`);
-      
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 15000);
-      
-      try {
-        const today = new Date().toISOString().split('T')[0];
-        
-        const { data, error } = await supabase
-          .from('events')
-          .select(`
-            id,
-            title,
-            date,
-            location,
-            max_participants,
-            current_participants,
-            status,
-            is_private,
-            created_by
-          `)
-          .eq('status', 'active')
-          .eq('is_private', false)
-          .gte('date', today)
-          .order('date', { ascending: true })
-          .range(offset, offset + limit - 1)
-          .abortSignal(controller.signal);
-
-        clearTimeout(timeoutId);
-
-        if (error) {
-          throw error;
-        }
-
-        // Дополняем недостающие поля
-        const enrichedData = (data || []).map(event => ({
-          ...event,
-          description: null,
-          image_url: null,
-          gradient_background: null,
-          event_time: null,
-          end_date: null,
-          end_time: null,
-          map_url: null,
-          host_id: null,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        }));
-
-        console.log(`⚡ Available fallback loaded ${enrichedData.length} events`);
-        return { data: enrichedData, error: null };
-      } catch (fallbackError) {
-        clearTimeout(timeoutId);
-        throw fallbackError;
-      }
-    } catch (error) {
-      console.error('❌ Available fallback failed:', error);
-      return { 
-        data: [], 
-        error: { message: `Соединение слишком медленное для загрузки доступных мероприятий.` } 
       };
     }
   }
@@ -1572,6 +1612,74 @@ export class EventService {
       return { 
         data: [], 
         error: { message: `Не удалось загрузить архив пользователя.` } 
+      };
+    }
+  }
+
+  /**
+   * Fallback метод для доступных мероприятий
+   */
+  private static async getAvailableFallback(limit: number = 5, offset: number = 0): Promise<ApiResponse<DatabaseEvent[]>> {
+    try {
+      console.log(`🔄 EventService.getAvailableFallback - minimal data (limit: ${limit}, offset: ${offset})`);
+      
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 3000); // 3 секунды для available fallback
+      
+      try {
+        const today = new Date().toISOString().split('T')[0];
+        
+        const { data, error } = await supabase
+          .from('events')
+          .select(`
+            id,
+            title,
+            date,
+            status
+          `)
+          .eq('status', 'active')
+          .eq('is_private', false)
+          .gte('date', today)
+          .order('date', { ascending: true })
+          .range(offset, offset + limit - 1)
+          .abortSignal(controller.signal);
+
+        clearTimeout(timeoutId);
+
+        if (error) {
+          throw error;
+        }
+
+        const enrichedData = (data || []).map(event => ({
+          ...event,
+          description: 'Загрузка...',
+          image_url: null,
+          gradient_background: null,
+          event_time: null,
+          end_date: null,
+          end_time: null,
+          location: 'Уточняется',
+          map_url: null,
+          max_participants: null,
+          current_participants: 0,
+          created_by: 0,
+          host_id: null,
+          is_private: false,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }));
+
+        console.log(`⚡ Available fallback loaded ${enrichedData.length} events`);
+        return { data: enrichedData, error: null };
+      } catch (fallbackError) {
+        clearTimeout(timeoutId);
+        throw fallbackError;
+      }
+    } catch (error) {
+      console.error('❌ Available fallback failed:', error);
+      return { 
+        data: [], 
+        error: { message: `Соединение слишком медленное для загрузки доступных мероприятий.` } 
       };
     }
   }
