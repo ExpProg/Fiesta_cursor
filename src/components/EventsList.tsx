@@ -827,30 +827,32 @@ export const EventsList: React.FC<EventsListProps> = ({
         <div className="p-6">
           <h2 className="text-2xl font-bold text-gray-800 mb-6">{tabTitle}</h2>
           
-          {/* Визуальная диагностика загрузки */}
-          <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-            <div className="text-blue-800 font-medium mb-2">🔄 {loadingStage}</div>
-            <div className="text-sm text-blue-600 space-y-1">
-              <div>Вкладка: {activeTab}</div>
-              <div>Страница: {currentPage}</div>
-              <div>Пользователь: {user?.id ? `ID ${user.id}` : 'Не авторизован'}</div>
-              <div>Supabase URL: {import.meta.env.VITE_SUPABASE_URL ? '✅ Настроен' : '❌ Не настроен'}</div>
-              <div>Supabase Key: {import.meta.env.VITE_SUPABASE_ANON_KEY ? '✅ Настроен' : '❌ Не настроен'}</div>
-              <div>Время: {new Date().toLocaleTimeString()}</div>
+          {/* Диагностика загрузки только для администраторов */}
+          {isAdmin && !adminLoading && (
+            <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <div className="text-blue-800 font-medium mb-2">🔄 {loadingStage}</div>
+              <div className="text-sm text-blue-600 space-y-1">
+                <div>Вкладка: {activeTab}</div>
+                <div>Страница: {currentPage}</div>
+                <div>Пользователь: {user?.id ? `ID ${user.id}` : 'Не авторизован'}</div>
+                <div>Supabase URL: {import.meta.env.VITE_SUPABASE_URL ? '✅ Настроен' : '❌ Не настроен'}</div>
+                <div>Supabase Key: {import.meta.env.VITE_SUPABASE_ANON_KEY ? '✅ Настроен' : '❌ Не настроен'}</div>
+                <div>Время: {new Date().toLocaleTimeString()}</div>
+              </div>
+              
+              {/* Кнопка принудительной остановки загрузки */}
+              <button
+                onClick={() => {
+                  setLoading(false);
+                  setLoadingStage('Остановлено пользователем');
+                  setError('Загрузка была остановлена пользователем');
+                }}
+                className="mt-3 w-full bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors"
+              >
+                ⏹️ Остановить загрузку
+              </button>
             </div>
-            
-            {/* Кнопка принудительной остановки загрузки */}
-            <button
-              onClick={() => {
-                setLoading(false);
-                setLoadingStage('Остановлено пользователем');
-                setError('Загрузка была остановлена пользователем');
-              }}
-              className="mt-3 w-full bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors"
-            >
-              ⏹️ Остановить загрузку
-            </button>
-          </div>
+          )}
           
           <LoadingGrid />
         </div>
