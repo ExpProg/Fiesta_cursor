@@ -386,6 +386,7 @@ export const EventsList: React.FC<EventsListProps> = ({
   const [showDebug, setShowDebug] = useState(false); // Отладочная панель
   const [lastLoadTime, setLastLoadTime] = useState<number>(0); // Время последней загрузки
   const [loadingStage, setLoadingStage] = useState<string>(''); // Этап загрузки для диагностики
+  const [loadingTimings, setLoadingTimings] = useState<{[key: string]: number}>({}); // Детальные тайминги
   const [fastMode, setFastMode] = useState(() => {
     // Инициализируем из localStorage или по умолчанию true для быстрой загрузки
     const saved = localStorage.getItem('eventsFastMode');
@@ -520,20 +521,37 @@ export const EventsList: React.FC<EventsListProps> = ({
   // Оптимизированная функция загрузки событий с пагинацией
   const fetchEvents = useCallback(async (tab: TabType, page: number = 1, forceRefresh = false, silent = false) => {
     const startTime = performance.now();
+    const timings: {[key: string]: number} = {};
     const cacheKey = getCacheKey(tab, page);
     const cached = eventsCache.current.get(cacheKey);
     const now = Date.now();
     
+    // Детальная диагностика времени
+    let lastTimingMark = startTime;
+    const markTiming = (label: string) => {
+      const currentTime = performance.now();
+      timings[label] = currentTime - lastTimingMark;
+      lastTimingMark = currentTime;
+      console.log(`⏱️ ${label}: ${timings[label].toFixed(2)}ms`);
+    };
+    
+    markTiming('Инициализация');
+    
     // Проверяем кэш первым делом
     if (!forceRefresh && cached && (now - cached.timestamp) < CACHE_DURATION) {
+      markTiming('Проверка кэша');
       if (!silent) {
         setEvents(cached.data);
         setTotalItems(cached.totalItems);
         setLoading(false);
-        console.log(`⚡ Cache hit for ${tab} page ${page} (${(performance.now() - startTime).toFixed(2)}ms)`);
+        const totalTime = performance.now() - startTime;
+        setLoadingTimings(timings);
+        console.log(`⚡ Cache hit for ${tab} page ${page} (${totalTime.toFixed(2)}ms)`);
       }
       return cached.data;
     }
+
+    markTiming('Проверка кэша');
 
     if (!silent) {
       setLoading(true);
@@ -547,25 +565,34 @@ export const EventsList: React.FC<EventsListProps> = ({
       let totalCountResult;
       
       console.log(`🔄 Loading ${tab} page ${page} (offset: ${offset}, limit: ${ITEMS_PER_PAGE})`);
-      const apiStartTime = performance.now();
       
-      // Убираем проверку подключения - она замедляет загрузку
-      // Сразу загружаем данные, используем быстрый режим для лучшей производительности
+      markTiming('Подготовка к API запросам');
+      
+      // Замеряем время каждого API запроса отдельно
+      const apiStartTime = performance.now();
       
       switch (tab) {
         case 'all':
           console.log('🔄 Fetching all events (fast mode)...');
-          [result, totalCountResult] = await Promise.all([
-            EventService.getAllFast(ITEMS_PER_PAGE, offset),
-            EventService.getTotalCount()
-          ]);
+          const allEventsStart = performance.now();
+          result = await EventService.getAllFast(ITEMS_PER_PAGE, offset);
+          markTiming('API: getAllFast');
+          
+          const allCountStart = performance.now();
+          totalCountResult = await EventService.getTotalCount();
+          markTiming('API: getTotalCount');
           break;
+          
         case 'available':
-          [result, totalCountResult] = await Promise.all([
-            EventService.getAvailableFast(ITEMS_PER_PAGE, offset),
-            EventService.getAvailableTotalCount()
-          ]);
+          const availableEventsStart = performance.now();
+          result = await EventService.getAvailableFast(ITEMS_PER_PAGE, offset);
+          markTiming('API: getAvailableFast');
+          
+          const availableCountStart = performance.now();
+          totalCountResult = await EventService.getAvailableTotalCount();
+          markTiming('API: getAvailableTotalCount');
           break;
+          
         case 'my':
           if (!user?.id) {
             if (!silent) {
@@ -575,11 +602,15 @@ export const EventsList: React.FC<EventsListProps> = ({
             }
             return [];
           }
-          [result, totalCountResult] = await Promise.all([
-            EventService.getUserEventsFast(user.id, ITEMS_PER_PAGE, offset),
-            EventService.getUserEventsTotalCount(user.id)
-          ]);
+          const myEventsStart = performance.now();
+          result = await EventService.getUserEventsFast(user.id, ITEMS_PER_PAGE, offset);
+          markTiming('API: getUserEventsFast');
+          
+          const myCountStart = performance.now();
+          totalCountResult = await EventService.getUserEventsTotalCount(user.id);
+          markTiming('API: getUserEventsTotalCount');
           break;
+          
         case 'archive':
           if (!user?.id) {
             if (!silent) {
@@ -589,20 +620,29 @@ export const EventsList: React.FC<EventsListProps> = ({
             }
             return [];
           }
-          [result, totalCountResult] = await Promise.all([
-            EventService.getUserArchiveFast(user.id, ITEMS_PER_PAGE, offset),
-            EventService.getUserArchiveTotalCount(user.id)
-          ]);
+          const archiveEventsStart = performance.now();
+          result = await EventService.getUserArchiveFast(user.id, ITEMS_PER_PAGE, offset);
+          markTiming('API: getUserArchiveFast');
+          
+          const archiveCountStart = performance.now();
+          totalCountResult = await EventService.getUserArchiveTotalCount(user.id);
+          markTiming('API: getUserArchiveTotalCount');
           break;
+          
         default:
-          [result, totalCountResult] = await Promise.all([
-            EventService.getAllFast(ITEMS_PER_PAGE, offset),
-            EventService.getTotalCount()
-          ]);
+          const defaultEventsStart = performance.now();
+          result = await EventService.getAllFast(ITEMS_PER_PAGE, offset);
+          markTiming('API: getAllFast (default)');
+          
+          const defaultCountStart = performance.now();
+          totalCountResult = await EventService.getTotalCount();
+          markTiming('API: getTotalCount (default)');
       }
 
       const apiEndTime = performance.now();
-      console.log(`📊 API calls completed in ${(apiEndTime - apiStartTime).toFixed(2)}ms`);
+      const totalApiTime = apiEndTime - apiStartTime;
+      console.log(`📊 All API calls completed in ${totalApiTime.toFixed(2)}ms`);
+      markTiming('Все API запросы завершены');
 
       if (result.error) {
         throw new Error(result.error.message);
@@ -611,6 +651,8 @@ export const EventsList: React.FC<EventsListProps> = ({
       if (totalCountResult.error) {
         console.warn('⚠️ Error getting total count:', totalCountResult.error.message);
       }
+
+      markTiming('Проверка ошибок API');
 
       let eventsData = result.data || [];
       
@@ -621,10 +663,14 @@ export const EventsList: React.FC<EventsListProps> = ({
         );
       }
       
+      markTiming('Фильтрация событий');
+      
       const actualTotal = totalCountResult.data !== null ? totalCountResult.data : 
         (eventsData.length < ITEMS_PER_PAGE ? 
           (page - 1) * ITEMS_PER_PAGE + eventsData.length : 
           eventsData.length * 10);
+      
+      markTiming('Подсчет общего количества');
       
       // Сохраняем в кэш
       eventsCache.current.set(cacheKey, {
@@ -633,13 +679,19 @@ export const EventsList: React.FC<EventsListProps> = ({
         timestamp: now
       });
       
+      markTiming('Сохранение в кэш');
+      
       const totalTime = performance.now() - startTime;
       console.log(`✅ ${tab} page ${page} loaded: ${eventsData.length} events in ${totalTime.toFixed(2)}ms`);
+      
+      // Детальная диагностика производительности
+      console.log('🔍 Детальные тайминги:', timings);
       
       if (!silent) {
         setEvents(eventsData);
         setTotalItems(actualTotal);
         setLastLoadTime(totalTime);
+        setLoadingTimings(timings);
         setLoadingStage('Завершено');
         
         // Аналитика
@@ -651,9 +703,15 @@ export const EventsList: React.FC<EventsListProps> = ({
           user_id: user?.id || 0,
           cache_hit: false,
           load_time_ms: Math.round(totalTime),
-          api_time_ms: Math.round(apiEndTime - apiStartTime)
+          api_time_ms: Math.round(totalApiTime),
+          timings: Object.entries(timings).reduce((acc, [key, value]) => {
+            acc[key] = Math.round(value);
+            return acc;
+          }, {} as {[key: string]: number})
         });
       }
+
+      markTiming('Финализация');
 
       // Предзагружаем соседние страницы в фоне
       if (!silent && eventsData.length > 0) {
@@ -665,17 +723,23 @@ export const EventsList: React.FC<EventsListProps> = ({
     } catch (err) {
       const totalTime = performance.now() - startTime;
       console.error(`❌ Error fetching events (${totalTime.toFixed(2)}ms):`, err);
+      markTiming('Обработка ошибки');
       
       if (!silent) {
         setError(err instanceof Error ? err.message : 'Ошибка загрузки мероприятий');
         setLoadingStage(`Ошибка: ${err instanceof Error ? err.message : 'Неизвестная ошибка'}`);
+        setLoadingTimings(timings);
         
         reachGoal('events_list_error', {
           tab,
           page,
           error: err instanceof Error ? err.message : 'unknown_error',
           user_id: user?.id || 0,
-          load_time_ms: Math.round(totalTime)
+          load_time_ms: Math.round(totalTime),
+          timings: Object.entries(timings).reduce((acc, [key, value]) => {
+            acc[key] = Math.round(value);
+            return acc;
+          }, {} as {[key: string]: number})
         });
       }
       
@@ -899,6 +963,78 @@ export const EventsList: React.FC<EventsListProps> = ({
               <div>• Всего элементов: {totalItems}</div>
               <div>• Supabase URL: {import.meta.env.VITE_SUPABASE_URL?.substring(0, 30)}...</div>
               <div>• API ключ: {import.meta.env.VITE_SUPABASE_ANON_KEY ? '✅ установлен' : '❌ отсутствует'}</div>
+              
+              {/* Детальный разбор времени загрузки */}
+              {Object.keys(loadingTimings).length > 0 && (
+                <div className="mt-3 pt-2 border-t border-blue-200">
+                  <div className="font-medium text-blue-800 mb-1">📊 Детальный разбор времени:</div>
+                  {Object.entries(loadingTimings).map(([stage, time]) => (
+                    <div key={stage} className="ml-2 flex justify-between">
+                      <span>• {stage}:</span>
+                      <span className={`font-mono ${
+                        time > 1000 ? 'text-red-600 font-bold' :
+                        time > 500 ? 'text-orange-600' :
+                        time > 100 ? 'text-yellow-600' :
+                        'text-green-600'
+                      }`}>
+                        {time.toFixed(1)}ms
+                      </span>
+                    </div>
+                  ))}
+                  
+                  {/* Анализ узких мест */}
+                  <div className="mt-2 pt-2 border-t border-blue-200">
+                    <div className="font-medium text-blue-800 mb-1">🔍 Анализ производительности:</div>
+                    {(() => {
+                      const slowStages = Object.entries(loadingTimings).filter(([_, time]) => time > 1000);
+                      const apiStages = Object.entries(loadingTimings).filter(([stage, _]) => stage.startsWith('API:'));
+                      const totalApiTime = apiStages.reduce((sum, [_, time]) => sum + time, 0);
+                      const nonApiTime = lastLoadTime - totalApiTime;
+                      
+                      return (
+                        <div className="space-y-1 text-xs">
+                          {slowStages.length > 0 && (
+                            <div className="text-red-600 font-medium">
+                              ⚠️ Медленные этапы (&gt;1с): {slowStages.map(([stage, time]) => `${stage} (${time.toFixed(0)}ms)`).join(', ')}
+                            </div>
+                          )}
+                          <div>• Время API запросов: <span className="font-mono">{totalApiTime.toFixed(0)}ms</span> ({((totalApiTime / lastLoadTime) * 100).toFixed(1)}%)</div>
+                          <div>• Время обработки в клиенте: <span className="font-mono">{nonApiTime.toFixed(0)}ms</span> ({((nonApiTime / lastLoadTime) * 100).toFixed(1)}%)</div>
+                          
+                          {totalApiTime > 8000 && (
+                            <div className="text-red-600 font-medium mt-1">
+                              🚨 Проблема: API запросы очень медленные (&gt;8с). Возможные причины:
+                              <div className="ml-2 mt-1">
+                                • Медленное интернет-соединение
+                                • Проблемы с Supabase сервером
+                                • Неоптимизированные запросы к БД
+                                • Недостаток индексов в базе данных
+                              </div>
+                            </div>
+                          )}
+                          
+                          {nonApiTime > 2000 && (
+                            <div className="text-orange-600 font-medium mt-1">
+                              ⚠️ Медленная обработка на клиенте (&gt;{nonApiTime.toFixed(0)}ms). Возможные причины:
+                              <div className="ml-2 mt-1">
+                                • Медленный CPU устройства
+                                • Блокирующие операции в UI
+                                • Большое количество данных для обработки
+                              </div>
+                            </div>
+                          )}
+                          
+                          {slowStages.length === 0 && totalApiTime < 2000 && nonApiTime < 1000 && (
+                            <div className="text-green-600 font-medium">
+                              ✅ Все этапы работают нормально
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}
