@@ -409,7 +409,7 @@ export const EventsList: React.FC<EventsListProps> = ({
   const [loadingTimings, setLoadingTimings] = useState<{[key: string]: number}>({});
   const [imageLoadStates, setImageLoadStates] = useState<Map<string, 'loading' | 'loaded' | 'error'>>(new Map());
   
-  const ITEMS_PER_PAGE = 10;
+  const ITEMS_PER_PAGE = 5;
   
   // Кэш для событий с пагинацией
   const eventsCache = useRef<Map<string, { data: DatabaseEvent[], timestamp: number, totalItems: number }>>(new Map());
@@ -725,9 +725,6 @@ export const EventsList: React.FC<EventsListProps> = ({
         setLoadingTimings(timings);
         setLoadingStage(isPageChange ? `Страница ${page} загружена` : 'Завершено');
         
-        // Отладочная информация
-        console.log(`📊 Events loaded: ${eventsData.length}, Total: ${actualTotal}, Page: ${page}`);
-        
         setTimeout(() => {
           setLoadingStage('');
         }, isPageChange ? 1500 : 500);
@@ -995,13 +992,6 @@ export const EventsList: React.FC<EventsListProps> = ({
           onMapClick={handleMapClick}
           onImageLoad={handleImageLoad}
         />
-
-        {/* Отладочная информация для пагинации (временно) */}
-        {isAdmin && !adminLoading && (
-          <div className="mb-4 p-2 bg-yellow-50 border border-yellow-200 rounded text-xs">
-            <strong>Отладка пагинации:</strong> currentPage={currentPage}, totalItems={totalItems}, itemsPerPage={ITEMS_PER_PAGE}, totalPages={Math.ceil(totalItems / ITEMS_PER_PAGE)}, eventsLength={events.length}
-          </div>
-        )}
 
         <Pagination
           currentPage={currentPage}
