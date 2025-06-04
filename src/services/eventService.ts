@@ -792,9 +792,9 @@ export class EventService {
     try {
       console.log('🔍 EventService.getTotalCount counting all events');
       
-      // Уменьшаем таймаут до 3 секунд для count запроса
+      // Увеличиваем таймаут до 10 секунд для count запроса
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 3000); // 3 секунды таймаут для count запроса
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 секунд таймаут для count запроса
       
       try {
         const { count, error } = await supabase
@@ -820,7 +820,7 @@ export class EventService {
       console.error('❌ Error counting all events:', error);
       
       if (error instanceof Error && error.name === 'AbortError') {
-        console.warn('⚠️ Count request timed out (3s), using estimated count');
+        console.warn('⚠️ Count request timed out (10s), using estimated count');
         // Возвращаем приблизительное количество вместо ошибки
         return { data: 50, error: null }; // Уменьшаем оценку для реалистичности
       }
@@ -839,9 +839,9 @@ export class EventService {
     try {
       console.log('🔍 EventService.getAvailableTotalCount counting available events');
       
-      // Уменьшаем таймаут до 3 секунд
+      // Увеличиваем таймаут до 10 секунд
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 3000); // 3 секунды таймаут
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 секунд таймаут
       
       try {
         const { count, error } = await supabase
@@ -869,7 +869,7 @@ export class EventService {
       console.error('❌ Error counting available events:', error);
       
       if (error instanceof Error && error.name === 'AbortError') {
-        console.warn('⚠️ Available count request timed out (3s), using estimated count');
+        console.warn('⚠️ Available count request timed out (10s), using estimated count');
         return { data: 30, error: null }; // Примерное количество
       }
       
@@ -1014,9 +1014,9 @@ export class EventService {
     try {
       console.log(`⚡ EventService.getAllFast fetching events (limit: ${limit}, offset: ${offset})`);
       
-      // Уменьшаем таймаут до 5 секунд для быстрого переключения на fallback
+      // Увеличиваем таймаут до 15 секунд для более стабильной работы
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 секунд таймаут
+      const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 секунд таймаут
       
       try {
         // Запрашиваем основные поля, включая image_url для корректного отображения
@@ -1071,7 +1071,7 @@ export class EventService {
         
         // Если основной запрос не удался, сразу пробуем emergency fallback
         if (fetchError instanceof Error && fetchError.name === 'AbortError') {
-          console.warn('🔄 Main request timed out (5s), trying emergency fallback...');
+          console.warn('🔄 Main request timed out (15s), trying emergency fallback...');
           return this.getAllEmergencyFallback(limit, offset);
         }
         throw fetchError;
@@ -1100,7 +1100,7 @@ export class EventService {
       console.log(`🆘 EventService.getAllEmergencyFallback - ultra minimal data (limit: ${limit}, offset: ${offset})`);
       
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 3000); // 3 секунды для emergency
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // Увеличиваем до 10 секунд для emergency
       
       try {
         const { data, error } = await supabase
@@ -1150,6 +1150,36 @@ export class EventService {
       }
     } catch (error) {
       console.error('❌ Emergency fallback failed:', error);
+      
+      // Даже в emergency fallback возвращаем хоть что-то полезное
+      if (error instanceof Error && error.name === 'AbortError') {
+        console.warn('🆘 Even emergency fallback timed out! Returning minimal mock data');
+        return { 
+          data: [{
+            id: 'fallback-1',
+            title: 'Нет доступных мероприятий',
+            description: 'Соединение слишком медленное. Попробуйте позже.',
+            image_url: '',
+            gradient_background: null,
+            date: new Date().toISOString().split('T')[0],
+            event_time: null,
+            end_date: null,
+            end_time: null,
+            location: 'Онлайн',
+            map_url: null,
+            max_participants: null,
+            current_participants: 0,
+            created_by: 0,
+            host_id: null,
+            status: 'active' as const,
+            is_private: false,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          }], 
+          error: null 
+        };
+      }
+      
       return { 
         data: [], 
         error: { message: `Критическая ошибка соединения. Попробуйте позже.` } 
@@ -1245,9 +1275,9 @@ export class EventService {
     try {
       console.log(`⚡ EventService.getAvailableFast fetching events (limit: ${limit}, offset: ${offset})`);
       
-      // Уменьшаем таймаут до 5 секунд
+      // Увеличиваем таймаут до 15 секунд для более стабильной работы
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 секунд таймаут
+      const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 секунд таймаут
       
       try {
         // Сегодняшняя дата в формате YYYY-MM-DD для быстрого сравнения
@@ -1306,7 +1336,7 @@ export class EventService {
         
         // Если основной запрос не удался, пробуем fallback
         if (fetchError instanceof Error && fetchError.name === 'AbortError') {
-          console.warn('🔄 Available request timed out, trying fallback...');
+          console.warn('🔄 Available request timed out (15s), trying fallback...');
           return this.getAvailableFallback(limit, offset);
         }
         throw fetchError;
@@ -1618,7 +1648,7 @@ export class EventService {
       console.log(`🔄 EventService.getAvailableFallback - minimal data (limit: ${limit}, offset: ${offset})`);
       
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 3000); // 3 секунды для available fallback
+      const timeoutId = setTimeout(() => controller.abort(), 8000); // Увеличиваем до 8 секунд для available fallback
       
       try {
         const today = new Date().toISOString().split('T')[0];

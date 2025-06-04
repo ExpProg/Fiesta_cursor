@@ -774,7 +774,34 @@ export const EventsList: React.FC<EventsListProps> = ({
       markTiming('Обработка ошибки');
       
       if (!silent) {
-        setError(err instanceof Error ? err.message : 'Ошибка загрузки мероприятий');
+        if (err instanceof Error && err.message.includes('AbortError')) {
+          const timeoutMessage = `Запрос прерван по таймауту. Проверьте интернет-соединение.`;
+          
+          // Добавляем дополнительную диагностику для администраторов
+          const diagnosticInfo = isAdmin ? {
+            timestamp: new Date().toLocaleTimeString(),
+            tab,
+            page,
+            userId: user?.id || 'неизвестен',
+            supabaseUrl: import.meta.env.VITE_SUPABASE_URL?.substring(0, 30) + '...',
+            userAgent: navigator.userAgent.substring(0, 50) + '...',
+            connectionType: (navigator as any).connection?.effectiveType || 'неизвестен'
+          } : null;
+          
+          setError(`${timeoutMessage}${diagnosticInfo ? `\n\nДиагностика (только для администраторов):\n• Вкладка: ${diagnosticInfo.tab}\n• Страница: ${diagnosticInfo.page}\n• Пользователь: ID ${diagnosticInfo.userId}\n• Supabase URL: ${diagnosticInfo.supabaseUrl}\n• Тип соединения: ${diagnosticInfo.connectionType}\n• Время: ${diagnosticInfo.timestamp}` : ''}`);
+          
+          console.error('🚫 AbortError details:', {
+            tab,
+            page,
+            totalTime,
+            timings,
+            userAgent: navigator.userAgent,
+            connectionInfo: (navigator as any).connection
+          });
+        } else {
+          setError(err instanceof Error ? err.message : 'Ошибка загрузки мероприятий');
+        }
+        
         setLoadingStage(`Ошибка: ${err instanceof Error ? err.message : 'Неизвестная ошибка'}`);
         setLoadingTimings(timings);
         
