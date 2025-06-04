@@ -1041,7 +1041,7 @@ export class EventService {
       const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 секунд таймаут
       
       try {
-        // Запрашиваем основные поля, включая image_url для корректного отображения
+        // Запрашиваем основные поля, включая map_url для кнопки "На карте"
         const { data, error } = await supabase
           .from('events')
           .select(`
@@ -1052,6 +1052,7 @@ export class EventService {
             gradient_background,
             date,
             location,
+            map_url,
             max_participants,
             current_participants,
             status,
@@ -1076,17 +1077,17 @@ export class EventService {
           description: event.description || 'Описание загружается...',
           image_url: event.image_url || '', // Сохраняем исходное значение или пустую строку
           gradient_background: event.gradient_background || null,
+          map_url: event.map_url || null, // Сохраняем map_url для кнопки "На карте"
           event_time: null, // Это поле может быть опущено для скорости
           end_date: null,
           end_time: null,
           location: event.location || 'Место уточняется',
-          map_url: null, // Это поле может быть опущено для скорости
           host_id: null,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         }));
 
-        console.log(`⚡ Fast loaded ${enrichedData.length} events with images support`);
+        console.log(`⚡ Fast loaded ${enrichedData.length} events with map support`);
         return { data: enrichedData, error: null };
       } catch (fetchError) {
         clearTimeout(timeoutId);
@@ -1231,6 +1232,7 @@ export class EventService {
             gradient_background,
             date,
             location,
+            map_url,
             max_participants,
             current_participants,
             status,
@@ -1254,17 +1256,17 @@ export class EventService {
           description: event.description || 'Описание загружается...',
           image_url: event.image_url || '', // Пустая строка вместо null
           gradient_background: event.gradient_background || null,
+          map_url: event.map_url || null, // Сохраняем map_url для кнопки "На карте"
           event_time: null,
           end_date: null,
           end_time: null,
           location: event.location || 'Место уточняется',
-          map_url: null,
           host_id: null,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         }));
 
-        console.log(`⚡ Fallback loaded ${enrichedData.length} events (minimal data)`);
+        console.log(`⚡ Fallback loaded ${enrichedData.length} events with map support`);
         return { data: enrichedData, error: null };
       } catch (fetchError) {
         clearTimeout(timeoutId);
@@ -1315,6 +1317,7 @@ export class EventService {
             gradient_background,
             date,
             location,
+            map_url,
             max_participants,
             current_participants,
             status,
@@ -1341,17 +1344,17 @@ export class EventService {
           description: event.description || 'Описание загружается...',
           image_url: event.image_url || '', // Сохраняем исходное значение или пустую строку
           gradient_background: event.gradient_background || null,
+          map_url: event.map_url || null, // Сохраняем map_url для кнопки "На карте"
           event_time: null, // Может быть опущено для скорости
           end_date: null,
           end_time: null,
           location: event.location || 'Место уточняется',
-          map_url: null, // Может быть опущено для скорости
           host_id: null,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         }));
 
-        console.log(`⚡ Fast loaded ${enrichedData.length} available events with images support`);
+        console.log(`⚡ Fast loaded ${enrichedData.length} available events with map support`);
         return { data: enrichedData, error: null };
       } catch (fetchError) {
         clearTimeout(timeoutId);
@@ -1471,6 +1474,7 @@ export class EventService {
             gradient_background,
             date,
             location,
+            map_url,
             max_participants,
             current_participants,
             status,
@@ -1493,17 +1497,17 @@ export class EventService {
           description: event.description || 'Описание загружается...',
           image_url: event.image_url || '', // Пустая строка вместо null
           gradient_background: event.gradient_background || null,
+          map_url: event.map_url || null, // Сохраняем map_url для кнопки "На карте"
           event_time: null,
           end_date: null,
           end_time: null,
           location: event.location || 'Место уточняется',
-          map_url: null,
           host_id: null,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         }));
 
-        console.log(`⚡ User events fallback loaded ${enrichedData.length} events`);
+        console.log(`⚡ User events fallback loaded ${enrichedData.length} events with map support`);
         return { data: enrichedData, error: null };
       } catch (fallbackError) {
         clearTimeout(timeoutId);
@@ -1614,6 +1618,7 @@ export class EventService {
             gradient_background,
             date,
             location,
+            map_url,
             max_participants,
             current_participants,
             status,
@@ -1637,17 +1642,17 @@ export class EventService {
           description: event.description || 'Описание загружается...',
           image_url: event.image_url || '', // Пустая строка вместо null
           gradient_background: event.gradient_background || null,
+          map_url: event.map_url || null, // Сохраняем map_url для кнопки "На карте"
           event_time: null,
           end_date: null,
           end_time: null,
           location: event.location || 'Место уточняется',
-          map_url: null,
           host_id: null,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         }));
 
-        console.log(`⚡ User archive fallback loaded ${enrichedData.length} events`);
+        console.log(`⚡ User archive fallback loaded ${enrichedData.length} events with map support`);
         return { data: enrichedData, error: null };
       } catch (fallbackError) {
         clearTimeout(timeoutId);
@@ -1685,6 +1690,7 @@ export class EventService {
             gradient_background,
             date,
             location,
+            map_url,
             max_participants,
             current_participants,
             status,
@@ -1709,17 +1715,17 @@ export class EventService {
           description: event.description || 'Описание загружается...',
           image_url: event.image_url || '', // Пустая строка вместо null
           gradient_background: event.gradient_background || null,
+          map_url: event.map_url || null, // Сохраняем map_url для кнопки "На карте"
           event_time: null,
           end_date: null,
           end_time: null,
           location: event.location || 'Место уточняется',
-          map_url: null,
           host_id: null,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         }));
 
-        console.log(`⚡ Available fallback loaded ${enrichedData.length} events`);
+        console.log(`⚡ Available fallback loaded ${enrichedData.length} events with map support`);
         return { data: enrichedData, error: null };
       } catch (fallbackError) {
         clearTimeout(timeoutId);
