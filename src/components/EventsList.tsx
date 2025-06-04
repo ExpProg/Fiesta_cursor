@@ -27,8 +27,27 @@ const LazyImage: React.FC<LazyImageProps> = ({ src, alt, className, fallbackGrad
   const [hasError, setHasError] = useState(false);
   const imgRef = useRef<HTMLImageElement>(null);
 
+  // Проверяем, является ли URL валидным
+  const isValidUrl = useCallback((url: string) => {
+    if (!url || url.trim() === '') return false;
+    try {
+      // Проверяем, что это валидный URL
+      new URL(url);
+      return true;
+    } catch {
+      // Если не URL, проверяем, что это валидный относительный путь с изображением
+      return url.includes('.') && (url.includes('jpg') || url.includes('jpeg') || url.includes('png') || url.includes('webp') || url.includes('gif'));
+    }
+  }, []);
+
   // Агрессивная оптимизация URL изображения для быстрой загрузки
   const getOptimizedImageUrl = useCallback((url: string) => {
+    // Сначала проверяем валидность URL
+    if (!isValidUrl(url)) {
+      console.warn('Invalid image URL provided:', url);
+      return '';
+    }
+    
     // Если это Supabase Storage URL, добавляем параметры оптимизации
     if (url.includes('supabase') && url.includes('storage')) {
       // Более агрессивная оптимизация для быстрой загрузки
@@ -36,7 +55,15 @@ const LazyImage: React.FC<LazyImageProps> = ({ src, alt, className, fallbackGrad
       return `${url}${separator}width=300&height=200&resize=cover&quality=60&format=webp`;
     }
     return url;
-  }, []);
+  }, [isValidUrl]);
+
+  // Если URL изначально невалидный, сразу показываем ошибку
+  useEffect(() => {
+    if (!isValidUrl(src)) {
+      setHasError(true);
+      setIsLoaded(true);
+    }
+  }, [src, isValidUrl]);
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -64,9 +91,10 @@ const LazyImage: React.FC<LazyImageProps> = ({ src, alt, className, fallbackGrad
   }, []);
 
   const handleError = useCallback(() => {
+    console.warn('Failed to load image:', src);
     setHasError(true);
     setIsLoaded(true);
-  }, []);
+  }, [src]);
 
   const optimizedSrc = useMemo(() => getOptimizedImageUrl(src), [src, getOptimizedImageUrl]);
 
@@ -80,8 +108,8 @@ const LazyImage: React.FC<LazyImageProps> = ({ src, alt, className, fallbackGrad
         >
           <div className="text-white/70 text-sm">📷</div>
         </div>
-      ) : hasError ? (
-        // Fallback градиент при ошибке загрузки
+      ) : hasError || !optimizedSrc ? (
+        // Fallback градиент при ошибке загрузки или невалидном URL
         <div 
           className="w-full h-full flex items-center justify-center"
           style={{ background: fallbackGradient }}
@@ -166,7 +194,7 @@ const EventCard: React.FC<EventCardProps> = React.memo(({ event, onEventClick, o
     >
       {/* Изображение мероприятия */}
       <div className={`relative overflow-hidden ${imagesEnabled ? 'h-48' : 'h-24'}`}>
-        {imagesEnabled && event.image_url ? (
+        {imagesEnabled && event.image_url && event.image_url.trim() !== '' ? (
           <LazyImage
             src={event.image_url}
             alt={event.title}
@@ -388,10 +416,10 @@ export const EventsList: React.FC<EventsListProps> = ({
   const [loadingStage, setLoadingStage] = useState<string>(''); // Этап загрузки для диагностики
   const [loadingTimings, setLoadingTimings] = useState<{[key: string]: number}>({}); // Детальные тайминги
   const [fastMode, setFastMode] = useState(() => {
-    // Инициализируем из localStorage или по умолчанию false для обычной загрузки
+    // Инициализируем из localStorage или по умолчанию true для оптимальной производительности
     const saved = localStorage.getItem('eventsFastMode');
-    return saved !== null ? JSON.parse(saved) : false;
-  }); // Обычный режим загрузки (быстрый режим отключен)
+    return saved !== null ? JSON.parse(saved) : true;
+  }); // Быстрый режим загрузки включен по умолчанию
   
   const ITEMS_PER_PAGE = 10; // Увеличиваем до 10 для меньшего количества запросов
   

@@ -1007,7 +1007,8 @@ export class EventService {
   }
 
   /**
-   * Быстрая загрузка всех мероприятий (упрощенная версия)
+   * Быстрое получение всех мероприятий (оптимизированная версия)
+   * Загружает только необходимые поля для ускорения запроса
    */
   static async getAllFast(limit: number = 5, offset: number = 0): Promise<ApiResponse<DatabaseEvent[]>> {
     try {
@@ -1018,12 +1019,15 @@ export class EventService {
       const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 секунд таймаут
       
       try {
-        // Сначала пробуем минимальный запрос (только важные поля)
+        // Запрашиваем основные поля, включая image_url для корректного отображения
         const { data, error } = await supabase
           .from('events')
           .select(`
             id,
             title,
+            description,
+            image_url,
+            gradient_background,
             date,
             location,
             max_participants,
@@ -1044,22 +1048,23 @@ export class EventService {
           throw error;
         }
 
-        // Дополняем недостающие поля значениями по умолчанию
+        // Дополняем недостающие поля значениями по умолчанию, сохраняя основные данные
         const enrichedData = (data || []).map(event => ({
           ...event,
-          description: null,
-          image_url: null,
-          gradient_background: null,
-          event_time: null,
+          description: event.description || 'Описание загружается...',
+          image_url: event.image_url || '', // Сохраняем исходное значение или пустую строку
+          gradient_background: event.gradient_background || null,
+          event_time: null, // Это поле может быть опущено для скорости
           end_date: null,
           end_time: null,
-          map_url: null,
+          location: event.location || 'Место уточняется',
+          map_url: null, // Это поле может быть опущено для скорости
           host_id: null,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         }));
 
-        console.log(`⚡ Fast loaded ${enrichedData.length} events (minimal fields)`);
+        console.log(`⚡ Fast loaded ${enrichedData.length} events with images support`);
         return { data: enrichedData, error: null };
       } catch (fetchError) {
         clearTimeout(timeoutId);
@@ -1088,15 +1093,14 @@ export class EventService {
   }
 
   /**
-   * Emergency fallback метод с минимальными данными и еще более коротким таймаутом
+   * Emergency fallback метод с минимальными данными для экстренно медленных соединений
    */
   private static async getAllEmergencyFallback(limit: number = 5, offset: number = 0): Promise<ApiResponse<DatabaseEvent[]>> {
     try {
       console.log(`🆘 EventService.getAllEmergencyFallback - ultra minimal data (limit: ${limit}, offset: ${offset})`);
       
-      // Запрашиваем только самые критичные поля с минимальным таймаутом
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 2000); // 2 секунды для emergency
+      const timeoutId = setTimeout(() => controller.abort(), 3000); // 3 секунды для emergency
       
       try {
         const { data, error } = await supabase
@@ -1118,11 +1122,11 @@ export class EventService {
           throw error;
         }
 
-        // Дополняем все недостающие поля значениями по умолчанию
+        // Обогащаем недостающие поля значениями по умолчанию, но НЕ зануляем image_url
         const enrichedData = (data || []).map(event => ({
           ...event,
           description: 'Загрузка...',
-          image_url: null,
+          image_url: '', // Пустая строка вместо null, чтобы LazyImage мог показать градиент
           gradient_background: null,
           event_time: null,
           end_date: null,
@@ -1138,47 +1142,17 @@ export class EventService {
           updated_at: new Date().toISOString()
         }));
 
-        console.log(`🆘 Emergency fallback loaded ${enrichedData.length} events (ultra minimal)`);
+        console.log(`🆘 Emergency loaded ${enrichedData.length} events (ultra minimal)`);
         return { data: enrichedData, error: null };
-      } catch (fallbackError) {
+      } catch (emergencyError) {
         clearTimeout(timeoutId);
-        throw fallbackError;
+        throw emergencyError;
       }
     } catch (error) {
-      console.error('❌ Even emergency fallback failed:', error);
-      
-      // В крайнем случае возвращаем заглушки для демонстрации работы интерфейса
-      if (offset === 0) {
-        const mockEvents = Array.from({ length: Math.min(limit, 3) }, (_, i) => ({
-          id: `mock-${i}`,
-          title: `Мероприятие ${i + 1}`,
-          description: 'Проблемы с подключением',
-          image_url: null,
-          gradient_background: null,
-          date: new Date().toISOString().split('T')[0],
-          event_time: null,
-          end_date: null,
-          end_time: null,
-          location: 'Не определено',
-          map_url: null,
-          max_participants: null,
-          current_participants: 0,
-          created_by: 0,
-          host_id: null,
-          status: 'active',
-          is_private: false,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        }));
-        
-        console.log(`🆘 Using mock data due to connection issues`);
-        return { data: mockEvents as any, error: { message: 'Медленное соединение. Показаны демо-данные.' } };
-      }
-      
-      // Возвращаем пустой массив для других страниц
+      console.error('❌ Emergency fallback failed:', error);
       return { 
         data: [], 
-        error: { message: `Соединение слишком медленное. Попробуйте позже или проверьте интернет-соединение.` } 
+        error: { message: `Критическая ошибка соединения. Попробуйте позже.` } 
       };
     }
   }
@@ -1200,6 +1174,9 @@ export class EventService {
           .select(`
             id,
             title,
+            description,
+            image_url,
+            gradient_background,
             date,
             location,
             max_participants,
@@ -1219,15 +1196,16 @@ export class EventService {
           throw error;
         }
 
-        // Дополняем недостающие поля значениями по умолчанию
+        // Дополняем недостающие поля значениями по умолчанию, сохраняя исходные данные
         const enrichedData = (data || []).map(event => ({
           ...event,
-          description: null,
-          image_url: null,
-          gradient_background: null,
+          description: event.description || 'Описание загружается...',
+          image_url: event.image_url || '', // Пустая строка вместо null
+          gradient_background: event.gradient_background || null,
           event_time: null,
           end_date: null,
           end_time: null,
+          location: event.location || 'Место уточняется',
           map_url: null,
           host_id: null,
           created_at: new Date().toISOString(),
@@ -1236,26 +1214,32 @@ export class EventService {
 
         console.log(`⚡ Fallback loaded ${enrichedData.length} events (minimal data)`);
         return { data: enrichedData, error: null };
-      } catch (fallbackError) {
+      } catch (fetchError) {
         clearTimeout(timeoutId);
         
-        // Если и fallback не работает, пробуем emergency
-        if (fallbackError instanceof Error && fallbackError.name === 'AbortError') {
-          console.warn('🆘 Fallback timed out, trying emergency...');
+        // Если и fallback не удался, пробуем emergency
+        if (fetchError instanceof Error && fetchError.name === 'AbortError') {
+          console.warn('🔄 Fallback request timed out, trying emergency...');
           return this.getAllEmergencyFallback(limit, offset);
         }
-        throw fallbackError;
+        throw fetchError;
       }
     } catch (error) {
-      console.error('❌ Even fallback failed:', error);
+      console.error('❌ Error in getAllFallback:', error);
       
-      // В крайнем случае пробуем emergency
-      return this.getAllEmergencyFallback(limit, offset);
+      if (error instanceof Error && error.name === 'AbortError') {
+        return this.getAllEmergencyFallback(limit, offset);
+      }
+      
+      return { 
+        data: null, 
+        error: { message: `Ошибка fallback загрузки: ${this.getErrorMessage(error)}` } 
+      };
     }
   }
 
   /**
-   * Быстрая загрузка доступных мероприятий (упрощенная версия)
+   * Быстрая загрузка доступных мероприятий (оптимизированная версия)
    */
   static async getAvailableFast(limit: number = 5, offset: number = 0): Promise<ApiResponse<DatabaseEvent[]>> {
     try {
@@ -1274,6 +1258,9 @@ export class EventService {
           .select(`
             id,
             title,
+            description,
+            image_url,
+            gradient_background,
             date,
             location,
             max_participants,
@@ -1296,22 +1283,23 @@ export class EventService {
           throw error;
         }
 
-        // Дополняем недостающие поля
+        // Дополняем недостающие поля, сохраняя основные данные
         const enrichedData = (data || []).map(event => ({
           ...event,
-          description: null,
-          image_url: null,
-          gradient_background: null,
-          event_time: null,
+          description: event.description || 'Описание загружается...',
+          image_url: event.image_url || '', // Сохраняем исходное значение или пустую строку
+          gradient_background: event.gradient_background || null,
+          event_time: null, // Может быть опущено для скорости
           end_date: null,
           end_time: null,
-          map_url: null,
+          location: event.location || 'Место уточняется',
+          map_url: null, // Может быть опущено для скорости
           host_id: null,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         }));
 
-        console.log(`⚡ Fast loaded ${enrichedData.length} available events`);
+        console.log(`⚡ Fast loaded ${enrichedData.length} available events with images support`);
         return { data: enrichedData, error: null };
       } catch (fetchError) {
         clearTimeout(timeoutId);
@@ -1426,6 +1414,9 @@ export class EventService {
           .select(`
             id,
             title,
+            description,
+            image_url,
+            gradient_background,
             date,
             location,
             max_participants,
@@ -1447,12 +1438,13 @@ export class EventService {
 
         const enrichedData = (data || []).map(event => ({
           ...event,
-          description: null,
-          image_url: null,
-          gradient_background: null,
+          description: event.description || 'Описание загружается...',
+          image_url: event.image_url || '', // Пустая строка вместо null
+          gradient_background: event.gradient_background || null,
           event_time: null,
           end_date: null,
           end_time: null,
+          location: event.location || 'Место уточняется',
           map_url: null,
           host_id: null,
           created_at: new Date().toISOString(),
@@ -1550,7 +1542,7 @@ export class EventService {
   }
 
   /**
-   * Fallback для архива пользователя
+   * Fallback для архивных мероприятий пользователя
    */
   private static async getUserArchiveFallback(telegramId: number, limit: number = 5, offset: number = 0): Promise<ApiResponse<DatabaseEvent[]>> {
     try {
@@ -1560,13 +1552,14 @@ export class EventService {
       const timeoutId = setTimeout(() => controller.abort(), 15000);
       
       try {
-        const today = new Date().toISOString().split('T')[0];
-        
         const { data, error } = await supabase
           .from('events')
           .select(`
             id,
             title,
+            description,
+            image_url,
+            gradient_background,
             date,
             location,
             max_participants,
@@ -1576,7 +1569,7 @@ export class EventService {
             created_by
           `)
           .eq('created_by', telegramId)
-          .lt('date', today)
+          .lt('date', new Date().toISOString())
           .order('date', { ascending: false })
           .range(offset, offset + limit - 1)
           .abortSignal(controller.signal);
@@ -1589,29 +1582,30 @@ export class EventService {
 
         const enrichedData = (data || []).map(event => ({
           ...event,
-          description: null,
-          image_url: null,
-          gradient_background: null,
+          description: event.description || 'Описание загружается...',
+          image_url: event.image_url || '', // Пустая строка вместо null
+          gradient_background: event.gradient_background || null,
           event_time: null,
           end_date: null,
           end_time: null,
+          location: event.location || 'Место уточняется',
           map_url: null,
           host_id: null,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         }));
 
-        console.log(`⚡ Archive fallback loaded ${enrichedData.length} events`);
+        console.log(`⚡ User archive fallback loaded ${enrichedData.length} events`);
         return { data: enrichedData, error: null };
       } catch (fallbackError) {
         clearTimeout(timeoutId);
         throw fallbackError;
       }
     } catch (error) {
-      console.error('❌ Archive fallback failed:', error);
+      console.error('❌ User archive fallback failed:', error);
       return { 
         data: [], 
-        error: { message: `Не удалось загрузить архив пользователя.` } 
+        error: { message: `Не удалось загрузить архив мероприятий.` } 
       };
     }
   }
@@ -1634,8 +1628,16 @@ export class EventService {
           .select(`
             id,
             title,
+            description,
+            image_url,
+            gradient_background,
             date,
-            status
+            location,
+            max_participants,
+            current_participants,
+            status,
+            is_private,
+            created_by
           `)
           .eq('status', 'active')
           .eq('is_private', false)
@@ -1652,19 +1654,15 @@ export class EventService {
 
         const enrichedData = (data || []).map(event => ({
           ...event,
-          description: 'Загрузка...',
-          image_url: null,
-          gradient_background: null,
+          description: event.description || 'Описание загружается...',
+          image_url: event.image_url || '', // Пустая строка вместо null
+          gradient_background: event.gradient_background || null,
           event_time: null,
           end_date: null,
           end_time: null,
-          location: 'Уточняется',
+          location: event.location || 'Место уточняется',
           map_url: null,
-          max_participants: null,
-          current_participants: 0,
-          created_by: 0,
           host_id: null,
-          is_private: false,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         }));
