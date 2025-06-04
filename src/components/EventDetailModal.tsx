@@ -17,6 +17,7 @@ import { refreshEventData } from '@/utils/eventResponses';
 import { EventParticipants } from './EventParticipants';
 import { EventResponseButtons } from './EventResponseButtons';
 import { useTelegram } from './TelegramProvider';
+import { useYandexMetrika } from '@/hooks/useYandexMetrika';
 import { supabase } from '@/hooks/useSupabase';
 
 interface EventDetailModalProps {
@@ -41,6 +42,7 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
   userUsername
 }) => {
   const { impactOccurred } = useTelegram();
+  const { reachGoal } = useYandexMetrika();
   const [isScrolled, setIsScrolled] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
   const [shareSuccess, setShareSuccess] = useState(false);
@@ -364,7 +366,26 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
                     <MapPin className="w-5 h-5 mr-3 flex-shrink-0" />
                     <div>
                       <div className="font-medium">Место проведения</div>
-                      <div className="text-sm">{updatedEvent.location}</div>
+                      {updatedEvent.map_url ? (
+                        <a
+                          href={updatedEvent.map_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={() => {
+                            reachGoal('event_location_map_clicked', {
+                              event_id: updatedEvent.id,
+                              event_title: updatedEvent.title.substring(0, 30),
+                              location: updatedEvent.location?.substring(0, 50)
+                            });
+                          }}
+                          className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer transition-colors text-sm"
+                          title="Открыть на карте"
+                        >
+                          {updatedEvent.location}
+                        </a>
+                      ) : (
+                        <div className="text-sm">{updatedEvent.location}</div>
+                      )}
                     </div>
                   </div>
                 )}
