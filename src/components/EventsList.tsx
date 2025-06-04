@@ -403,6 +403,7 @@ export const EventsList: React.FC<EventsListProps> = ({
   const [activeTab, setActiveTab] = useState<TabType>('all');
   const [events, setEvents] = useState<DatabaseEvent[]>([]);
   const [loading, setLoading] = useState(false);
+  const [pageLoading, setPageLoading] = useState(false); // Отдельный индикатор для загрузки страниц
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [totalItems, setTotalItems] = useState<number>(0);
@@ -423,9 +424,9 @@ export const EventsList: React.FC<EventsListProps> = ({
   
   const ITEMS_PER_PAGE = 10; // Увеличиваем до 10 для меньшего количества запросов
   
-  // Кэш для событий с пагинацией
+  // Кэш для событий с пагинацией - увеличиваем время кэширования
   const eventsCache = useRef<Map<string, { data: DatabaseEvent[], timestamp: number, totalItems: number }>>(new Map());
-  const CACHE_DURATION = 120000; // 2 минуты
+  const CACHE_DURATION = 300000; // 5 минут - увеличиваем кэш для лучшей работы с пагинацией
 
   // Функция для переключения режима изображений
   const toggleImages = useCallback(() => {
@@ -546,13 +547,14 @@ export const EventsList: React.FC<EventsListProps> = ({
     }
   }, [reachGoal]);
 
-  // Оптимизированная функция загрузки событий с пагинацией
+  // Оптимизированная функция загрузки событий с улучшенной пагинацией
   const fetchEvents = useCallback(async (tab: TabType, page: number = 1, forceRefresh = false, silent = false) => {
     const startTime = performance.now();
     const timings: {[key: string]: number} = {};
     const cacheKey = getCacheKey(tab, page);
     const cached = eventsCache.current.get(cacheKey);
     const now = Date.now();
+    const isPageChange = page !== currentPage; // Определяем, является ли это сменой страницы
     
     // Детальная диагностика времени
     let lastTimingMark = startTime;
@@ -572,9 +574,16 @@ export const EventsList: React.FC<EventsListProps> = ({
         setEvents(cached.data);
         setTotalItems(cached.totalItems);
         setLoading(false);
+        setPageLoading(false);
         const totalTime = performance.now() - startTime;
         setLoadingTimings(timings);
         console.log(`⚡ Cache hit for ${tab} page ${page} (${totalTime.toFixed(2)}ms)`);
+        
+        // Показываем сообщение о загрузке из кэша
+        if (isPageChange) {
+          setLoadingStage('Загружено из кэша');
+          setTimeout(() => setLoadingStage(''), 1000);
+        }
       }
       return cached.data;
     }
@@ -587,14 +596,26 @@ export const EventsList: React.FC<EventsListProps> = ({
       console.log(`🔄 Showing stale cache while loading fresh data for ${tab} page ${page}`);
       setEvents(cached.data);
       setTotalItems(cached.totalItems);
-      setLoading(true); // Показываем, что идет обновление
-      setLoadingStage('Обновление...');
+      if (isPageChange) {
+        setPageLoading(true); // Используем отдельный индикатор для смены страниц
+        setLoadingStage('Обновление страницы...');
+      } else {
+        setLoading(true);
+        setLoadingStage('Обновление...');
+      }
     }
 
     if (!silent) {
-      setLoading(true);
+      if (isPageChange && cached) {
+        // Для смены страниц с кэшем используем отдельный индикатор
+        setPageLoading(true);
+        setLoadingStage(`Загрузка страницы ${page}...`);
+      } else {
+        // Для первой загрузки или без кэша используем основной индикатор
+        setLoading(true);
+        setLoadingStage(isPageChange ? `Загрузка страницы ${page}...` : 'Загрузка...');
+      }
       setError(null);
-      setLoadingStage('Загрузка...');
     }
 
     try {
@@ -602,7 +623,7 @@ export const EventsList: React.FC<EventsListProps> = ({
       let result;
       let totalCountResult;
       
-      console.log(`🔄 Loading ${tab} page ${page} (offset: ${offset}, limit: ${ITEMS_PER_PAGE})`);
+      console.log(`🔄 Loading ${tab} page ${page} (offset: ${offset}, limit: ${ITEMS_PER_PAGE}) ${isPageChange ? '[PAGE CHANGE]' : '[INITIAL/REFRESH]'}`);
       
       markTiming('Подготовка к API запросам');
       
@@ -612,26 +633,52 @@ export const EventsList: React.FC<EventsListProps> = ({
       switch (tab) {
         case 'all':
           console.log(`🔄 Fetching all events (${fastMode ? 'fast' : 'normal'} mode)...`);
-          const allEventsStart = performance.now();
           result = fastMode ? 
             await EventService.getAllFast(ITEMS_PER_PAGE, offset) :
             await EventService.getAll(ITEMS_PER_PAGE, offset);
           markTiming(fastMode ? 'API: getAllFast' : 'API: getAll');
           
-          const allCountStart = performance.now();
-          totalCountResult = await EventService.getTotalCount();
+          // Для подсчета общего количества используем кэш если возможно
+          const countCacheKey = `${tab}_total_count`;
+          const countCached = eventsCache.current.get(countCacheKey);
+          if (!forceRefresh && countCached && (now - countCached.timestamp) < CACHE_DURATION * 2) {
+            totalCountResult = { data: countCached.totalItems, error: null };
+            console.log(`⚡ Using cached total count: ${countCached.totalItems}`);
+          } else {
+            totalCountResult = await EventService.getTotalCount();
+            // Сохраняем количество в кэш
+            if (totalCountResult.data !== null) {
+              eventsCache.current.set(countCacheKey, {
+                data: [],
+                timestamp: now,
+                totalItems: totalCountResult.data
+              });
+            }
+          }
           markTiming('API: getTotalCount');
           break;
           
         case 'available':
-          const availableEventsStart = performance.now();
           result = fastMode ?
             await EventService.getAvailableFast(ITEMS_PER_PAGE, offset) :
             await EventService.getAvailable(ITEMS_PER_PAGE, offset);
           markTiming(fastMode ? 'API: getAvailableFast' : 'API: getAvailable');
           
-          const availableCountStart = performance.now();
-          totalCountResult = await EventService.getAvailableTotalCount();
+          const availableCountCacheKey = `${tab}_total_count`;
+          const availableCountCached = eventsCache.current.get(availableCountCacheKey);
+          if (!forceRefresh && availableCountCached && (now - availableCountCached.timestamp) < CACHE_DURATION * 2) {
+            totalCountResult = { data: availableCountCached.totalItems, error: null };
+            console.log(`⚡ Using cached available count: ${availableCountCached.totalItems}`);
+          } else {
+            totalCountResult = await EventService.getAvailableTotalCount();
+            if (totalCountResult.data !== null) {
+              eventsCache.current.set(availableCountCacheKey, {
+                data: [],
+                timestamp: now,
+                totalItems: totalCountResult.data
+              });
+            }
+          }
           markTiming('API: getAvailableTotalCount');
           break;
           
@@ -641,17 +688,30 @@ export const EventsList: React.FC<EventsListProps> = ({
               setEvents([]);
               setTotalItems(0);
               setLoading(false);
+              setPageLoading(false);
             }
             return [];
           }
-          const myEventsStart = performance.now();
           result = fastMode ?
             await EventService.getUserEventsFast(user.id, ITEMS_PER_PAGE, offset) :
             await EventService.getUserEvents(user.id, ITEMS_PER_PAGE, offset);
           markTiming(fastMode ? 'API: getUserEventsFast' : 'API: getUserEvents');
           
-          const myCountStart = performance.now();
-          totalCountResult = await EventService.getUserEventsTotalCount(user.id);
+          const myCountCacheKey = `${tab}_${user.id}_total_count`;
+          const myCountCached = eventsCache.current.get(myCountCacheKey);
+          if (!forceRefresh && myCountCached && (now - myCountCached.timestamp) < CACHE_DURATION * 2) {
+            totalCountResult = { data: myCountCached.totalItems, error: null };
+            console.log(`⚡ Using cached my events count: ${myCountCached.totalItems}`);
+          } else {
+            totalCountResult = await EventService.getUserEventsTotalCount(user.id);
+            if (totalCountResult.data !== null) {
+              eventsCache.current.set(myCountCacheKey, {
+                data: [],
+                timestamp: now,
+                totalItems: totalCountResult.data
+              });
+            }
+          }
           markTiming('API: getUserEventsTotalCount');
           break;
           
@@ -661,28 +721,39 @@ export const EventsList: React.FC<EventsListProps> = ({
               setEvents([]);
               setTotalItems(0);
               setLoading(false);
+              setPageLoading(false);
             }
             return [];
           }
-          const archiveEventsStart = performance.now();
           result = fastMode ?
             await EventService.getUserArchiveFast(user.id, ITEMS_PER_PAGE, offset) :
             await EventService.getUserArchive(user.id, ITEMS_PER_PAGE, offset);
           markTiming(fastMode ? 'API: getUserArchiveFast' : 'API: getUserArchive');
           
-          const archiveCountStart = performance.now();
-          totalCountResult = await EventService.getUserArchiveTotalCount(user.id);
+          const archiveCountCacheKey = `${tab}_${user.id}_total_count`;
+          const archiveCountCached = eventsCache.current.get(archiveCountCacheKey);
+          if (!forceRefresh && archiveCountCached && (now - archiveCountCached.timestamp) < CACHE_DURATION * 2) {
+            totalCountResult = { data: archiveCountCached.totalItems, error: null };
+            console.log(`⚡ Using cached archive count: ${archiveCountCached.totalItems}`);
+          } else {
+            totalCountResult = await EventService.getUserArchiveTotalCount(user.id);
+            if (totalCountResult.data !== null) {
+              eventsCache.current.set(archiveCountCacheKey, {
+                data: [],
+                timestamp: now,
+                totalItems: totalCountResult.data
+              });
+            }
+          }
           markTiming('API: getUserArchiveTotalCount');
           break;
           
         default:
-          const defaultEventsStart = performance.now();
           result = fastMode ?
             await EventService.getAllFast(ITEMS_PER_PAGE, offset) :
             await EventService.getAll(ITEMS_PER_PAGE, offset);
           markTiming(fastMode ? 'API: getAllFast (default)' : 'API: getAll (default)');
           
-          const defaultCountStart = performance.now();
           totalCountResult = await EventService.getTotalCount();
           markTiming('API: getTotalCount (default)');
       }
@@ -730,7 +801,7 @@ export const EventsList: React.FC<EventsListProps> = ({
       markTiming('Сохранение в кэш');
       
       const totalTime = performance.now() - startTime;
-      console.log(`✅ ${tab} page ${page} loaded: ${eventsData.length} events in ${totalTime.toFixed(2)}ms`);
+      console.log(`✅ ${tab} page ${page} loaded: ${eventsData.length} events in ${totalTime.toFixed(2)}ms ${isPageChange ? '[PAGE CHANGE COMPLETED]' : '[INITIAL/REFRESH COMPLETED]'}`);
       
       // Детальная диагностика производительности
       console.log('🔍 Детальные тайминги:', timings);
@@ -740,7 +811,12 @@ export const EventsList: React.FC<EventsListProps> = ({
         setTotalItems(actualTotal);
         setLastLoadTime(totalTime);
         setLoadingTimings(timings);
-        setLoadingStage('Завершено');
+        setLoadingStage(isPageChange ? `Страница ${page} загружена` : 'Завершено');
+        
+        // Убираем индикатор загрузки через короткое время для лучшего UX
+        setTimeout(() => {
+          setLoadingStage('');
+        }, isPageChange ? 1500 : 500);
         
         // Аналитика
         reachGoal('events_list_loaded', {
@@ -752,6 +828,7 @@ export const EventsList: React.FC<EventsListProps> = ({
           cache_hit: false,
           load_time_ms: Math.round(totalTime),
           api_time_ms: Math.round(totalApiTime),
+          is_page_change: isPageChange,
           timings: Object.entries(timings).reduce((acc, [key, value]) => {
             acc[key] = Math.round(value);
             return acc;
@@ -761,9 +838,9 @@ export const EventsList: React.FC<EventsListProps> = ({
 
       markTiming('Финализация');
 
-      // Предзагружаем соседние страницы в фоне
-      if (!silent && eventsData.length > 0) {
-        setTimeout(() => preloadAdjacentPages(tab, page), 500);
+      // Предзагружаем соседние страницы в фоне, но только для первой загрузки
+      if (!silent && eventsData.length > 0 && !isPageChange) {
+        setTimeout(() => preloadAdjacentPages(tab, page), 1000); // Увеличиваем задержку
       }
       
       return eventsData;
@@ -811,6 +888,7 @@ export const EventsList: React.FC<EventsListProps> = ({
           error: err instanceof Error ? err.message : 'unknown_error',
           user_id: user?.id || 0,
           load_time_ms: Math.round(totalTime),
+          is_page_change: isPageChange,
           timings: Object.entries(timings).reduce((acc, [key, value]) => {
             acc[key] = Math.round(value);
             return acc;
@@ -822,9 +900,10 @@ export const EventsList: React.FC<EventsListProps> = ({
     } finally {
       if (!silent) {
         setLoading(false);
+        setPageLoading(false);
       }
     }
-  }, [user?.id, reachGoal, getCacheKey, preloadAdjacentPages, isAdmin, adminLoading]);
+  }, [user?.id, reachGoal, getCacheKey, preloadAdjacentPages, isAdmin, adminLoading, currentPage]);
 
   // Функция принудительного обновления
   const forceRefresh = useCallback(() => {
@@ -853,12 +932,26 @@ export const EventsList: React.FC<EventsListProps> = ({
 
   // Обработчик смены страницы
   const handlePageChange = useCallback((page: number) => {
+    console.log(`📄 Page change requested: ${currentPage} → ${page}`);
+    
+    // Показываем индикатор загрузки страницы немедленно
+    setPageLoading(true);
+    setLoadingStage(`Переход на страницу ${page}...`);
+    
     setCurrentPage(page);
     fetchEvents(activeTab, page);
     
-    // Скроллим наверх при смене страницы
+    // Скроллим наверх при смене страницы с плавной анимацией
     window.scrollTo({ top: 0, behavior: 'smooth' });
-  }, [activeTab, fetchEvents]);
+    
+    // Аналитика смены страницы
+    reachGoal('page_change', {
+      tab: activeTab,
+      from_page: currentPage,
+      to_page: page,
+      user_id: user?.id || 0
+    });
+  }, [activeTab, fetchEvents, currentPage, user?.id, reachGoal]);
 
   // Загружаем события при инициализации
   useEffect(() => {
@@ -1075,6 +1168,14 @@ export const EventsList: React.FC<EventsListProps> = ({
           </div>
         </div>
 
+        {/* Индикатор загрузки страницы */}
+        {pageLoading && (
+          <div className="mb-4 flex items-center justify-center p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <Loader2 className="w-5 h-5 mr-3 animate-spin text-blue-600" />
+            <span className="text-blue-800 font-medium">{loadingStage}</span>
+          </div>
+        )}
+
         {/* Отладочная панель только для администраторов */}
         {isAdmin && !adminLoading && showDebug && (
           <div className="mb-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
@@ -1095,6 +1196,7 @@ export const EventsList: React.FC<EventsListProps> = ({
               <div>• Элементов на странице: {ITEMS_PER_PAGE}</div>
               <div>• Пагинация: страница {currentPage} из {Math.ceil(totalItems / ITEMS_PER_PAGE)}</div>
               <div>• Всего элементов: {totalItems}</div>
+              <div>• Загрузка страницы: {pageLoading ? '🔄 в процессе' : '✅ завершена'}</div>
               <div>• Supabase URL: {import.meta.env.VITE_SUPABASE_URL?.substring(0, 30)}...</div>
               <div>• API ключ: {import.meta.env.VITE_SUPABASE_ANON_KEY ? '✅ установлен' : '❌ отсутствует'}</div>
               
@@ -1222,13 +1324,13 @@ export const EventsList: React.FC<EventsListProps> = ({
           imagesEnabled={imagesEnabled}
         />
 
-        {/* Пагинация */}
+        {/* Пагинация с улучшенным индикатором загрузки */}
         <Pagination
           currentPage={currentPage}
           totalItems={totalItems}
           itemsPerPage={ITEMS_PER_PAGE}
           onPageChange={handlePageChange}
-          loading={loading}
+          loading={pageLoading} // Используем отдельный индикатор
         />
       </div>
     </div>

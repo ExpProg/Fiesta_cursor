@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Loader2 } from 'lucide-react';
 
 interface PaginationProps {
   currentPage: number;
@@ -74,6 +75,13 @@ export const Pagination: React.FC<PaginationProps> = ({
       {/* Мобильная версия */}
       <div className="flex justify-center flex-1 sm:hidden">
         <div className="flex items-center space-x-1">
+          {/* Индикатор загрузки для мобильной версии */}
+          {loading && (
+            <div className="flex items-center mr-2">
+              <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
+            </div>
+          )}
+          
           {pageNumbers.map((pageNumber, index) => {
             if (pageNumber === '...') {
               return (
@@ -93,16 +101,20 @@ export const Pagination: React.FC<PaginationProps> = ({
                 key={pageNumber}
                 onClick={() => !loading && onPageChange(pageNumber as number)}
                 disabled={loading}
-                className={`px-3 py-2 text-sm font-medium rounded-md ${
+                className={`px-3 py-2 text-sm font-medium rounded-md transition-colors duration-200 ${
                   isCurrentPage
-                    ? 'bg-blue-600 text-white'
+                    ? 'bg-blue-600 text-white shadow-sm'
                     : loading
                     ? 'text-gray-300 cursor-not-allowed bg-gray-100'
-                    : 'text-gray-700 bg-white border border-gray-300 hover:bg-gray-50'
+                    : 'text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 hover:border-gray-400'
                 }`}
-                title={`Страница ${pageNumber}`}
+                title={loading ? 'Загрузка...' : `Страница ${pageNumber}`}
               >
-                {pageNumber}
+                {loading && isCurrentPage ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  pageNumber
+                )}
               </button>
             );
           })}
@@ -126,9 +138,17 @@ export const Pagination: React.FC<PaginationProps> = ({
               <span className="font-medium">{totalItems}</span>{' '}
               результатов
             </p>
-            <p className="text-xs text-gray-500 mt-1">
-              Страница {currentPage} из {totalPages}
-            </p>
+            <div className="flex items-center mt-1 space-x-2">
+              <p className="text-xs text-gray-500">
+                Страница {currentPage} из {totalPages}
+              </p>
+              {loading && (
+                <div className="flex items-center text-xs text-blue-600">
+                  <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                  Загрузка...
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Быстрый переход к странице */}
@@ -146,14 +166,18 @@ export const Pagination: React.FC<PaginationProps> = ({
                 onChange={(e) => setJumpToPage(e.target.value)}
                 placeholder={currentPage.toString()}
                 disabled={loading}
-                className="w-16 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
+                className="w-16 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:text-gray-400"
               />
               <button
                 type="submit"
                 disabled={loading || !jumpToPage || parseInt(jumpToPage) === currentPage}
-                className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
+                className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors duration-200 flex items-center"
               >
-                →
+                {loading ? (
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                ) : (
+                  '→'
+                )}
               </button>
             </form>
           )}
@@ -183,20 +207,24 @@ export const Pagination: React.FC<PaginationProps> = ({
                   key={pageNumber}
                   onClick={() => !loading && onPageChange(pageNumber as number)}
                   disabled={loading}
-                  className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
+                  className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium transition-colors duration-200 ${
                     isFirstPage ? 'rounded-l-md' : ''
                   } ${
                     isLastPage ? 'rounded-r-md' : ''
                   } ${
                     isCurrentPage
-                      ? 'z-10 bg-blue-50 border-blue-500 text-blue-600'
+                      ? 'z-10 bg-blue-50 border-blue-500 text-blue-600 shadow-sm'
                       : loading
                       ? 'text-gray-300 bg-gray-50 border-gray-300 cursor-not-allowed'
-                      : 'text-gray-500 bg-white border-gray-300 hover:bg-gray-50'
+                      : 'text-gray-500 bg-white border-gray-300 hover:bg-gray-50 hover:text-gray-700'
                   }`}
-                  title={`Страница ${pageNumber}`}
+                  title={loading ? 'Загрузка...' : `Перейти на страницу ${pageNumber}`}
                 >
-                  {pageNumber}
+                  {loading && isCurrentPage ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    pageNumber
+                  )}
                 </button>
               );
             })}
