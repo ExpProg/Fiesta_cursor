@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { ImageService } from '@/services/imageService';
 import { useYandexMetrika } from '@/hooks/useYandexMetrika';
 import { useImageStorage } from '@/hooks/useImageStorage';
-import { Upload, X, Image as ImageIcon, Loader2, AlertCircle } from 'lucide-react';
+import { Upload, X, Image as ImageIcon, Loader2, AlertCircle, Clock } from 'lucide-react';
 import { useTelegram } from './TelegramProvider';
 import { useAdminStatus } from '@/hooks/useAdminStatus';
 
@@ -26,6 +26,7 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
   const { user } = useTelegram();
   const { isAdmin, isLoading: adminLoading } = useAdminStatus();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
   
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
@@ -33,6 +34,10 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
   const [skipStorage, setSkipStorage] = useState(isTelegramWebApp);
   const [showContextMenu, setShowContextMenu] = useState(false);
   const [contextMenuPosition, setContextMenuPosition] = useState({ x: 0, y: 0 });
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadSpeed, setUploadSpeed] = useState<string>('');
+  const [estimatedTime, setEstimatedTime] = useState<string>('');
+  const [uploadStartTime, setUploadStartTime] = useState<number>(0);
 
   // Показываем ошибку инициализации если есть
   const displayError = uploadError || storageError;
@@ -62,6 +67,56 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
     }
   }, [showContextMenu]);
 
+  // Очистка при размонтировании
+  useEffect(() => {
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, []);
+
+  // Симуляция прогресса загрузки
+  const simulateProgress = (startTime: number, fileSize: number) => {
+    const interval = setInterval(() => {
+      const elapsed = Date.now() - startTime;
+      const simulatedProgress = Math.min(95, (elapsed / 10000) * 100); // 95% за 10 секунд
+      
+      setUploadProgress(simulatedProgress);
+      
+      if (fileSize > 0) {
+        const bytesPerSecond = (fileSize * simulatedProgress / 100) / (elapsed / 1000);
+        const kbps = (bytesPerSecond / 1024).toFixed(1);
+        setUploadSpeed(`${kbps} KB/s`);
+        
+        const remainingBytes = fileSize * (1 - simulatedProgress / 100);
+        const remainingSeconds = remainingBytes / bytesPerSecond;
+        if (remainingSeconds > 0 && remainingSeconds < 300) { // Не показываем если больше 5 минут
+          setEstimatedTime(`~${Math.ceil(remainingSeconds)}с`);
+        }
+      }
+      
+      if (simulatedProgress >= 95) {
+        clearInterval(interval);
+      }
+    }, 200);
+    
+    return interval;
+  };
+
+  // Отмена загрузки
+  const cancelUpload = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+    setIsUploading(false);
+    setUploadProgress(0);
+    setUploadSpeed('');
+    setEstimatedTime('');
+    setUploadError('Загрузка отменена');
+  };
+
   // Обработчик контекстного меню
   const handleContextMenu = (event: React.MouseEvent) => {
     if (!previewUrl) return;
@@ -88,16 +143,29 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
 
     setIsUploading(true);
     setUploadError(null);
+    setUploadProgress(0);
+    setUploadSpeed('');
+    setEstimatedTime('');
+    setUploadStartTime(Date.now());
+
+    // Создаем AbortController для возможности отмены
+    abortControllerRef.current = new AbortController();
 
     try {
       // Создаем предварительный просмотр
       const objectUrl = URL.createObjectURL(file);
       setPreviewUrl(objectUrl);
 
+      // Запускаем симуляцию прогресса
+      const progressInterval = simulateProgress(Date.now(), file.size);
+
       // В Telegram WebApp загружаем файл в Supabase Storage если доступен
       if (isInitialized && !isTelegramWebApp) {
         // Загружаем файл в Supabase Storage
         const result = await ImageService.uploadImage(file, userId);
+
+        clearInterval(progressInterval);
+        setUploadProgress(100);
 
         if (result.error || !result.data) {
           throw new Error(result.error?.message || 'Не удалось загрузить изображение');
@@ -113,13 +181,19 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
         setPreviewUrl(result.data);
         onImageUploaded(result.data);
         
+        const uploadTime = Date.now() - uploadStartTime;
         reachGoal('image_upload_success', {
           image_url: result.data,
           user_id: userId,
-          action: isReplacing ? 'replace' : 'add'
+          action: isReplacing ? 'replace' : 'add',
+          upload_time_ms: uploadTime,
+          file_size_kb: Math.round(file.size / 1024)
         });
       } else {
         // В Telegram WebApp или когда Storage недоступен, конвертируем в base64
+        clearInterval(progressInterval);
+        setUploadProgress(80);
+        
         const reader = new FileReader();
         reader.onload = () => {
           const base64 = reader.result as string;
@@ -127,33 +201,54 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
           setPreviewUrl(base64);
           onImageUploaded(base64);
           
+          setUploadProgress(100);
+          const uploadTime = Date.now() - uploadStartTime;
+          
           reachGoal('image_upload_success', {
             image_url: 'base64_image',
             user_id: userId,
-            action: isReplacing ? 'replace' : 'add'
+            action: isReplacing ? 'replace' : 'add',
+            upload_time_ms: uploadTime,
+            file_size_kb: Math.round(file.size / 1024)
           });
         };
         reader.onerror = () => {
           throw new Error('Ошибка чтения файла');
         };
         reader.readAsDataURL(file);
-        setIsUploading(false);
+        
+        // Небольшая задержка для показа прогресса
+        setTimeout(() => setIsUploading(false), 500);
         return;
       }
 
     } catch (error) {
       console.error('❌ Error uploading image:', error);
-      setUploadError(error instanceof Error ? error.message : 'Ошибка загрузки');
+      
+      if (error instanceof Error && error.name === 'AbortError') {
+        setUploadError('Загрузка отменена');
+      } else {
+        setUploadError(error instanceof Error ? error.message : 'Ошибка загрузки');
+      }
+      
       // Возвращаем предыдущее изображение при ошибке
       setPreviewUrl(isReplacing ? previousImageUrl : null);
 
+      const uploadTime = Date.now() - uploadStartTime;
       reachGoal('image_upload_error', {
         error: error instanceof Error ? error.message : 'unknown_error',
         user_id: userId,
-        action: isReplacing ? 'replace' : 'add'
+        action: isReplacing ? 'replace' : 'add',
+        upload_time_ms: uploadTime,
+        file_size_kb: Math.round(file.size / 1024)
       });
     } finally {
       setIsUploading(false);
+      setUploadProgress(0);
+      setUploadSpeed('');
+      setEstimatedTime('');
+      abortControllerRef.current = null;
+      
       // Очищаем input для возможности повторной загрузки того же файла
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
@@ -305,45 +400,124 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
               💡 Нажмите правой кнопкой мыши на изображение для быстрого доступа к действиям
             </p>
 
-            {/* Индикатор загрузки */}
+            {/* Улучшенный индикатор загрузки с прогресс-баром */}
             {isUploading && (
               <div className="absolute inset-0 bg-black bg-opacity-50 rounded-lg flex items-center justify-center">
-                <div className="bg-white px-4 py-2 rounded-lg flex items-center gap-2">
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  <span className="text-sm">Загрузка...</span>
+                <div className="bg-white p-4 rounded-lg shadow-lg min-w-[280px]">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
+                      <span className="text-sm font-medium">Загрузка изображения</span>
+                    </div>
+                    <button
+                      onClick={cancelUpload}
+                      className="text-gray-400 hover:text-gray-600 transition-colors"
+                      title="Отменить загрузку"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                  
+                  {/* Прогресс-бар */}
+                  <div className="mb-3">
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div 
+                        className="bg-blue-600 h-2 rounded-full transition-all duration-300 ease-out"
+                        style={{ width: `${uploadProgress}%` }}
+                      />
+                    </div>
+                    <div className="flex justify-between text-xs text-gray-500 mt-1">
+                      <span>{uploadProgress.toFixed(0)}%</span>
+                      {uploadSpeed && <span>{uploadSpeed}</span>}
+                    </div>
+                  </div>
+                  
+                  {/* Дополнительная информация */}
+                  <div className="text-xs text-gray-500 space-y-1">
+                    {estimatedTime && (
+                      <div className="flex items-center gap-1">
+                        <Clock className="w-3 h-3" />
+                        <span>Осталось: {estimatedTime}</span>
+                      </div>
+                    )}
+                    <div>Изображение оптимизируется для быстрой загрузки</div>
+                  </div>
                 </div>
               </div>
             )}
           </div>
         ) : (
-          // Область для загрузки
-          <button
-            type="button"
-            onClick={handleUploadClick}
-            disabled={isDisabled}
-            className="w-full h-48 border-2 border-dashed border-gray-300 rounded-lg hover:border-gray-400 transition-colors duration-200 flex flex-col items-center justify-center gap-3 bg-gray-50 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {(isUploading || (isInitializing && !skipStorage && !isTelegramWebApp)) ? (
-              <>
-                <Loader2 className="w-8 h-8 text-gray-400 animate-spin" />
-                <span className="text-sm text-gray-500">
-                  {isInitializing ? 'Инициализация хранилища...' : 'Загрузка изображения...'}
-                </span>
-              </>
-            ) : (
-              <>
-                <ImageIcon className="w-8 h-8 text-gray-400" />
-                <div className="text-center">
-                  <span className="text-sm font-medium text-gray-700">
-                    Нажмите для загрузки изображения
+          // Область для загрузки с улучшенным состоянием загрузки
+          <div className="relative">
+            <button
+              type="button"
+              onClick={handleUploadClick}
+              disabled={isDisabled}
+              className="w-full h-48 border-2 border-dashed border-gray-300 rounded-lg hover:border-gray-400 transition-colors duration-200 flex flex-col items-center justify-center gap-3 bg-gray-50 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {(isUploading || (isInitializing && !skipStorage && !isTelegramWebApp)) ? (
+                <>
+                  <Loader2 className="w-8 h-8 text-gray-400 animate-spin" />
+                  <span className="text-sm text-gray-500">
+                    {isInitializing ? 'Инициализация хранилища...' : 'Подготовка к загрузке...'}
                   </span>
-                  <p className="text-xs text-gray-500 mt-1">
-                    JPEG, PNG, WebP до 5MB
-                  </p>
+                  {isUploading && uploadProgress > 0 && (
+                    <div className="w-32 bg-gray-200 rounded-full h-2">
+                      <div 
+                        className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                        style={{ width: `${uploadProgress}%` }}
+                      />
+                    </div>
+                  )}
+                </>
+              ) : (
+                <>
+                  <ImageIcon className="w-8 h-8 text-gray-400" />
+                  <div className="text-center">
+                    <span className="text-sm font-medium text-gray-700">
+                      Нажмите для загрузки изображения
+                    </span>
+                    <p className="text-xs text-gray-500 mt-1">
+                      JPEG, PNG, WebP до 5MB
+                    </p>
+                    <p className="text-xs text-gray-400 mt-1">
+                      ⚡ Автоматическое сжатие и оптимизация
+                    </p>
+                  </div>
+                </>
+              )}
+            </button>
+            
+            {/* Прогресс-бар при загрузке */}
+            {isUploading && (
+              <div className="absolute bottom-4 left-4 right-4">
+                <div className="bg-white rounded-lg p-3 shadow-lg">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-medium">Загрузка: {uploadProgress.toFixed(0)}%</span>
+                    <button
+                      onClick={cancelUpload}
+                      className="text-gray-400 hover:text-gray-600"
+                      title="Отменить"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-1.5">
+                    <div 
+                      className="bg-blue-600 h-1.5 rounded-full transition-all duration-300"
+                      style={{ width: `${uploadProgress}%` }}
+                    />
+                  </div>
+                  {(uploadSpeed || estimatedTime) && (
+                    <div className="flex justify-between text-xs text-gray-500 mt-1">
+                      {uploadSpeed && <span>{uploadSpeed}</span>}
+                      {estimatedTime && <span>{estimatedTime}</span>}
+                    </div>
+                  )}
                 </div>
-              </>
+              </div>
             )}
-          </button>
+          </div>
         )}
 
         {/* Скрытый input для файлов */}

@@ -133,18 +133,27 @@ export class EventService {
   }
 
   /**
-   * Обновить мероприятие
+   * Обновить мероприятие (оптимизированная версия)
    */
   static async update(id: string, updates: DatabaseEventUpdate): Promise<ApiResponse<DatabaseEvent>> {
+    const startTime = performance.now();
+    
     try {
       console.log('🔄 EventService.update updating event:', { id, updates });
       
-      const { data, error } = await supabase
+      // Создаем таймаут для операции обновления
+      const updatePromise = supabase
         .from('events')
         .update(updates)
         .eq('id', id)
         .select()
         .single();
+
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Таймаут обновления мероприятия')), 15000)
+      );
+
+      const { data, error } = await Promise.race([updatePromise, timeoutPromise]) as any;
 
       if (error) {
         console.error('❌ Supabase error in update:', error);
@@ -156,10 +165,23 @@ export class EventService {
         throw new Error('Мероприятие не найдено или не может быть обновлено');
       }
 
-      console.log('✅ Event updated successfully:', data.id);
+      const updateTime = performance.now() - startTime;
+      console.log('✅ Event updated successfully:', {
+        id: data.id,
+        updateTime: `${updateTime.toFixed(0)}ms`,
+        fieldsUpdated: Object.keys(updates).length
+      });
+
       return { data, error: null };
     } catch (error) {
-      console.error('❌ Error updating event:', error);
+      const updateTime = performance.now() - startTime;
+      console.error('❌ Error updating event:', {
+        error: error instanceof Error ? error.message : 'unknown_error',
+        updateTime: `${updateTime.toFixed(0)}ms`,
+        eventId: id,
+        fieldsCount: Object.keys(updates).length
+      });
+
       return { 
         data: null, 
         error: { message: `Не удалось обновить мероприятие: ${this.getErrorMessage(error)}` } 

@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { EventService } from '@/services/eventService';
 import { useYandexMetrika } from '@/hooks/useYandexMetrika';
 import { useTelegram } from './TelegramProvider';
 import { ImageUpload } from './ImageUpload';
 import type { DatabaseEvent, CreateEventData } from '@/types/database';
-import { Calendar, MapPin, FileText, Users, X } from 'lucide-react';
+import { Calendar, MapPin, FileText, Users, X, Save, Loader2 } from 'lucide-react';
 
 interface EditEventFormProps {
   event: DatabaseEvent;
@@ -38,8 +38,40 @@ export const EditEventForm: React.FC<EditEventFormProps> = ({
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [saveProgress, setSaveProgress] = useState(0);
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  // Мемоизируем оригинальные данные для сравнения
+  const originalData = useMemo(() => ({
+    title: event.title,
+    description: event.description || '',
+    image_url: event.image_url || '',
+    date: new Date(event.date).toISOString().slice(0, 16),
+    location: event.location || '',
+    map_url: event.map_url || '',
+    max_participants: event.max_participants || undefined,
+    host_id: event.host_id || undefined
+  }), [event]);
+
+  // Определяем, какие поля изменились
+  const changedFields = useMemo(() => {
+    const changes: Partial<CreateEventData> = {};
+    
+    if (formData.title !== originalData.title) changes.title = formData.title;
+    if (formData.description !== originalData.description) changes.description = formData.description;
+    if (formData.image_url !== originalData.image_url) changes.image_url = formData.image_url;
+    if (formData.date !== originalData.date) changes.date = formData.date;
+    if (formData.location !== originalData.location) changes.location = formData.location;
+    if (formData.map_url !== originalData.map_url) changes.map_url = formData.map_url;
+    if (formData.max_participants !== originalData.max_participants) changes.max_participants = formData.max_participants;
+    if (formData.host_id !== originalData.host_id) changes.host_id = formData.host_id;
+    
+    return changes;
+  }, [formData, originalData]);
+
+  const hasChanges = Object.keys(changedFields).length > 0;
+
+  // Мемоизированный обработчик изменений
+  const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     const newFormData = {
       ...formData,
@@ -49,22 +81,49 @@ export const EditEventForm: React.FC<EditEventFormProps> = ({
 
     // Уведомляем родительский компонент об изменениях
     onFormChange?.(newFormData);
-  };
+  }, [formData, onFormChange]);
+
+  // Симуляция прогресса сохранения
+  const simulateSaveProgress = useCallback(() => {
+    setSaveProgress(0);
+    
+    const interval = setInterval(() => {
+      setSaveProgress(prev => {
+        if (prev >= 90) {
+          clearInterval(interval);
+          return prev;
+        }
+        return prev + Math.random() * 15;
+      });
+    }, 100);
+    
+    return interval;
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!hasChanges) {
+      setError('Нет изменений для сохранения');
+      return;
+    }
+    
     setLoading(true);
     setError(null);
     
+    const progressInterval = simulateSaveProgress();
+    
     reachGoal('edit_event_form_submit_attempt', {
       event_id: event.id,
-      event_title: event.title.substring(0, 30)
+      event_title: event.title.substring(0, 30),
+      changes_count: Object.keys(changedFields).length,
+      changed_fields: Object.keys(changedFields)
     });
 
     try {
-      console.log('📝 Updating event:', event.id, formData);
+      console.log('📝 Updating event with changes only:', event.id, changedFields);
 
-      // Валидация данных
+      // Валидация изменений
       const validation = EventService.validateEventData(formData);
       if (!validation.isValid) {
         setError(validation.errors.join('\n'));
@@ -77,34 +136,49 @@ export const EditEventForm: React.FC<EditEventFormProps> = ({
         return;
       }
 
-      // Обновляем мероприятие
-      
-      // Извлекаем время из даты для поля event_time (аналогично create)
-      const eventDate = new Date(formData.date);
-      const hours = eventDate.getHours().toString().padStart(2, '0');
-      const minutes = eventDate.getMinutes().toString().padStart(2, '0');
-      const seconds = eventDate.getSeconds().toString().padStart(2, '0');
-      const eventTime = `${hours}:${minutes}:${seconds}`; // формат HH:MM:SS для TIME поля
+      setSaveProgress(30);
 
-      const result = await EventService.update(event.id, {
-        title: formData.title,
-        description: formData.description || null,
-        image_url: formData.image_url || null,
-        date: formData.date,
-        event_time: eventTime, // добавляем обновленное время
-        location: formData.location || null,
-        map_url: formData.map_url || null,
-        max_participants: formData.max_participants || null,
-        host_id: formData.host_id || null,
-        updated_at: new Date().toISOString()
-      });
+      // Подготавливаем обновления только для измененных полей
+      const updates: any = {};
+      
+      if (changedFields.title !== undefined) updates.title = changedFields.title;
+      if (changedFields.description !== undefined) updates.description = changedFields.description || null;
+      if (changedFields.image_url !== undefined) updates.image_url = changedFields.image_url || null;
+      if (changedFields.location !== undefined) updates.location = changedFields.location || null;
+      if (changedFields.map_url !== undefined) updates.map_url = changedFields.map_url || null;
+      if (changedFields.max_participants !== undefined) updates.max_participants = changedFields.max_participants || null;
+      if (changedFields.host_id !== undefined) updates.host_id = changedFields.host_id || null;
+      
+      // Обрабатываем дату и время только если изменились
+      if (changedFields.date !== undefined) {
+        const eventDate = new Date(changedFields.date);
+        const hours = eventDate.getHours().toString().padStart(2, '0');
+        const minutes = eventDate.getMinutes().toString().padStart(2, '0');
+        const seconds = eventDate.getSeconds().toString().padStart(2, '0');
+        const eventTime = `${hours}:${minutes}:${seconds}`;
+        
+        updates.date = changedFields.date;
+        updates.event_time = eventTime;
+      }
+      
+      // Добавляем updated_at
+      updates.updated_at = new Date().toISOString();
+
+      setSaveProgress(60);
+
+      // Обновляем мероприятие только с измененными полями
+      const result = await EventService.update(event.id, updates);
+
+      clearInterval(progressInterval);
+      setSaveProgress(100);
 
       if (result.error) {
         setError(result.error.message);
         
         reachGoal('edit_event_form_submit_error', {
           event_id: event.id,
-          error: result.error.message
+          error: result.error.message,
+          changes_count: Object.keys(changedFields).length
         });
         
         return;
@@ -114,27 +188,40 @@ export const EditEventForm: React.FC<EditEventFormProps> = ({
       
       reachGoal('edit_event_form_submit_success', {
         event_id: event.id,
+        changes_count: Object.keys(changedFields).length,
+        changed_fields: Object.keys(changedFields),
         changes_made: {
-          title_changed: formData.title !== event.title,
-          description_changed: formData.description !== (event.description || ''),
-          image_changed: formData.image_url !== (event.image_url || ''),
-          location_changed: formData.location !== (event.location || ''),
-          map_url_changed: formData.map_url !== (event.map_url || ''),
-          max_participants_changed: formData.max_participants !== event.max_participants
+          title_changed: changedFields.title !== undefined,
+          description_changed: changedFields.description !== undefined,
+          image_changed: changedFields.image_url !== undefined,
+          location_changed: changedFields.location !== undefined,
+          map_url_changed: changedFields.map_url !== undefined,
+          max_participants_changed: changedFields.max_participants !== undefined
         }
       });
       
-      onSuccess(event.id);
+      // Небольшая задержка для показа 100% прогресса
+      setTimeout(() => {
+        onSuccess(event.id);
+      }, 300);
+      
     } catch (err) {
+      clearInterval(progressInterval);
+      setSaveProgress(0);
+      
       console.error('❌ Error updating event:', err);
       setError(err instanceof Error ? err.message : 'Неизвестная ошибка');
       
       reachGoal('edit_event_form_submit_error', {
         event_id: event.id,
-        error: err instanceof Error ? err.message : 'unknown_error'
+        error: err instanceof Error ? err.message : 'unknown_error',
+        changes_count: Object.keys(changedFields).length
       });
     } finally {
-      setLoading(false);
+      setTimeout(() => {
+        setLoading(false);
+        setSaveProgress(0);
+      }, 300);
     }
   };
 
@@ -283,6 +370,37 @@ export const EditEventForm: React.FC<EditEventFormProps> = ({
           </p>
         </div>
 
+        {/* Индикатор изменений */}
+        {hasChanges && (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+            <div className="text-blue-800 text-sm">
+              📝 Изменения: {Object.keys(changedFields).join(', ')}
+            </div>
+          </div>
+        )}
+
+        {/* Прогресс сохранения */}
+        {loading && saveProgress > 0 && (
+          <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-medium text-gray-700">Сохранение изменений</span>
+              <span className="text-sm text-gray-500">{saveProgress.toFixed(0)}%</span>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-2">
+              <div 
+                className="bg-blue-600 h-2 rounded-full transition-all duration-300 ease-out"
+                style={{ width: `${saveProgress}%` }}
+              />
+            </div>
+            <div className="text-xs text-gray-500 mt-2">
+              {saveProgress < 30 ? 'Подготовка данных...' :
+               saveProgress < 60 ? 'Валидация изменений...' :
+               saveProgress < 90 ? 'Отправка на сервер...' :
+               'Завершение...'}
+            </div>
+          </div>
+        )}
+
         {/* Ошибка */}
         {error && (
           <div className="bg-red-50 border border-red-200 rounded-lg p-4">
@@ -296,20 +414,45 @@ export const EditEventForm: React.FC<EditEventFormProps> = ({
             type="button"
             onClick={() => {
               reachGoal('edit_event_form_cancelled', {
-                event_id: event.id
+                event_id: event.id,
+                had_changes: hasChanges,
+                changes_count: Object.keys(changedFields).length
               });
               onCancel();
             }}
-            className="flex-1 px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium transition-colors"
+            disabled={loading}
+            className="flex-1 px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium transition-colors disabled:opacity-50"
           >
             Отмена
           </button>
+          
           <button
             type="submit"
-            disabled={loading}
-            className="flex-1 px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50"
+            disabled={loading || !hasChanges}
+            className={`flex-1 px-4 py-2 rounded-lg font-medium transition-all duration-200 flex items-center justify-center gap-2 ${
+              !hasChanges 
+                ? 'bg-gray-300 text-gray-500 cursor-not-allowed' 
+                : loading 
+                  ? 'bg-blue-600 text-white' 
+                  : 'bg-orange-600 hover:bg-orange-700 text-white'
+            }`}
           >
-            {loading ? '⏳ Сохранение...' : '💾 Сохранить'}
+            {loading ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span>Сохранение...</span>
+              </>
+            ) : hasChanges ? (
+              <>
+                <Save className="w-4 h-4" />
+                <span>Сохранить изменения</span>
+              </>
+            ) : (
+              <>
+                <Save className="w-4 h-4" />
+                <span>Нет изменений</span>
+              </>
+            )}
           </button>
         </div>
       </form>

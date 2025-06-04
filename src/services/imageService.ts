@@ -8,6 +8,9 @@ export class ImageService {
   private static readonly BUCKET_NAME = 'event-images';
   private static readonly MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
   private static readonly ALLOWED_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+  private static readonly UPLOAD_TIMEOUT = 30000; // 30 секунд таймаут для загрузки
+  private static readonly COMPRESSION_QUALITY = 0.8; // Качество сжатия
+  private static readonly MAX_DIMENSION = 1920; // Максимальное разрешение
 
   /**
    * Проверка переменных окружения
@@ -67,11 +70,106 @@ export class ImageService {
   }
 
   /**
+   * Сжатие изображения с помощью Canvas
+   */
+  private static async compressImage(file: File): Promise<File> {
+    return new Promise((resolve, reject) => {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      const img = new Image();
+      
+      if (!ctx) {
+        reject(new Error('Canvas context not available'));
+        return;
+      }
+
+      img.onload = () => {
+        try {
+          // Вычисляем новые размеры с сохранением пропорций
+          let { width, height } = img;
+          
+          if (width > this.MAX_DIMENSION || height > this.MAX_DIMENSION) {
+            if (width > height) {
+              height = (height * this.MAX_DIMENSION) / width;
+              width = this.MAX_DIMENSION;
+            } else {
+              width = (width * this.MAX_DIMENSION) / height;
+              height = this.MAX_DIMENSION;
+            }
+          }
+
+          // Устанавливаем размеры canvas
+          canvas.width = width;
+          canvas.height = height;
+
+          // Рисуем изображение на canvas
+          ctx.drawImage(img, 0, 0, width, height);
+
+          // Конвертируем canvas в blob
+          canvas.toBlob(
+            (blob) => {
+              if (!blob) {
+                reject(new Error('Failed to compress image'));
+                return;
+              }
+
+              // Создаем новый File объект
+              const compressedFile = new File([blob], file.name, {
+                type: file.type,
+                lastModified: Date.now()
+              });
+
+              console.log('🗜️ Image compressed:', {
+                originalSize: (file.size / 1024).toFixed(1) + 'KB',
+                compressedSize: (compressedFile.size / 1024).toFixed(1) + 'KB',
+                originalDimensions: `${img.naturalWidth}x${img.naturalHeight}`,
+                newDimensions: `${width}x${height}`,
+                compressionRatio: ((1 - compressedFile.size / file.size) * 100).toFixed(1) + '%'
+              });
+
+              resolve(compressedFile);
+            },
+            file.type,
+            this.COMPRESSION_QUALITY
+          );
+        } catch (error) {
+          reject(error);
+        }
+      };
+
+      img.onerror = () => {
+        reject(new Error('Failed to load image for compression'));
+      };
+
+      img.src = URL.createObjectURL(file);
+    });
+  }
+
+  /**
+   * Загрузка изображения с таймаутом
+   */
+  private static async uploadWithTimeout(file: File, fileName: string): Promise<any> {
+    return Promise.race([
+      supabase.storage
+        .from(this.BUCKET_NAME)
+        .upload(fileName, file, {
+          cacheControl: '3600',
+          upsert: false
+        }),
+      new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Таймаут загрузки изображения')), this.UPLOAD_TIMEOUT)
+      )
+    ]);
+  }
+
+  /**
    * Загрузка изображения в Supabase Storage
    */
   static async uploadImage(file: File, userId: number): Promise<ApiResponse<string>> {
+    const startTime = performance.now();
+    
     try {
-      console.log('📤 ImageService.uploadImage uploading file:', file.name);
+      console.log('📤 ImageService.uploadImage uploading file:', file.name, `(${(file.size / 1024).toFixed(1)}KB)`);
 
       // Валидация файла
       const validation = this.validateFile(file);
@@ -82,17 +180,24 @@ export class ImageService {
         };
       }
 
+      // Сжимаем изображение для ускорения загрузки
+      let processedFile = file;
+      try {
+        if (file.size > 500 * 1024) { // Сжимаем файлы больше 500KB
+          console.log('🗜️ Compressing large image...');
+          processedFile = await this.compressImage(file);
+        }
+      } catch (compressionError) {
+        console.warn('⚠️ Image compression failed, using original file:', compressionError);
+        // Продолжаем с оригинальным файлом
+      }
+
       // Генерируем уникальное имя файла
-      const fileName = this.generateFileName(file, userId);
+      const fileName = this.generateFileName(processedFile, userId);
       console.log('📝 Generated file name:', fileName);
 
-      // Загружаем файл в Storage
-      const { data, error } = await supabase.storage
-        .from(this.BUCKET_NAME)
-        .upload(fileName, file, {
-          cacheControl: '3600',
-          upsert: false
-        });
+      // Загружаем файл в Storage с таймаутом
+      const { data, error } = await this.uploadWithTimeout(processedFile, fileName);
 
       if (error) {
         console.error('❌ Supabase storage error:', error);
@@ -108,14 +213,26 @@ export class ImageService {
         throw new Error('Не удалось получить URL изображения');
       }
 
-      console.log('✅ Image uploaded successfully:', urlData.publicUrl);
+      const uploadTime = performance.now() - startTime;
+      console.log('✅ Image uploaded successfully:', {
+        url: urlData.publicUrl,
+        uploadTime: `${uploadTime.toFixed(0)}ms`,
+        finalSize: `${(processedFile.size / 1024).toFixed(1)}KB`
+      });
+
       return {
         data: urlData.publicUrl,
         error: null
       };
 
     } catch (error) {
-      console.error('❌ Error uploading image:', error);
+      const uploadTime = performance.now() - startTime;
+      console.error('❌ Error uploading image:', {
+        error: error instanceof Error ? error.message : 'unknown_error',
+        uploadTime: `${uploadTime.toFixed(0)}ms`,
+        fileSize: `${(file.size / 1024).toFixed(1)}KB`
+      });
+
       return {
         data: null,
         error: { 
