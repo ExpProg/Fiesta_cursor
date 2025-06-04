@@ -20,9 +20,13 @@ export const Pagination: React.FC<PaginationProps> = ({
   const totalPages = Math.ceil(totalItems / itemsPerPage);
 
   // Если всего одна страница или меньше, не показываем пагинацию
-  if (totalPages <= 1) {
-    return null;
-  }
+  // Временно отключаем это условие для отладки
+  // if (totalPages <= 1) {
+  //   return null;
+  // }
+
+  // Отладочная информация
+  console.log(`🔧 Pagination Debug: totalItems=${totalItems}, itemsPerPage=${itemsPerPage}, totalPages=${totalPages}, currentPage=${currentPage}`);
 
   const handleJumpToPage = (e: React.FormEvent) => {
     e.preventDefault();
