@@ -21,6 +21,7 @@ interface LazyImageProps {
   fallbackGradient: string;
   eventId: string;
   onImageLoad?: (eventId: string, success: boolean) => void;
+  priority?: boolean;
 }
 
 const LazyImage: React.FC<LazyImageProps> = ({ 
@@ -29,7 +30,8 @@ const LazyImage: React.FC<LazyImageProps> = ({
   className, 
   fallbackGradient, 
   eventId, 
-  onImageLoad 
+  onImageLoad,
+  priority = false
 }) => {
   const [isLoaded, setIsLoaded] = useState(false);
   const [isInView, setIsInView] = useState(false);
@@ -63,6 +65,12 @@ const LazyImage: React.FC<LazyImageProps> = ({
 
   // Intersection Observer для ленивой загрузки
   useEffect(() => {
+    // Если это приоритетное изображение, загружаем сразу
+    if (priority) {
+      setIsInView(true);
+      return;
+    }
+
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) {
@@ -72,7 +80,7 @@ const LazyImage: React.FC<LazyImageProps> = ({
       },
       { 
         threshold: 0.1,
-        rootMargin: '100px'
+        rootMargin: priority ? '0px' : '100px' // Для приоритетных изображений убираем отступ
       }
     );
 
@@ -81,7 +89,7 @@ const LazyImage: React.FC<LazyImageProps> = ({
     }
 
     return () => observer.disconnect();
-  }, []);
+  }, [priority]);
 
   // Фоновая загрузка изображения
   useEffect(() => {
@@ -168,9 +176,10 @@ interface EventCardProps {
   onEventClick?: (event: DatabaseEvent) => void;
   onMapClick: (event: DatabaseEvent) => void;
   onImageLoad?: (eventId: string, success: boolean) => void;
+  priority?: boolean;
 }
 
-const EventCard: React.FC<EventCardProps> = React.memo(({ event, onEventClick, onMapClick, onImageLoad }) => {
+const EventCard: React.FC<EventCardProps> = React.memo(({ event, onEventClick, onMapClick, onImageLoad, priority = false }) => {
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     return date.toLocaleDateString('ru-RU', {
@@ -212,6 +221,7 @@ const EventCard: React.FC<EventCardProps> = React.memo(({ event, onEventClick, o
           fallbackGradient={getEventGradient(event)}
           eventId={event.id}
           onImageLoad={onImageLoad}
+          priority={priority}
         />
         
         {/* Статус */}
@@ -337,13 +347,14 @@ const EventsGrid: React.FC<{
 }> = React.memo(({ events, onEventClick, onMapClick, onImageLoad }) => {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-      {events.map((event) => (
+      {events.map((event, index) => (
         <EventCard
           key={event.id}
           event={event}
           onEventClick={onEventClick}
           onMapClick={onMapClick}
           onImageLoad={onImageLoad}
+          priority={index < 3} // Первые 3 события получают приоритет
         />
       ))}
     </div>
@@ -409,7 +420,7 @@ export const EventsList: React.FC<EventsListProps> = ({
   const [loadingTimings, setLoadingTimings] = useState<{[key: string]: number}>({});
   const [imageLoadStates, setImageLoadStates] = useState<Map<string, 'loading' | 'loaded' | 'error'>>(new Map());
   
-  const ITEMS_PER_PAGE = 5;
+  const ITEMS_PER_PAGE = 5; // 5 событий на странице + используем быстрые методы API для оптимальной производительности
   
   // Кэш для событий с пагинацией
   const eventsCache = useRef<Map<string, { data: DatabaseEvent[], timestamp: number, totalItems: number }>>(new Map());
@@ -566,8 +577,8 @@ export const EventsList: React.FC<EventsListProps> = ({
       
       switch (tab) {
         case 'all':
-          result = await EventService.getAll(ITEMS_PER_PAGE, offset);
-          markTiming('API: getAll');
+          result = await EventService.getAllFast(ITEMS_PER_PAGE, offset);
+          markTiming('API: getAllFast');
           
           const countCacheKey = `${tab}_total_count`;
           const countCached = eventsCache.current.get(countCacheKey);
@@ -587,8 +598,8 @@ export const EventsList: React.FC<EventsListProps> = ({
           break;
           
         case 'available':
-          result = await EventService.getAvailable(ITEMS_PER_PAGE, offset);
-          markTiming('API: getAvailable');
+          result = await EventService.getAvailableFast(ITEMS_PER_PAGE, offset);
+          markTiming('API: getAvailableFast');
           
           const availableCountCacheKey = `${tab}_total_count`;
           const availableCountCached = eventsCache.current.get(availableCountCacheKey);
@@ -617,8 +628,8 @@ export const EventsList: React.FC<EventsListProps> = ({
             }
             return [];
           }
-          result = await EventService.getUserEvents(user.id, ITEMS_PER_PAGE, offset);
-          markTiming('API: getUserEvents');
+          result = await EventService.getUserEventsFast(user.id, ITEMS_PER_PAGE, offset);
+          markTiming('API: getUserEventsFast');
           
           const myCountCacheKey = `${tab}_${user.id}_total_count`;
           const myCountCached = eventsCache.current.get(myCountCacheKey);
@@ -647,8 +658,8 @@ export const EventsList: React.FC<EventsListProps> = ({
             }
             return [];
           }
-          result = await EventService.getUserArchive(user.id, ITEMS_PER_PAGE, offset);
-          markTiming('API: getUserArchive');
+          result = await EventService.getUserArchiveFast(user.id, ITEMS_PER_PAGE, offset);
+          markTiming('API: getUserArchiveFast');
           
           const archiveCountCacheKey = `${tab}_${user.id}_total_count`;
           const archiveCountCached = eventsCache.current.get(archiveCountCacheKey);
@@ -668,8 +679,8 @@ export const EventsList: React.FC<EventsListProps> = ({
           break;
           
         default:
-          result = await EventService.getAll(ITEMS_PER_PAGE, offset);
-          markTiming('API: getAll (default)');
+          result = await EventService.getAllFast(ITEMS_PER_PAGE, offset);
+          markTiming('API: getAllFast (default)');
           
           totalCountResult = await EventService.getTotalCount();
           markTiming('API: getTotalCount (default)');
