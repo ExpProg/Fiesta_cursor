@@ -19,6 +19,7 @@ import { EventResponseButtons } from './EventResponseButtons';
 import { useTelegram } from './TelegramProvider';
 import { useYandexMetrika } from '@/hooks/useYandexMetrika';
 import { supabase } from '@/hooks/useSupabase';
+import { getEventStatus, formatEventPeriod } from '../utils/eventStatus';
 
 interface EventDetailModalProps {
   event: DatabaseEvent;
@@ -55,6 +56,8 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
     username: string | null;
   } | null>(null);
   const [loadingOrganizer, setLoadingOrganizer] = useState(false);
+  
+  const eventStatus = getEventStatus(updatedEvent);
   
   // Обновляем локальное состояние мероприятия при изменении props
   useEffect(() => {
@@ -300,12 +303,11 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
           {/* Статус мероприятия - скрывается при скролле */}
           {!isScrolled && (
             <div className="absolute top-4 left-4">
-              <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                updatedEvent.status === 'active' 
-                  ? 'bg-green-100 text-green-800' 
-                  : 'bg-gray-100 text-gray-600'
-              }`}>
-                {updatedEvent.status === 'active' ? 'Активно' : 'Завершено'}
+              <span 
+                className={`px-3 py-1 rounded-full text-sm font-medium border shadow-sm ${eventStatus.className}`}
+                title={eventStatus.description}
+              >
+                {eventStatus.label}
               </span>
             </div>
           )}
@@ -331,9 +333,14 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
           <div className="p-6">
             {/* Заголовок */}
             <div className="mb-6">
-              <h1 className="text-2xl font-bold text-gray-900 mb-2">
-                {updatedEvent.title}
-              </h1>
+              <div className="flex items-start justify-between mb-2">
+                <h1 className="text-2xl font-bold text-gray-900 flex-1">
+                  {updatedEvent.title}
+                </h1>
+                {eventStatus.status === 'active' && (
+                  <div className="ml-2 w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                )}
+              </div>
               
               {/* Основная информация */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
@@ -341,19 +348,12 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
                 <div className="flex items-center text-gray-600">
                   <Calendar className="w-5 h-5 mr-3 flex-shrink-0" />
                   <div>
-                    <div className="font-medium">{formatDate(updatedEvent.date)}</div>
+                    <div className="font-medium">{formatEventPeriod(updatedEvent)}</div>
                     {updatedEvent.event_time && (
                       <div className="text-sm text-gray-500">
                         начало в {formatTime(updatedEvent.event_time)}
-                        {(updatedEvent.end_date || updatedEvent.end_time) && (
-                          <>
-                            {updatedEvent.end_date && updatedEvent.end_date !== updatedEvent.date.split('T')[0] && (
-                              <div>до {formatDate(updatedEvent.end_date)}</div>
-                            )}
-                            {updatedEvent.end_time && (
-                              <div>окончание в {formatTime(updatedEvent.end_time)}</div>
-                            )}
-                          </>
+                        {updatedEvent.end_time && (
+                          <div>окончание в {formatTime(updatedEvent.end_time)}</div>
                         )}
                       </div>
                     )}

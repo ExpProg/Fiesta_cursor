@@ -6,6 +6,7 @@ import { useTelegramWebApp } from '@/hooks/useTelegramWebApp';
 import { useAdminStatus } from '@/hooks/useAdminStatus';
 import { TabNavigation, TabType } from './TabNavigation';
 import { Pagination } from './Pagination';
+import { getEventStatus, isEventCompleted, formatEventPeriod } from '../utils/eventStatus';
 import type { DatabaseEvent } from '@/types/database';
 import { Calendar, MapPin, Users, Star, Clock, Loader2 } from 'lucide-react';
 
@@ -180,6 +181,8 @@ interface EventCardProps {
 }
 
 const EventCard: React.FC<EventCardProps> = React.memo(({ event, onEventClick, onMapClick, onImageLoad, priority = false }) => {
+  const eventStatus = getEventStatus(event);
+  
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     return date.toLocaleDateString('ru-RU', {
@@ -227,12 +230,11 @@ const EventCard: React.FC<EventCardProps> = React.memo(({ event, onEventClick, o
         {/* Статус */}
         <div className="absolute top-3 right-3">
           <div className="flex flex-col gap-1">
-            <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-              event.status === 'active' 
-                ? 'bg-green-100 text-green-800' 
-                : 'bg-gray-100 text-gray-600'
-            }`}>
-              {event.status === 'active' ? 'Активно' : 'Завершено'}
+            <span 
+              className={`px-2 py-1 rounded-full text-xs font-medium border ${eventStatus.className}`}
+              title={eventStatus.description}
+            >
+              {eventStatus.label}
             </span>
             
             {event.is_private && (
@@ -265,10 +267,7 @@ const EventCard: React.FC<EventCardProps> = React.memo(({ event, onEventClick, o
             <Calendar className="w-4 h-4 mr-2 flex-shrink-0" />
             <div className="flex flex-col">
               <div>
-                {formatDate(event.date)}
-                {event.end_date && event.end_date !== event.date.split('T')[0] && (
-                  <span className="text-gray-400"> - {formatDate(event.end_date)}</span>
-                )}
+                {formatEventPeriod(event)}
               </div>
               {event.event_time && (
                 <div className="flex items-center mt-1">
@@ -689,6 +688,17 @@ export const EventsList: React.FC<EventsListProps> = ({
       let eventsData = result.data || [];
       
       markTiming('Получение событий');
+      
+      // Фильтруем события по статусу в зависимости от активной вкладки
+      if (tab === 'archive') {
+        // В архиве показываем только завершенные мероприятия
+        eventsData = eventsData.filter(event => isEventCompleted(event));
+      } else if (tab === 'my') {
+        // В "Мои мероприятия" показываем только активные и запланированные
+        eventsData = eventsData.filter(event => !isEventCompleted(event));
+      }
+      
+      markTiming('Фильтрация по статусу');
       
       const actualTotal = totalCountResult.data !== null ? totalCountResult.data : 
         (eventsData.length < ITEMS_PER_PAGE ? 
