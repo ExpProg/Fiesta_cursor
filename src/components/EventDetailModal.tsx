@@ -263,6 +263,27 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
             />
           )}
           
+          {/* Статус мероприятия */}
+          <div className="absolute top-3 left-3">
+            <div className="flex flex-col gap-1">
+              <span 
+                className={`px-2 py-1 rounded-full text-xs font-medium border shadow-sm ${eventStatus.className}`}
+                title={eventStatus.description}
+              >
+                {eventStatus.label}
+              </span>
+              
+              {updatedEvent.is_private && (
+                <span className="px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800 border border-purple-200 shadow-sm flex items-center">
+                  <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
+                  </svg>
+                  Частное
+                </span>
+              )}
+            </div>
+          </div>
+
           {/* Кнопки управления */}
           <div className="absolute top-4 right-4 flex gap-2">
             {/* Кнопки для создателя */}
@@ -298,27 +319,6 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
             >
               <X className="w-5 h-5" />
             </button>
-          </div>
-
-          {/* Статус мероприятия */}
-          <div className="absolute top-3 right-3">
-            <div className="flex flex-col gap-1">
-              <span 
-                className={`px-2 py-1 rounded-full text-xs font-medium border shadow-sm ${eventStatus.className}`}
-                title={eventStatus.description}
-              >
-                {eventStatus.label}
-              </span>
-              
-              {updatedEvent.is_private && (
-                <span className="px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800 border border-purple-200 shadow-sm flex items-center">
-                  <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
-                  </svg>
-                  Частное
-                </span>
-              )}
-            </div>
           </div>
 
           {/* Заголовок при скролле */}
