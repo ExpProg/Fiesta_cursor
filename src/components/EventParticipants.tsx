@@ -145,22 +145,22 @@ export const EventParticipants: React.FC<EventParticipantsProps> = ({
             </div>
           ) : allResponses.length > 0 ? (
             <div className="space-y-2">
-              <div className="flex items-center justify-between mb-3">
-                <h4 className="font-medium text-gray-900">
+              <div className="mb-3">
+                <h4 className="font-medium text-gray-900 mb-2">
                   Все отклики ({allResponses.length})
                 </h4>
-                <div className="flex gap-3 text-xs">
-                  <span className="flex items-center text-green-600">
+                <div className="flex flex-wrap gap-2 text-xs">
+                  <span className="flex items-center text-green-700 bg-green-50 px-2 py-1 rounded-full border border-green-200">
                     <Check className="w-3 h-3 mr-1" />
                     {attendingCount} идут
                   </span>
                   {maybeCount > 0 && (
-                    <span className="flex items-center text-yellow-600">
+                    <span className="flex items-center text-yellow-700 bg-yellow-50 px-2 py-1 rounded-full border border-yellow-200">
                       <Clock className="w-3 h-3 mr-1" />
                       {maybeCount} возможно
                     </span>
                   )}
-                  <span className="flex items-center text-red-600">
+                  <span className="flex items-center text-red-700 bg-red-50 px-2 py-1 rounded-full border border-red-200">
                     <X className="w-3 h-3 mr-1" />
                     {notAttendingCount} не идут
                   </span>
