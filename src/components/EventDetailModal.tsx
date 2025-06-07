@@ -57,8 +57,8 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
   } | null>(null);
   const [loadingOrganizer, setLoadingOrganizer] = useState(false);
   
-  // Пересчитываем статус при изменении updatedEvent
-  const eventStatus = useMemo(() => getEventStatus(updatedEvent), [updatedEvent]);
+  // Используем оригинальное событие для определения статуса (как в списке)
+  const eventStatus = getEventStatus(event);
   
   
   // Обновляем локальное состояние мероприятия при изменении props
@@ -265,12 +265,13 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
             />
           )}
           
-          {/* Статус мероприятия */}
-          <div className="absolute top-3 left-3">
-            <div className="flex flex-col gap-1">
+          {/* Статус мероприятия и кнопки управления */}
+          <div className="absolute top-3 right-3 flex flex-col items-end gap-2">
+            {/* Статус мероприятия */}
+            <div className="flex flex-col gap-1 items-end">
               <span 
                 className={`px-2 py-1 rounded-full text-xs font-medium border shadow-sm ${eventStatus.className}`}
-                title={eventStatus.description}
+                title={`${eventStatus.description} | Дата: ${event.date} | Сегодня: ${new Date().toISOString().split('T')[0]}`}
               >
                 {eventStatus.label}
               </span>
@@ -284,43 +285,43 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
                 </span>
               )}
             </div>
-          </div>
 
-          {/* Кнопки управления */}
-          <div className="absolute top-4 right-4 flex gap-2">
-            {/* Кнопки для создателя */}
-            {isCreator && (
-              <>
-                <button
-                  onClick={() => onEdit && onEdit(event)}
-                  className="bg-black/50 text-white p-2 rounded-full hover:bg-orange-600 transition-colors"
-                  title="Редактировать мероприятие"
-                >
-                  <Edit className="w-4 h-4" />
-                </button>
-                
-                <button
-                  onClick={() => {
-                    if (window.confirm('Вы уверены, что хотите удалить это мероприятие? Это действие нельзя отменить.')) {
-                      onDelete && onDelete(event.id);
-                    }
-                  }}
-                  className="bg-black/50 text-white p-2 rounded-full hover:bg-red-600 transition-colors"
-                  title="Удалить мероприятие"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              </>
-            )}
-            
-            {/* Кнопка закрытия */}
-            <button
-              onClick={onClose}
-              className="bg-black/50 text-white p-2 rounded-full hover:bg-black/70 transition-colors"
-              title="Закрыть"
-            >
-              <X className="w-5 h-5" />
-            </button>
+            {/* Кнопки управления */}
+            <div className="flex gap-2">
+              {/* Кнопки для создателя */}
+              {isCreator && (
+                <>
+                  <button
+                    onClick={() => onEdit && onEdit(event)}
+                    className="bg-black/50 text-white p-2 rounded-full hover:bg-orange-600 transition-colors"
+                    title="Редактировать мероприятие"
+                  >
+                    <Edit className="w-4 h-4" />
+                  </button>
+                  
+                  <button
+                    onClick={() => {
+                      if (window.confirm('Вы уверены, что хотите удалить это мероприятие? Это действие нельзя отменить.')) {
+                        onDelete && onDelete(event.id);
+                      }
+                    }}
+                    className="bg-black/50 text-white p-2 rounded-full hover:bg-red-600 transition-colors"
+                    title="Удалить мероприятие"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </>
+              )}
+              
+              {/* Кнопка закрытия */}
+              <button
+                onClick={onClose}
+                className="bg-black/50 text-white p-2 rounded-full hover:bg-black/70 transition-colors"
+                title="Закрыть"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
           </div>
 
           {/* Заголовок при скролле */}
