@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import type { DatabaseEvent, ResponseStatus } from '@/types/database';
 import { 
   Calendar, 
@@ -57,9 +57,9 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
   } | null>(null);
   const [loadingOrganizer, setLoadingOrganizer] = useState(false);
   
-  const eventStatus = getEventStatus(event);
+  // Пересчитываем статус при изменении updatedEvent
+  const eventStatus = useMemo(() => getEventStatus(updatedEvent), [updatedEvent]);
   
-  // Логирование для отладки статуса
   
   // Обновляем локальное состояние мероприятия при изменении props
   useEffect(() => {
