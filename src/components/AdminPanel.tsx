@@ -166,7 +166,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, onEditEvent }) =
                 setCurrentView('dashboard');
                 reachGoal('admin_tab_clicked', { tab: 'dashboard' });
               }}
-              className={`flex items-center gap-2 px-6 py-4 font-medium transition-colors ${
+              className={`flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors ${
                 currentView === 'dashboard'
                   ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50'
                   : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
@@ -181,7 +181,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, onEditEvent }) =
                 setCurrentView('events');
                 reachGoal('admin_tab_clicked', { tab: 'events' });
               }}
-              className={`flex items-center gap-2 px-6 py-4 font-medium transition-colors ${
+              className={`flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors whitespace-nowrap ${
                 currentView === 'events'
                   ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50'
                   : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
