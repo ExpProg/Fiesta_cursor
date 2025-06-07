@@ -407,7 +407,7 @@ export const EventsList: React.FC<EventsListProps> = ({
   const { reachGoal } = useYandexMetrika();
   const { isAdmin, isLoading: adminLoading } = useAdminStatus();
   
-  const [activeTab, setActiveTab] = useState<TabType>('all');
+  const [activeTab, setActiveTab] = useState<TabType>('my');
   const [events, setEvents] = useState<DatabaseEvent[]>([]);
   const [loading, setLoading] = useState(false);
   const [pageLoading, setPageLoading] = useState(false);
@@ -448,8 +448,6 @@ export const EventsList: React.FC<EventsListProps> = ({
   // Мемоизированная функция получения заголовка вкладки
   const getTabTitle = useCallback((tab: TabType): string => {
     switch (tab) {
-      case 'all': return 'Все мероприятия';
-      case 'available': return 'Доступные мероприятия';
       case 'my': return 'Мои мероприятия';
       case 'archive': return 'Архив мероприятий';
       default: return 'Мероприятия';
@@ -459,18 +457,6 @@ export const EventsList: React.FC<EventsListProps> = ({
   // Мемоизированная функция получения пустого состояния
   const getEmptyStateMessage = useCallback((tab: TabType) => {
     switch (tab) {
-      case 'all':
-        return {
-          icon: '🎉',
-          title: 'Пока нет мероприятий',
-          subtitle: 'Скоро здесь появятся интересные события!'
-        };
-      case 'available':
-        return {
-          icon: '🔍',
-          title: 'Нет доступных мероприятий',
-          subtitle: 'Все места заняты или мероприятия завершены'
-        };
       case 'my':
         return {
           icon: '📋',
@@ -485,9 +471,9 @@ export const EventsList: React.FC<EventsListProps> = ({
         };
       default:
         return {
-          icon: '🎉',
-          title: 'Пока нет мероприятий',
-          subtitle: 'Скоро здесь появятся интересные события!'
+          icon: '📋',
+          title: 'У вас пока нет мероприятий',
+          subtitle: 'Создайте свое первое мероприятие!'
         };
     }
   }, []);
@@ -576,48 +562,6 @@ export const EventsList: React.FC<EventsListProps> = ({
       const apiStartTime = performance.now();
       
       switch (tab) {
-        case 'all':
-          result = await EventService.getAllFast(ITEMS_PER_PAGE, offset);
-          markTiming('API: getAllFast');
-          
-          const countCacheKey = `${tab}_total_count`;
-          const countCached = eventsCache.current.get(countCacheKey);
-          if (!forceRefresh && countCached && (now - countCached.timestamp) < CACHE_DURATION * 2) {
-            totalCountResult = { data: countCached.totalItems, error: null };
-          } else {
-            totalCountResult = await EventService.getTotalCount();
-            if (totalCountResult.data !== null) {
-              eventsCache.current.set(countCacheKey, {
-                data: [],
-                timestamp: now,
-                totalItems: totalCountResult.data
-              });
-            }
-          }
-          markTiming('API: getTotalCount');
-          break;
-          
-        case 'available':
-          result = await EventService.getAvailableFast(ITEMS_PER_PAGE, offset);
-          markTiming('API: getAvailableFast');
-          
-          const availableCountCacheKey = `${tab}_total_count`;
-          const availableCountCached = eventsCache.current.get(availableCountCacheKey);
-          if (!forceRefresh && availableCountCached && (now - availableCountCached.timestamp) < CACHE_DURATION * 2) {
-            totalCountResult = { data: availableCountCached.totalItems, error: null };
-          } else {
-            totalCountResult = await EventService.getAvailableTotalCount();
-            if (totalCountResult.data !== null) {
-              eventsCache.current.set(availableCountCacheKey, {
-                data: [],
-                timestamp: now,
-                totalItems: totalCountResult.data
-              });
-            }
-          }
-          markTiming('API: getAvailableTotalCount');
-          break;
-          
         case 'my':
           if (!user?.id) {
             if (!silent) {
@@ -679,11 +623,20 @@ export const EventsList: React.FC<EventsListProps> = ({
           break;
           
         default:
-          result = await EventService.getAllFast(ITEMS_PER_PAGE, offset);
-          markTiming('API: getAllFast (default)');
+          if (!user?.id) {
+            if (!silent) {
+              setEvents([]);
+              setTotalItems(0);
+              setLoading(false);
+              setPageLoading(false);
+            }
+            return [];
+          }
+          result = await EventService.getUserEventsFast(user.id, ITEMS_PER_PAGE, offset);
+          markTiming('API: getUserEventsFast (default)');
           
-          totalCountResult = await EventService.getTotalCount();
-          markTiming('API: getTotalCount (default)');
+          totalCountResult = await EventService.getUserEventsTotalCount(user.id);
+          markTiming('API: getUserEventsTotalCount (default)');
       }
 
       const apiEndTime = performance.now();
@@ -702,14 +655,7 @@ export const EventsList: React.FC<EventsListProps> = ({
 
       let eventsData = result.data || [];
       
-      // Фильтрация частных мероприятий
-      if (tab === 'all' || tab === 'available') {
-        eventsData = eventsData.filter(event => 
-          !event.is_private || (user?.id && event.created_by === user.id)
-        );
-      }
-      
-      markTiming('Фильтрация событий');
+      markTiming('Получение событий');
       
       const actualTotal = totalCountResult.data !== null ? totalCountResult.data : 
         (eventsData.length < ITEMS_PER_PAGE ? 
