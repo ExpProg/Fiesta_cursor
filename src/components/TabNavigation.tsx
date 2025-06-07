@@ -15,7 +15,7 @@ interface TabNavigationProps {
 }
 
 const tabs: Tab[] = [
-  { id: 'my', label: 'Мои', icon: '' },
+  { id: 'my', label: 'Актуальное', icon: '' },
   { id: 'archive', label: 'Архив', icon: '' }
 ];
 
