@@ -239,7 +239,7 @@ export const EventResponseButtons: React.FC<EventResponseButtonsProps> = ({
             </div>
           )}
           
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-3 gap-2">
             {/* Кнопка "Буду" */}
             <button
               onClick={() => {
@@ -251,13 +251,35 @@ export const EventResponseButtons: React.FC<EventResponseButtonsProps> = ({
             >
               {submitting === 'attending' ? (
                 <div className="flex items-center justify-center">
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current mr-2"></div>
-                  Отправка...
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current mr-1"></div>
+                  <span className="text-xs">Отправка...</span>
                 </div>
               ) : (
                 <div className="flex items-center justify-center">
-                  <Check className="w-4 h-4 mr-2" />
-                  Буду
+                  <Check className="w-4 h-4 mr-1" />
+                  <span className="text-sm">Буду</span>
+                </div>
+              )}
+            </button>
+
+            {/* Кнопка "Возможно" */}
+            <button
+              onClick={() => {
+                handleResponse('maybe');
+                setShowChangeOptions(false);
+              }}
+              disabled={submitting !== null || loading}
+              className={getResponseButtonClass('maybe', userResponse, loading)}
+            >
+              {submitting === 'maybe' ? (
+                <div className="flex items-center justify-center">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current mr-1"></div>
+                  <span className="text-xs">Отправка...</span>
+                </div>
+              ) : (
+                <div className="flex items-center justify-center">
+                  <Clock className="w-4 h-4 mr-1" />
+                  <span className="text-sm">Возможно</span>
                 </div>
               )}
             </button>
@@ -273,13 +295,13 @@ export const EventResponseButtons: React.FC<EventResponseButtonsProps> = ({
             >
               {submitting === 'not_attending' ? (
                 <div className="flex items-center justify-center">
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current mr-2"></div>
-                  Отправка...
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current mr-1"></div>
+                  <span className="text-xs">Отправка...</span>
                 </div>
               ) : (
                 <div className="flex items-center justify-center">
-                  <X className="w-4 h-4 mr-2" />
-                  Не буду
+                  <X className="w-4 h-4 mr-1" />
+                  <span className="text-sm">Не буду</span>
                 </div>
               )}
             </button>

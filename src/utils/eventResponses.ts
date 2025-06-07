@@ -241,8 +241,8 @@ export function canUserRespond(
     return false;
   }
 
-  // Если пользователь уже откликнулся как "буду", он может изменить ответ
-  if (userResponse === 'attending') {
+  // Если пользователь уже откликнулся как "буду" или "возможно", он может изменить ответ
+  if (userResponse === 'attending' || userResponse === 'maybe') {
     return true;
   }
 

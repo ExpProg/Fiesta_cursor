@@ -3,7 +3,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { Users, Eye, EyeOff, Check, X } from 'lucide-react';
+import { Users, Eye, EyeOff, Check, X, Clock } from 'lucide-react';
 import { getAllEventResponses, formatParticipantName } from '@/utils/eventResponses';
 import { useYandexMetrika } from '@/hooks/useYandexMetrika';
 import type { EventParticipant, EventResponse } from '@/types/database';
@@ -84,6 +84,7 @@ export const EventParticipants: React.FC<EventParticipantsProps> = ({
 
   // Подсчитываем статистику
   const attendingCount = allResponses.filter(p => p.response_status === 'attending').length;
+  const maybeCount = allResponses.filter(p => p.response_status === 'maybe').length;
   const notAttendingCount = allResponses.filter(p => p.response_status === 'not_attending').length;
 
   return (
@@ -148,11 +149,17 @@ export const EventParticipants: React.FC<EventParticipantsProps> = ({
                 <h4 className="font-medium text-gray-900">
                   Все отклики ({allResponses.length})
                 </h4>
-                <div className="flex gap-4 text-xs">
+                <div className="flex gap-3 text-xs">
                   <span className="flex items-center text-green-600">
                     <Check className="w-3 h-3 mr-1" />
                     {attendingCount} идут
                   </span>
+                  {maybeCount > 0 && (
+                    <span className="flex items-center text-yellow-600">
+                      <Clock className="w-3 h-3 mr-1" />
+                      {maybeCount} возможно
+                    </span>
+                  )}
                   <span className="flex items-center text-red-600">
                     <X className="w-3 h-3 mr-1" />
                     {notAttendingCount} не идут
@@ -164,6 +171,7 @@ export const EventParticipants: React.FC<EventParticipantsProps> = ({
                 {allResponses.map((participant, index) => {
                   const isOrganizer = organizerTelegramId === participant.telegram_id;
                   const isAttending = participant.response_status === 'attending';
+                  const isMaybe = participant.response_status === 'maybe';
                   
                   return (
                     <div
@@ -173,6 +181,8 @@ export const EventParticipants: React.FC<EventParticipantsProps> = ({
                           ? 'bg-blue-50 border-blue-200' 
                           : isAttending 
                           ? 'bg-green-50 border-green-200' 
+                          : isMaybe
+                          ? 'bg-yellow-50 border-yellow-200'
                           : 'bg-red-50 border-red-200'
                       }`}
                     >
@@ -182,6 +192,8 @@ export const EventParticipants: React.FC<EventParticipantsProps> = ({
                           ? 'bg-blue-200' 
                           : isAttending 
                           ? 'bg-green-200' 
+                          : isMaybe
+                          ? 'bg-yellow-200'
                           : 'bg-red-200'
                       }`}>
                         <span className={`font-medium ${
@@ -189,6 +201,8 @@ export const EventParticipants: React.FC<EventParticipantsProps> = ({
                             ? 'text-blue-700' 
                             : isAttending 
                             ? 'text-green-700' 
+                            : isMaybe
+                            ? 'text-yellow-700'
                             : 'text-red-700'
                         }`}>
                           {participant.first_name.charAt(0).toUpperCase()}
@@ -220,12 +234,17 @@ export const EventParticipants: React.FC<EventParticipantsProps> = ({
                       {/* Статус и время отклика */}
                       <div className="flex flex-col items-end ml-2 flex-shrink-0">
                         <div className={`flex items-center text-sm font-medium ${
-                          isAttending ? 'text-green-700' : 'text-red-700'
+                          isAttending ? 'text-green-700' : isMaybe ? 'text-yellow-700' : 'text-red-700'
                         }`}>
                           {isAttending ? (
                             <>
                               <Check className="w-4 h-4 mr-1" />
                               Идет
+                            </>
+                          ) : isMaybe ? (
+                            <>
+                              <Clock className="w-4 h-4 mr-1" />
+                              Возможно
                             </>
                           ) : (
                             <>
