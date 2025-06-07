@@ -249,20 +249,20 @@ export const EventCard: React.FC<EventCardProps> = React.memo(({
           {/* Дата и время */}
           <div className="flex items-center text-gray-500 text-sm">
             <Calendar className="w-4 h-4 mr-2 flex-shrink-0" />
-            <div className="flex flex-col">
-              <div>
+            <div className="flex items-center gap-2">
+              <span>
                 {formatEventPeriod(event)}
-              </div>
+              </span>
               {event.event_time && (
-                <div className="flex items-center mt-1">
-                  <Clock className="w-3 h-3 mr-1 flex-shrink-0" />
+                <>
+                  <Clock className="w-3 h-3 flex-shrink-0" />
                   <span>
                     {formatTime(event.event_time)}
                     {event.end_time && (
                       <span className="text-gray-400"> - {formatTime(event.end_time)}</span>
                     )}
                   </span>
-                </div>
+                </>
               )}
             </div>
           </div>
