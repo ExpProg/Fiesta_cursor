@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { AdminService } from '@/services/adminService';
 import { useAdminStatus } from '@/hooks/useAdminStatus';
 import { useYandexMetrika } from '@/hooks/useYandexMetrika';
+import { EventManagement } from './EventManagement';
 import { 
   Shield, 
   Users, 
@@ -11,11 +12,14 @@ import {
   MessageSquare,
   ArrowLeft,
   Loader2,
-  AlertTriangle
+  AlertTriangle,
+  Settings
 } from 'lucide-react';
+import type { DatabaseEvent } from '@/types/database';
 
 interface AdminPanelProps {
   onBack: () => void;
+  onEditEvent?: (event: DatabaseEvent) => void;
 }
 
 interface AdminStats {
@@ -27,12 +31,15 @@ interface AdminStats {
   totalAdmins: number;
 }
 
-export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
+type AdminView = 'dashboard' | 'events';
+
+export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, onEditEvent }) => {
   const { isAdmin, isLoading: adminLoading } = useAdminStatus();
   const { reachGoal } = useYandexMetrika();
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [currentView, setCurrentView] = useState<AdminView>('dashboard');
 
   // Загрузка статистики
   useEffect(() => {
@@ -151,99 +158,139 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
 
       {/* Основной контент */}
       <main className="max-w-6xl mx-auto px-4 py-8">
-        {loading ? (
-          <div className="flex items-center justify-center py-12">
-            <div className="flex items-center gap-3">
-              <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
-              <span className="text-gray-600">Загрузка статистики...</span>
-            </div>
-          </div>
-        ) : error ? (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
-            <AlertTriangle className="w-12 h-12 text-red-500 mx-auto mb-3" />
-            <h3 className="text-lg font-semibold text-red-800 mb-2">
-              Ошибка загрузки
-            </h3>
-            <p className="text-red-600 mb-4">{error}</p>
+        {/* Навигация по разделам */}
+        <div className="bg-white rounded-lg shadow-md mb-8">
+          <div className="flex border-b border-gray-200">
             <button
-              onClick={() => window.location.reload()}
-              className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors"
+              onClick={() => {
+                setCurrentView('dashboard');
+                reachGoal('admin_tab_clicked', { tab: 'dashboard' });
+              }}
+              className={`flex items-center gap-2 px-6 py-4 font-medium transition-colors ${
+                currentView === 'dashboard'
+                  ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50'
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+              }`}
             >
-              Обновить страницу
+              <Activity className="w-4 h-4" />
+              Дашборд
+            </button>
+            
+            <button
+              onClick={() => {
+                setCurrentView('events');
+                reachGoal('admin_tab_clicked', { tab: 'events' });
+              }}
+              className={`flex items-center gap-2 px-6 py-4 font-medium transition-colors ${
+                currentView === 'events'
+                  ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50'
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+              }`}
+            >
+              <Calendar className="w-4 h-4" />
+              Управление мероприятиями
             </button>
           </div>
-        ) : stats ? (
-          <div className="space-y-8">
-            {/* Статистика */}
-            <div>
-              <h2 className="text-2xl font-bold text-gray-900 mb-6">Общая статистика</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                <StatCard
-                  title="Всего пользователей"
-                  value={stats.totalUsers}
-                  icon={<Users />}
-                  color="#3B82F6"
-                />
-                <StatCard
-                  title="Всего мероприятий"
-                  value={stats.totalEvents}
-                  icon={<Calendar />}
-                  color="#10B981"
-                />
-                <StatCard
-                  title="Активные мероприятия"
-                  value={stats.totalActiveEvents}
-                  icon={<Activity />}
-                  color="#F59E0B"
-                />
-                <StatCard
-                  title="Частные мероприятия"
-                  value={stats.totalPrivateEvents}
-                  icon={<Lock />}
-                  color="#8B5CF6"
-                />
-                <StatCard
-                  title="Всего откликов"
-                  value={stats.totalResponses}
-                  icon={<MessageSquare />}
-                  color="#EF4444"
-                />
-                <StatCard
-                  title="Администраторов"
-                  value={stats.totalAdmins}
-                  icon={<Shield />}
-                  color="#DC2626"
-                />
+        </div>
+
+        {/* Контент в зависимости от выбранной вкладки */}
+        {currentView === 'dashboard' ? (
+          loading ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="flex items-center gap-3">
+                <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
+                <span className="text-gray-600">Загрузка статистики...</span>
               </div>
             </div>
-
-            {/* Дополнительная информация */}
-            <div className="bg-white rounded-lg shadow-md p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                Информация о системе
+          ) : error ? (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
+              <AlertTriangle className="w-12 h-12 text-red-500 mx-auto mb-3" />
+              <h3 className="text-lg font-semibold text-red-800 mb-2">
+                Ошибка загрузки
               </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <h4 className="text-sm font-medium text-gray-600 mb-2">Последние обновления</h4>
-                  <ul className="text-sm text-gray-500 space-y-1">
-                    <li>• Добавлена поддержка многодневных мероприятий</li>
-                    <li>• Реализована система администрирования</li>
-                    <li>• Улучшена производительность загрузки</li>
-                    <li>• Исправлены ошибки с частными мероприятиями</li>
-                  </ul>
+              <p className="text-red-600 mb-4">{error}</p>
+              <button
+                onClick={() => window.location.reload()}
+                className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors"
+              >
+                Обновить страницу
+              </button>
+            </div>
+          ) : stats ? (
+            <div className="space-y-8">
+              {/* Статистика */}
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900 mb-6">Общая статистика</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  <StatCard
+                    title="Всего пользователей"
+                    value={stats.totalUsers}
+                    icon={<Users />}
+                    color="#3B82F6"
+                  />
+                  <StatCard
+                    title="Всего мероприятий"
+                    value={stats.totalEvents}
+                    icon={<Calendar />}
+                    color="#10B981"
+                  />
+                  <StatCard
+                    title="Активные мероприятия"
+                    value={stats.totalActiveEvents}
+                    icon={<Activity />}
+                    color="#F59E0B"
+                  />
+                  <StatCard
+                    title="Частные мероприятия"
+                    value={stats.totalPrivateEvents}
+                    icon={<Lock />}
+                    color="#8B5CF6"
+                  />
+                  <StatCard
+                    title="Всего откликов"
+                    value={stats.totalResponses}
+                    icon={<MessageSquare />}
+                    color="#EF4444"
+                  />
+                  <StatCard
+                    title="Администраторов"
+                    value={stats.totalAdmins}
+                    icon={<Shield />}
+                    color="#DC2626"
+                  />
                 </div>
-                <div>
-                  <h4 className="text-sm font-medium text-gray-600 mb-2">Версия системы</h4>
-                  <div className="text-sm text-gray-500 space-y-1">
-                    <div>Fiesta v2.0.0</div>
-                    <div>React {React.version}</div>
-                    <div>Telegram WebApp API</div>
-                    <div>Supabase Backend</div>
+              </div>
+
+              {/* Дополнительная информация */}
+              <div className="bg-white rounded-lg shadow-md p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                  Информация о системе
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-600 mb-2">Последние обновления</h4>
+                    <ul className="text-sm text-gray-500 space-y-1">
+                      <li>• Добавлена поддержка многодневных мероприятий</li>
+                      <li>• Реализована система администрирования</li>
+                      <li>• Улучшена производительность загрузки</li>
+                      <li>• Исправлены ошибки с частными мероприятиями</li>
+                    </ul>
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-600 mb-2">Версия системы</h4>
+                    <div className="text-sm text-gray-500 space-y-1">
+                      <div>Fiesta v2.0.0</div>
+                      <div>React {React.version}</div>
+                      <div>Telegram WebApp API</div>
+                      <div>Supabase Backend</div>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
-          </div>
+          ) : null
+        ) : currentView === 'events' ? (
+          <EventManagement onEditEvent={onEditEvent} />
         ) : null}
       </main>
     </div>

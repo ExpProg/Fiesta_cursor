@@ -249,6 +249,11 @@ function AppContent() {
             setShowAdminPanel(false);
             impactOccurred('light');
           }}
+          onEditEvent={(event) => {
+            setEditingEvent(event);
+            setShowAdminPanel(false);
+            impactOccurred('light');
+          }}
         />
       ) : /* Если показываем дэшборд */
       showDashboard ? (

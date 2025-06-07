@@ -1739,6 +1739,118 @@ export class EventService {
       };
     }
   }
+
+  /**
+   * Получить все мероприятия для администратора (без ограничений)
+   */
+  static async getAllForAdmin(
+    offset: number = 0, 
+    limit: number = 20,
+    searchTerm?: string,
+    status?: 'active' | 'completed'
+  ): Promise<ApiResponse<DatabaseEvent[]>> {
+    try {
+      console.log(`🔑 EventService.getAllForAdmin fetching events (offset: ${offset}, limit: ${limit})`);
+      
+      // Строим запрос
+      let query = supabase
+        .from('events')
+        .select(`
+          id,
+          title,
+          description,
+          image_url,
+          gradient_background,
+          date,
+          event_time,
+          end_date,
+          end_time,
+          location,
+          map_url,
+          max_participants,
+          current_participants,
+          status,
+          is_private,
+          created_by,
+          host_id,
+          created_at,
+          updated_at
+        `)
+        .order('created_at', { ascending: false });
+      
+      // Добавляем фильтр по поиску
+      if (searchTerm && searchTerm.trim()) {
+        query = query.or(`title.ilike.%${searchTerm.trim()}%,description.ilike.%${searchTerm.trim()}%`);
+      }
+      
+      // Добавляем фильтр по статусу
+      if (status) {
+        query = query.eq('status', status);
+      }
+      
+      // Добавляем лимит и оффсет
+      query = query.range(offset, offset + limit - 1);
+      
+      const { data, error } = await query;
+
+      if (error) {
+        console.error('❌ Supabase error in getAllForAdmin:', error);
+        throw error;
+      }
+
+      console.log(`✅ Admin fetched ${data?.length || 0} events`);
+      return { data: data || [], error: null };
+    } catch (error) {
+      console.error('❌ Error in getAllForAdmin:', error);
+      return { 
+        data: null, 
+        error: { message: `Не удалось загрузить мероприятия: ${this.getErrorMessage(error)}` } 
+      };
+    }
+  }
+
+  /**
+   * Получить общее количество мероприятий для администратора
+   */
+  static async getTotalCountForAdmin(
+    searchTerm?: string,
+    status?: 'active' | 'completed'
+  ): Promise<ApiResponse<number>> {
+    try {
+      console.log('🔑 EventService.getTotalCountForAdmin counting events');
+      
+      // Строим запрос для подсчета
+      let query = supabase
+        .from('events')
+        .select('*', { count: 'exact', head: true });
+      
+      // Добавляем фильтр по поиску
+      if (searchTerm && searchTerm.trim()) {
+        query = query.or(`title.ilike.%${searchTerm.trim()}%,description.ilike.%${searchTerm.trim()}%`);
+      }
+      
+      // Добавляем фильтр по статусу
+      if (status) {
+        query = query.eq('status', status);
+      }
+      
+      const { count, error } = await query;
+
+      if (error) {
+        console.error('❌ Supabase error in getTotalCountForAdmin:', error);
+        throw error;
+      }
+
+      console.log(`✅ Admin total events count: ${count || 0}`);
+      return { data: count || 0, error: null };
+    } catch (error) {
+      console.error('❌ Error in getTotalCountForAdmin:', error);
+      return { 
+        data: null, 
+        error: { message: `Не удалось подсчитать мероприятия: ${this.getErrorMessage(error)}` } 
+      };
+    }
+  }
 }
 
 // Экспортируем экземпляр для удобства
