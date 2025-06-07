@@ -966,6 +966,82 @@ export class EventService {
   }
 
   /**
+   * Получить общее количество мероприятий пользователя включая те, на которые он откликнулся
+   */
+  static async getUserEventsWithResponsesTotalCount(telegramId: number): Promise<ApiResponse<number>> {
+    try {
+      console.log(`🔍 EventService.getUserEventsWithResponsesTotalCount counting for user: ${telegramId}`);
+      
+      // Создаем два параллельных запроса для подсчета
+      const [createdCountPromise, respondedCountPromise] = await Promise.all([
+        // 1. Считаем созданные пользователем события
+        supabase
+          .from('events')
+          .select('*', { count: 'exact', head: true })
+          .eq('created_by', telegramId)
+          .gte('date', new Date().toISOString().split('T')[0]),
+
+        // 2. Считаем события, на которые пользователь откликнулся
+        supabase
+          .from('events')
+          .select(`
+            *,
+            event_responses!inner(user_telegram_id, response_status)
+          `, { count: 'exact', head: true })
+          .eq('event_responses.user_telegram_id', telegramId)
+          .eq('event_responses.response_status', 'attending')
+          .gte('date', new Date().toISOString().split('T')[0])
+      ]);
+
+      if (createdCountPromise.error) {
+        console.error('❌ Error counting created events:', createdCountPromise.error);
+        throw createdCountPromise.error;
+      }
+
+      if (respondedCountPromise.error) {
+        console.error('❌ Error counting responded events:', respondedCountPromise.error);
+        throw respondedCountPromise.error;
+      }
+
+      const createdCount = createdCountPromise.count || 0;
+      const respondedCount = respondedCountPromise.count || 0;
+
+      // Для точного подсчета нужно исключить дубликаты
+      // Получаем ID событий где пользователь и создатель и откликнулся
+      const { data: duplicates, error: duplicatesError } = await supabase
+        .from('events')
+        .select(`
+          id,
+          event_responses!inner(user_telegram_id, response_status)
+        `)
+        .eq('created_by', telegramId)
+        .eq('event_responses.user_telegram_id', telegramId)
+        .eq('event_responses.response_status', 'attending')
+        .gte('date', new Date().toISOString().split('T')[0]);
+
+      if (duplicatesError) {
+        console.warn('⚠️ Error getting duplicates, using approximate count:', duplicatesError);
+        // Если не можем получить дубликаты, используем приблизительный подсчет
+        const totalCount = Math.max(createdCount, respondedCount);
+        console.log(`✅ User events total count (approximate): ${totalCount}`);
+        return { data: totalCount, error: null };
+      }
+
+      const duplicateCount = duplicates?.length || 0;
+      const totalCount = createdCount + respondedCount - duplicateCount;
+
+      console.log(`✅ User events total count: ${totalCount} (${createdCount} created + ${respondedCount} responded - ${duplicateCount} duplicates)`);
+      return { data: totalCount, error: null };
+    } catch (error) {
+      console.error('❌ Error counting user events with responses:', error);
+      return { 
+        data: null, 
+        error: { message: `Не удалось получить количество мероприятий пользователя: ${this.getErrorMessage(error)}` } 
+      };
+    }
+  }
+
+  /**
    * Получить общее количество архивных мероприятий пользователя
    */
   static async getUserArchiveTotalCount(telegramId: number): Promise<ApiResponse<number>> {
@@ -1021,6 +1097,80 @@ export class EventService {
       return { data: totalCount, error: null };
     } catch (error) {
       console.error('❌ Error counting archive events:', error);
+      return { 
+        data: null, 
+        error: { message: `Не удалось получить количество архивных мероприятий: ${this.getErrorMessage(error)}` } 
+      };
+    }
+  }
+
+  /**
+   * Получить общее количество архивных мероприятий пользователя включая те, на которые он откликнулся
+   */
+  static async getUserArchiveWithResponsesTotalCount(telegramId: number): Promise<ApiResponse<number>> {
+    try {
+      console.log(`🔍 EventService.getUserArchiveWithResponsesTotalCount counting for user: ${telegramId}`);
+      
+      // Создаем два параллельных запроса для подсчета архивных событий
+      const [createdCountPromise, respondedCountPromise] = await Promise.all([
+        // 1. Считаем созданные пользователем архивные события
+        supabase
+          .from('events')
+          .select('*', { count: 'exact', head: true })
+          .eq('created_by', telegramId)
+          .lt('date', new Date().toISOString().split('T')[0]),
+
+        // 2. Считаем архивные события, на которые пользователь откликнулся
+        supabase
+          .from('events')
+          .select(`
+            *,
+            event_responses!inner(user_telegram_id, response_status)
+          `, { count: 'exact', head: true })
+          .eq('event_responses.user_telegram_id', telegramId)
+          .eq('event_responses.response_status', 'attending')
+          .lt('date', new Date().toISOString().split('T')[0])
+      ]);
+
+      if (createdCountPromise.error) {
+        console.error('❌ Error counting created archive events:', createdCountPromise.error);
+        throw createdCountPromise.error;
+      }
+
+      if (respondedCountPromise.error) {
+        console.error('❌ Error counting responded archive events:', respondedCountPromise.error);
+        throw respondedCountPromise.error;
+      }
+
+      const createdCount = createdCountPromise.count || 0;
+      const respondedCount = respondedCountPromise.count || 0;
+
+      // Для точного подсчета нужно исключить дубликаты в архиве
+      const { data: duplicates, error: duplicatesError } = await supabase
+        .from('events')
+        .select(`
+          id,
+          event_responses!inner(user_telegram_id, response_status)
+        `)
+        .eq('created_by', telegramId)
+        .eq('event_responses.user_telegram_id', telegramId)
+        .eq('event_responses.response_status', 'attending')
+        .lt('date', new Date().toISOString().split('T')[0]);
+
+      if (duplicatesError) {
+        console.warn('⚠️ Error getting archive duplicates, using approximate count:', duplicatesError);
+        const totalCount = Math.max(createdCount, respondedCount);
+        console.log(`✅ Archive events total count (approximate): ${totalCount}`);
+        return { data: totalCount, error: null };
+      }
+
+      const duplicateCount = duplicates?.length || 0;
+      const totalCount = createdCount + respondedCount - duplicateCount;
+
+      console.log(`✅ Archive events total count: ${totalCount} (${createdCount} created + ${respondedCount} responded - ${duplicateCount} duplicates)`);
+      return { data: totalCount, error: null };
+    } catch (error) {
+      console.error('❌ Error counting archive events with responses:', error);
       return { 
         data: null, 
         error: { message: `Не удалось получить количество архивных мероприятий: ${this.getErrorMessage(error)}` } 
@@ -1518,6 +1668,282 @@ export class EventService {
       return { 
         data: [], 
         error: { message: `Не удалось загрузить мероприятия пользователя.` } 
+      };
+    }
+  }
+
+  /**
+   * Быстрая загрузка мероприятий пользователя включая те, на которые он откликнулся
+   */
+  static async getUserEventsWithResponsesFast(telegramId: number, limit: number = 5, offset: number = 0): Promise<ApiResponse<DatabaseEvent[]>> {
+    try {
+      console.log(`⚡ EventService.getUserEventsWithResponsesFast for user: ${telegramId} (limit: ${limit}, offset: ${offset})`);
+      
+      // Увеличиваем таймаут до 30 секунд
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000);
+      
+      try {
+        // Создаем два запроса: созданные события + события с откликами
+        const [createdEventsPromise, respondedEventsPromise] = await Promise.all([
+          // 1. События, созданные пользователем
+          supabase
+            .from('events')
+            .select(`
+              id,
+              title,
+              description,
+              image_url,
+              gradient_background,
+              date,
+              event_time,
+              end_date,
+              end_time,
+              location,
+              map_url,
+              max_participants,
+              current_participants,
+              created_by,
+              host_id,
+              status,
+              is_private,
+              created_at,
+              updated_at
+            `)
+            .eq('created_by', telegramId)
+            .gte('date', new Date().toISOString().split('T')[0]) // Только будущие события
+            .abortSignal(controller.signal),
+
+          // 2. События, на которые пользователь откликнулся положительно
+          supabase
+            .from('events')
+            .select(`
+              id,
+              title,
+              description,
+              image_url,
+              gradient_background,
+              date,
+              event_time,
+              end_date,
+              end_time,
+              location,
+              map_url,
+              max_participants,
+              current_participants,
+              created_by,
+              host_id,
+              status,
+              is_private,
+              created_at,
+              updated_at,
+              event_responses!inner(user_telegram_id, response_status)
+            `)
+            .eq('event_responses.user_telegram_id', telegramId)
+            .eq('event_responses.response_status', 'attending')
+            .gte('date', new Date().toISOString().split('T')[0]) // Только будущие события
+            .abortSignal(controller.signal)
+        ]);
+
+        clearTimeout(timeoutId);
+
+        if (createdEventsPromise.error) {
+          console.error('❌ Error fetching created events:', createdEventsPromise.error);
+          throw createdEventsPromise.error;
+        }
+
+        if (respondedEventsPromise.error) {
+          console.error('❌ Error fetching responded events:', respondedEventsPromise.error);
+          throw respondedEventsPromise.error;
+        }
+
+        // Объединяем результаты и убираем дубликаты
+        const createdEvents = createdEventsPromise.data || [];
+        const respondedEvents = (respondedEventsPromise.data || []).map(event => {
+          // Убираем поле event_responses из результата
+          const { event_responses, ...cleanEvent } = event as any;
+          return cleanEvent as DatabaseEvent;
+        });
+
+        // Создаем Map для исключения дубликатов по ID
+        const eventsMap = new Map<string, DatabaseEvent>();
+        
+        // Добавляем созданные события
+        createdEvents.forEach(event => {
+          eventsMap.set(event.id, event);
+        });
+        
+        // Добавляем события с откликами (если их еще нет)
+        respondedEvents.forEach(event => {
+          if (!eventsMap.has(event.id)) {
+            eventsMap.set(event.id, event);
+          }
+        });
+
+        // Преобразуем в массив и сортируем по дате
+        const allEvents = Array.from(eventsMap.values())
+          .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+          .slice(offset, offset + limit);
+
+        console.log(`⚡ Fast loaded ${allEvents.length} user events (${createdEvents.length} created + ${respondedEvents.length} responded)`);
+        return { data: allEvents, error: null };
+      } catch (fetchError) {
+        clearTimeout(timeoutId);
+        
+        if (fetchError instanceof Error && fetchError.name === 'AbortError') {
+          console.warn('🔄 User events with responses request timed out, trying fallback...');
+          return this.getUserEventsFallback(telegramId, limit, offset);
+        }
+        throw fetchError;
+      }
+    } catch (error) {
+      console.error('❌ Error in getUserEventsWithResponsesFast:', error);
+      
+      if (error instanceof Error && error.name === 'AbortError') {
+        return this.getUserEventsFallback(telegramId, limit, offset);
+      }
+      
+      return { 
+        data: null, 
+        error: { message: `Ошибка быстрой загрузки пользователя с откликами: ${this.getErrorMessage(error)}` } 
+      };
+    }
+  }
+
+  /**
+   * Быстрая загрузка архива пользователя включая те, на которые он откликнулся
+   */
+  static async getUserArchiveWithResponsesFast(telegramId: number, limit: number = 5, offset: number = 0): Promise<ApiResponse<DatabaseEvent[]>> {
+    try {
+      console.log(`⚡ EventService.getUserArchiveWithResponsesFast for user: ${telegramId} (limit: ${limit}, offset: ${offset})`);
+      
+      // Увеличиваем таймаут до 30 секунд
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000);
+      
+      try {
+        // Создаем два запроса: созданные архивные события + архивные события с откликами
+        const [createdEventsPromise, respondedEventsPromise] = await Promise.all([
+          // 1. Архивные события, созданные пользователем
+          supabase
+            .from('events')
+            .select(`
+              id,
+              title,
+              description,
+              image_url,
+              gradient_background,
+              date,
+              event_time,
+              end_date,
+              end_time,
+              location,
+              map_url,
+              max_participants,
+              current_participants,
+              created_by,
+              host_id,
+              status,
+              is_private,
+              created_at,
+              updated_at
+            `)
+            .eq('created_by', telegramId)
+            .lt('date', new Date().toISOString().split('T')[0]) // Только прошедшие события
+            .abortSignal(controller.signal),
+
+          // 2. Архивные события, на которые пользователь откликнулся положительно
+          supabase
+            .from('events')
+            .select(`
+              id,
+              title,
+              description,
+              image_url,
+              gradient_background,
+              date,
+              event_time,
+              end_date,
+              end_time,
+              location,
+              map_url,
+              max_participants,
+              current_participants,
+              created_by,
+              host_id,
+              status,
+              is_private,
+              created_at,
+              updated_at,
+              event_responses!inner(user_telegram_id, response_status)
+            `)
+            .eq('event_responses.user_telegram_id', telegramId)
+            .eq('event_responses.response_status', 'attending')
+            .lt('date', new Date().toISOString().split('T')[0]) // Только прошедшие события
+            .abortSignal(controller.signal)
+        ]);
+
+        clearTimeout(timeoutId);
+
+        if (createdEventsPromise.error) {
+          console.error('❌ Error fetching created archive events:', createdEventsPromise.error);
+          throw createdEventsPromise.error;
+        }
+
+        if (respondedEventsPromise.error) {
+          console.error('❌ Error fetching responded archive events:', respondedEventsPromise.error);
+          throw respondedEventsPromise.error;
+        }
+
+        // Объединяем результаты и убираем дубликаты
+        const createdEvents = createdEventsPromise.data || [];
+        const respondedEvents = (respondedEventsPromise.data || []).map(event => {
+          // Убираем поле event_responses из результата
+          const { event_responses, ...cleanEvent } = event as any;
+          return cleanEvent as DatabaseEvent;
+        });
+
+        // Создаем Map для исключения дубликатов по ID
+        const eventsMap = new Map<string, DatabaseEvent>();
+        
+        // Добавляем созданные события
+        createdEvents.forEach(event => {
+          eventsMap.set(event.id, event);
+        });
+        
+        // Добавляем события с откликами (если их еще нет)
+        respondedEvents.forEach(event => {
+          if (!eventsMap.has(event.id)) {
+            eventsMap.set(event.id, event);
+          }
+        });
+
+        // Преобразуем в массив и сортируем по дате (сначала новые)
+        const allEvents = Array.from(eventsMap.values())
+          .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+          .slice(offset, offset + limit);
+
+        console.log(`⚡ Fast loaded ${allEvents.length} archive events (${createdEvents.length} created + ${respondedEvents.length} responded)`);
+        return { data: allEvents, error: null };
+      } catch (fetchError) {
+        clearTimeout(timeoutId);
+        
+        if (fetchError instanceof Error && fetchError.name === 'AbortError') {
+          console.warn('🔄 Archive events with responses request timed out, trying fallback...');
+          return this.getUserArchiveFallback(telegramId, limit, offset);
+        }
+        throw fetchError;
+      }
+    } catch (error) {
+      console.error('❌ Error in getUserArchiveWithResponsesFast:', error);
+      
+      if (error instanceof Error && error.name === 'AbortError') {
+        return this.getUserArchiveFallback(telegramId, limit, offset);
+      }
+      
+      return { 
+        data: null, 
+        error: { message: `Ошибка быстрой загрузки архива с откликами: ${this.getErrorMessage(error)}` } 
       };
     }
   }

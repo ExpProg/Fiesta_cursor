@@ -572,15 +572,15 @@ export const EventsList: React.FC<EventsListProps> = ({
             }
             return [];
           }
-          result = await EventService.getUserEventsFast(user.id, ITEMS_PER_PAGE, offset);
-          markTiming('API: getUserEventsFast');
+          result = await EventService.getUserEventsWithResponsesFast(user.id, ITEMS_PER_PAGE, offset);
+          markTiming('API: getUserEventsWithResponsesFast');
           
           const myCountCacheKey = `${tab}_${user.id}_total_count`;
           const myCountCached = eventsCache.current.get(myCountCacheKey);
           if (!forceRefresh && myCountCached && (now - myCountCached.timestamp) < CACHE_DURATION * 2) {
             totalCountResult = { data: myCountCached.totalItems, error: null };
           } else {
-            totalCountResult = await EventService.getUserEventsTotalCount(user.id);
+            totalCountResult = await EventService.getUserEventsWithResponsesTotalCount(user.id);
             if (totalCountResult.data !== null) {
               eventsCache.current.set(myCountCacheKey, {
                 data: [],
@@ -589,7 +589,7 @@ export const EventsList: React.FC<EventsListProps> = ({
               });
             }
           }
-          markTiming('API: getUserEventsTotalCount');
+          markTiming('API: getUserEventsWithResponsesTotalCount');
           break;
           
         case 'archive':
@@ -602,15 +602,15 @@ export const EventsList: React.FC<EventsListProps> = ({
             }
             return [];
           }
-          result = await EventService.getUserArchiveFast(user.id, ITEMS_PER_PAGE, offset);
-          markTiming('API: getUserArchiveFast');
+          result = await EventService.getUserArchiveWithResponsesFast(user.id, ITEMS_PER_PAGE, offset);
+          markTiming('API: getUserArchiveWithResponsesFast');
           
           const archiveCountCacheKey = `${tab}_${user.id}_total_count`;
           const archiveCountCached = eventsCache.current.get(archiveCountCacheKey);
           if (!forceRefresh && archiveCountCached && (now - archiveCountCached.timestamp) < CACHE_DURATION * 2) {
             totalCountResult = { data: archiveCountCached.totalItems, error: null };
           } else {
-            totalCountResult = await EventService.getUserArchiveTotalCount(user.id);
+            totalCountResult = await EventService.getUserArchiveWithResponsesTotalCount(user.id);
             if (totalCountResult.data !== null) {
               eventsCache.current.set(archiveCountCacheKey, {
                 data: [],
@@ -619,7 +619,7 @@ export const EventsList: React.FC<EventsListProps> = ({
               });
             }
           }
-          markTiming('API: getUserArchiveTotalCount');
+          markTiming('API: getUserArchiveWithResponsesTotalCount');
           break;
           
         default:
@@ -632,11 +632,11 @@ export const EventsList: React.FC<EventsListProps> = ({
             }
             return [];
           }
-          result = await EventService.getUserEventsFast(user.id, ITEMS_PER_PAGE, offset);
-          markTiming('API: getUserEventsFast (default)');
+          result = await EventService.getUserEventsWithResponsesFast(user.id, ITEMS_PER_PAGE, offset);
+          markTiming('API: getUserEventsWithResponsesFast (default)');
           
-          totalCountResult = await EventService.getUserEventsTotalCount(user.id);
-          markTiming('API: getUserEventsTotalCount (default)');
+          totalCountResult = await EventService.getUserEventsWithResponsesTotalCount(user.id);
+          markTiming('API: getUserEventsWithResponsesTotalCount (default)');
       }
 
       const apiEndTime = performance.now();
