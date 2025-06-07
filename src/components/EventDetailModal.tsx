@@ -57,7 +57,9 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
   } | null>(null);
   const [loadingOrganizer, setLoadingOrganizer] = useState(false);
   
-  const eventStatus = getEventStatus(updatedEvent);
+  const eventStatus = getEventStatus(event);
+  
+  // Логирование для отладки статуса
   
   // Обновляем локальное состояние мероприятия при изменении props
   useEffect(() => {

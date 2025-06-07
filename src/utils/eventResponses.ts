@@ -318,7 +318,10 @@ export async function refreshEventData(eventId: string): Promise<any | null> {
   try {
     const { data, error } = await supabase
       .from('events')
-      .select('*')
+      .select(`
+        *,
+        current_participants
+      `)
       .eq('id', eventId)
       .single();
 
