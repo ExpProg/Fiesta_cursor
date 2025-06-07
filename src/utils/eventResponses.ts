@@ -279,7 +279,7 @@ export function getResponseButtonClass(
   currentUserResponse: ResponseStatus | null,
   disabled: boolean = false
 ): string {
-  const baseClasses = 'px-4 py-2 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed';
+  const baseClasses = 'px-2 py-1.5 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-xs';
   
   if (disabled) {
     return `${baseClasses} bg-gray-300 text-gray-500`;

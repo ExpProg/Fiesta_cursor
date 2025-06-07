@@ -190,11 +190,14 @@ export const EventResponseButtons: React.FC<EventResponseButtonsProps> = ({
                   ? 'text-green-800' 
                   : userResponse === 'not_attending'
                   ? 'text-red-800'
-                  : 'text-yellow-800'
+                  : userResponse === 'maybe'
+                  ? 'text-yellow-800'
+                  : 'text-gray-800'
               }`}>
                 {userResponse === 'attending' ? 'Вы идёте на мероприятие' : 
                  userResponse === 'not_attending' ? 'Вы не идёте на мероприятие' : 
-                 'Возможно пойдёте'}
+                 userResponse === 'maybe' ? 'Возможно пойдёте' :
+                 'Статус не определён'}
               </span>
             </div>
             <button
@@ -256,8 +259,8 @@ export const EventResponseButtons: React.FC<EventResponseButtonsProps> = ({
                 </div>
               ) : (
                 <div className="flex items-center justify-center">
-                  <Check className="w-4 h-4 mr-1" />
-                  <span className="text-sm">Буду</span>
+                  <Check className="w-3 h-3 mr-1" />
+                  <span>Буду</span>
                 </div>
               )}
             </button>
@@ -278,8 +281,8 @@ export const EventResponseButtons: React.FC<EventResponseButtonsProps> = ({
                 </div>
               ) : (
                 <div className="flex items-center justify-center">
-                  <Clock className="w-4 h-4 mr-1" />
-                  <span className="text-sm">Возможно</span>
+                  <Clock className="w-3 h-3 mr-1" />
+                  <span>Возможно</span>
                 </div>
               )}
             </button>
@@ -300,8 +303,8 @@ export const EventResponseButtons: React.FC<EventResponseButtonsProps> = ({
                 </div>
               ) : (
                 <div className="flex items-center justify-center">
-                  <X className="w-4 h-4 mr-1" />
-                  <span className="text-sm">Не буду</span>
+                  <X className="w-3 h-3 mr-1" />
+                  <span>Не буду</span>
                 </div>
               )}
             </button>
