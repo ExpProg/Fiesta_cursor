@@ -981,16 +981,12 @@ export class EventService {
           .eq('created_by', telegramId)
           .gte('date', new Date().toISOString().split('T')[0]),
 
-        // 2. Считаем события, на которые пользователь откликнулся
+        // 2. Получаем ID событий, на которые пользователь откликнулся
         supabase
-          .from('events')
-          .select(`
-            *,
-            event_responses!inner(user_telegram_id, response_status)
-          `, { count: 'exact', head: true })
-          .eq('event_responses.user_telegram_id', telegramId)
-          .eq('event_responses.response_status', 'attending')
-          .gte('date', new Date().toISOString().split('T')[0])
+          .from('event_responses')
+          .select('event_id')
+          .eq('user_telegram_id', telegramId)
+          .eq('response_status', 'attending')
       ]);
 
       if (createdCountPromise.error) {
@@ -1004,33 +1000,48 @@ export class EventService {
       }
 
       const createdCount = createdCountPromise.count || 0;
-      const respondedCount = respondedCountPromise.count || 0;
+
+      // Получаем события с откликами и подсчитываем их
+      const eventIds = (respondedCountPromise.data || []).map(response => response.event_id);
+      let respondedEventsCount = 0;
+      
+      if (eventIds.length > 0) {
+        const { count, error: respondedError } = await supabase
+          .from('events')
+          .select('*', { count: 'exact', head: true })
+          .in('id', eventIds)
+          .gte('date', new Date().toISOString().split('T')[0]);
+
+        if (respondedError) {
+          console.error('❌ Error counting responded events:', respondedError);
+          throw respondedError;
+        }
+
+        respondedEventsCount = count || 0;
+      }
 
       // Для точного подсчета нужно исключить дубликаты
-      // Получаем ID событий где пользователь и создатель и откликнулся
-      const { data: duplicates, error: duplicatesError } = await supabase
+      // Получаем ID созданных событий и сравниваем с событиями откликов
+      const { data: createdEvents, error: createdEventsError } = await supabase
         .from('events')
-        .select(`
-          id,
-          event_responses!inner(user_telegram_id, response_status)
-        `)
+        .select('id')
         .eq('created_by', telegramId)
-        .eq('event_responses.user_telegram_id', telegramId)
-        .eq('event_responses.response_status', 'attending')
         .gte('date', new Date().toISOString().split('T')[0]);
 
-      if (duplicatesError) {
-        console.warn('⚠️ Error getting duplicates, using approximate count:', duplicatesError);
-        // Если не можем получить дубликаты, используем приблизительный подсчет
-        const totalCount = Math.max(createdCount, respondedCount);
+      if (createdEventsError) {
+        console.warn('⚠️ Error getting created events for duplicate check:', createdEventsError);
+        const totalCount = Math.max(createdCount, respondedEventsCount);
         console.log(`✅ User events total count (approximate): ${totalCount}`);
         return { data: totalCount, error: null };
       }
 
-      const duplicateCount = duplicates?.length || 0;
-      const totalCount = createdCount + respondedCount - duplicateCount;
+      // Находим пересечения
+      const createdEventIds = new Set((createdEvents || []).map(event => event.id));
+      const duplicateCount = eventIds.filter(id => createdEventIds.has(id)).length;
 
-      console.log(`✅ User events total count: ${totalCount} (${createdCount} created + ${respondedCount} responded - ${duplicateCount} duplicates)`);
+      const totalCount = createdCount + respondedEventsCount - duplicateCount;
+
+      console.log(`✅ User events total count: ${totalCount} (${createdCount} created + ${respondedEventsCount} responded - ${duplicateCount} duplicates)`);
       return { data: totalCount, error: null };
     } catch (error) {
       console.error('❌ Error counting user events with responses:', error);
@@ -1120,16 +1131,12 @@ export class EventService {
           .eq('created_by', telegramId)
           .lt('date', new Date().toISOString().split('T')[0]),
 
-        // 2. Считаем архивные события, на которые пользователь откликнулся
+        // 2. Получаем ID архивных событий, на которые пользователь откликнулся
         supabase
-          .from('events')
-          .select(`
-            *,
-            event_responses!inner(user_telegram_id, response_status)
-          `, { count: 'exact', head: true })
-          .eq('event_responses.user_telegram_id', telegramId)
-          .eq('event_responses.response_status', 'attending')
-          .lt('date', new Date().toISOString().split('T')[0])
+          .from('event_responses')
+          .select('event_id')
+          .eq('user_telegram_id', telegramId)
+          .eq('response_status', 'attending')
       ]);
 
       if (createdCountPromise.error) {
@@ -1143,31 +1150,47 @@ export class EventService {
       }
 
       const createdCount = createdCountPromise.count || 0;
-      const respondedCount = respondedCountPromise.count || 0;
+      
+      // Получаем архивные события с откликами и подсчитываем их
+      const eventIds = (respondedCountPromise.data || []).map(response => response.event_id);
+      let respondedEventsCount = 0;
+      
+      if (eventIds.length > 0) {
+        const { count, error: respondedError } = await supabase
+          .from('events')
+          .select('*', { count: 'exact', head: true })
+          .in('id', eventIds)
+          .lt('date', new Date().toISOString().split('T')[0]);
+
+        if (respondedError) {
+          console.error('❌ Error counting responded archive events:', respondedError);
+          throw respondedError;
+        }
+
+        respondedEventsCount = count || 0;
+      }
 
       // Для точного подсчета нужно исключить дубликаты в архиве
-      const { data: duplicates, error: duplicatesError } = await supabase
+      // Получаем ID созданных архивных событий и сравниваем с событиями откликов
+      const { data: createdEvents, error: createdEventsError } = await supabase
         .from('events')
-        .select(`
-          id,
-          event_responses!inner(user_telegram_id, response_status)
-        `)
+        .select('id')
         .eq('created_by', telegramId)
-        .eq('event_responses.user_telegram_id', telegramId)
-        .eq('event_responses.response_status', 'attending')
         .lt('date', new Date().toISOString().split('T')[0]);
 
-      if (duplicatesError) {
-        console.warn('⚠️ Error getting archive duplicates, using approximate count:', duplicatesError);
-        const totalCount = Math.max(createdCount, respondedCount);
+      if (createdEventsError) {
+        console.warn('⚠️ Error getting created archive events for duplicate check:', createdEventsError);
+        const totalCount = Math.max(createdCount, respondedEventsCount);
         console.log(`✅ Archive events total count (approximate): ${totalCount}`);
         return { data: totalCount, error: null };
       }
 
-      const duplicateCount = duplicates?.length || 0;
-      const totalCount = createdCount + respondedCount - duplicateCount;
+      // Находим пересечения
+      const createdEventIds = new Set((createdEvents || []).map(event => event.id));
+      const duplicateCount = eventIds.filter(id => createdEventIds.has(id)).length;
+      const totalCount = createdCount + respondedEventsCount - duplicateCount;
 
-      console.log(`✅ Archive events total count: ${totalCount} (${createdCount} created + ${respondedCount} responded - ${duplicateCount} duplicates)`);
+      console.log(`✅ Archive events total count: ${totalCount} (${createdCount} created + ${respondedEventsCount} responded - ${duplicateCount} duplicates)`);
       return { data: totalCount, error: null };
     } catch (error) {
       console.error('❌ Error counting archive events with responses:', error);
@@ -1685,7 +1708,7 @@ export class EventService {
       
       try {
         // Создаем два запроса: созданные события + события с откликами
-        const [createdEventsPromise, respondedEventsPromise] = await Promise.all([
+        const [createdEventsPromise, userResponsesPromise] = await Promise.all([
           // 1. События, созданные пользователем
           supabase
             .from('events')
@@ -1714,8 +1737,36 @@ export class EventService {
             .gte('date', new Date().toISOString().split('T')[0]) // Только будущие события
             .abortSignal(controller.signal),
 
-          // 2. События, на которые пользователь откликнулся положительно
+          // 2. Получаем ID событий, на которые пользователь откликнулся
           supabase
+            .from('event_responses')
+            .select('event_id')
+            .eq('user_telegram_id', telegramId)
+            .eq('response_status', 'attending')
+            .abortSignal(controller.signal)
+        ]);
+
+        clearTimeout(timeoutId);
+
+        if (createdEventsPromise.error) {
+          console.error('❌ Error fetching created events:', createdEventsPromise.error);
+          throw createdEventsPromise.error;
+        }
+
+        if (userResponsesPromise.error) {
+          console.error('❌ Error fetching user responses:', userResponsesPromise.error);
+          throw userResponsesPromise.error;
+        }
+
+        // Получаем созданные события
+        const createdEvents = createdEventsPromise.data || [];
+        
+        // Получаем ID событий с откликами и затем сами события
+        const eventIds = (userResponsesPromise.data || []).map(response => response.event_id);
+        let respondedEvents: DatabaseEvent[] = [];
+        
+        if (eventIds.length > 0) {
+          const { data: respondedEventsData, error: respondedEventsError } = await supabase
             .from('events')
             .select(`
               id,
@@ -1736,34 +1787,19 @@ export class EventService {
               status,
               is_private,
               created_at,
-              updated_at,
-              event_responses!inner(user_telegram_id, response_status)
+              updated_at
             `)
-            .eq('event_responses.user_telegram_id', telegramId)
-            .eq('event_responses.response_status', 'attending')
+            .in('id', eventIds)
             .gte('date', new Date().toISOString().split('T')[0]) // Только будущие события
-            .abortSignal(controller.signal)
-        ]);
+            .abortSignal(controller.signal);
 
-        clearTimeout(timeoutId);
+          if (respondedEventsError) {
+            console.error('❌ Error fetching responded events:', respondedEventsError);
+            throw respondedEventsError;
+          }
 
-        if (createdEventsPromise.error) {
-          console.error('❌ Error fetching created events:', createdEventsPromise.error);
-          throw createdEventsPromise.error;
+          respondedEvents = respondedEventsData || [];
         }
-
-        if (respondedEventsPromise.error) {
-          console.error('❌ Error fetching responded events:', respondedEventsPromise.error);
-          throw respondedEventsPromise.error;
-        }
-
-        // Объединяем результаты и убираем дубликаты
-        const createdEvents = createdEventsPromise.data || [];
-        const respondedEvents = (respondedEventsPromise.data || []).map(event => {
-          // Убираем поле event_responses из результата
-          const { event_responses, ...cleanEvent } = event as any;
-          return cleanEvent as DatabaseEvent;
-        });
 
         // Создаем Map для исключения дубликатов по ID
         const eventsMap = new Map<string, DatabaseEvent>();
@@ -1822,8 +1858,8 @@ export class EventService {
       const timeoutId = setTimeout(() => controller.abort(), 30000);
       
       try {
-        // Создаем два запроса: созданные архивные события + архивные события с откликами
-        const [createdEventsPromise, respondedEventsPromise] = await Promise.all([
+        // Создаем два запроса: созданные архивные события + ID событий с откликами
+        const [createdEventsPromise, userResponsesPromise] = await Promise.all([
           // 1. Архивные события, созданные пользователем
           supabase
             .from('events')
@@ -1852,8 +1888,36 @@ export class EventService {
             .lt('date', new Date().toISOString().split('T')[0]) // Только прошедшие события
             .abortSignal(controller.signal),
 
-          // 2. Архивные события, на которые пользователь откликнулся положительно
+          // 2. Получаем ID архивных событий, на которые пользователь откликнулся
           supabase
+            .from('event_responses')
+            .select('event_id')
+            .eq('user_telegram_id', telegramId)
+            .eq('response_status', 'attending')
+            .abortSignal(controller.signal)
+        ]);
+
+        clearTimeout(timeoutId);
+
+        if (createdEventsPromise.error) {
+          console.error('❌ Error fetching created archive events:', createdEventsPromise.error);
+          throw createdEventsPromise.error;
+        }
+
+        if (userResponsesPromise.error) {
+          console.error('❌ Error fetching user responses for archive:', userResponsesPromise.error);
+          throw userResponsesPromise.error;
+        }
+
+        // Получаем созданные архивные события
+        const createdEvents = createdEventsPromise.data || [];
+        
+        // Получаем ID архивных событий с откликами и затем сами события
+        const eventIds = (userResponsesPromise.data || []).map(response => response.event_id);
+        let respondedEvents: DatabaseEvent[] = [];
+        
+        if (eventIds.length > 0) {
+          const { data: respondedEventsData, error: respondedEventsError } = await supabase
             .from('events')
             .select(`
               id,
@@ -1874,34 +1938,19 @@ export class EventService {
               status,
               is_private,
               created_at,
-              updated_at,
-              event_responses!inner(user_telegram_id, response_status)
+              updated_at
             `)
-            .eq('event_responses.user_telegram_id', telegramId)
-            .eq('event_responses.response_status', 'attending')
+            .in('id', eventIds)
             .lt('date', new Date().toISOString().split('T')[0]) // Только прошедшие события
-            .abortSignal(controller.signal)
-        ]);
+            .abortSignal(controller.signal);
 
-        clearTimeout(timeoutId);
+          if (respondedEventsError) {
+            console.error('❌ Error fetching responded archive events:', respondedEventsError);
+            throw respondedEventsError;
+          }
 
-        if (createdEventsPromise.error) {
-          console.error('❌ Error fetching created archive events:', createdEventsPromise.error);
-          throw createdEventsPromise.error;
+          respondedEvents = respondedEventsData || [];
         }
-
-        if (respondedEventsPromise.error) {
-          console.error('❌ Error fetching responded archive events:', respondedEventsPromise.error);
-          throw respondedEventsPromise.error;
-        }
-
-        // Объединяем результаты и убираем дубликаты
-        const createdEvents = createdEventsPromise.data || [];
-        const respondedEvents = (respondedEventsPromise.data || []).map(event => {
-          // Убираем поле event_responses из результата
-          const { event_responses, ...cleanEvent } = event as any;
-          return cleanEvent as DatabaseEvent;
-        });
 
         // Создаем Map для исключения дубликатов по ID
         const eventsMap = new Map<string, DatabaseEvent>();

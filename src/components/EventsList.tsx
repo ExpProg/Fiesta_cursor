@@ -572,24 +572,35 @@ export const EventsList: React.FC<EventsListProps> = ({
             }
             return [];
           }
-          result = await EventService.getUserEventsWithResponsesFast(user.id, ITEMS_PER_PAGE, offset);
-          markTiming('API: getUserEventsWithResponsesFast');
           
-          const myCountCacheKey = `${tab}_${user.id}_total_count`;
-          const myCountCached = eventsCache.current.get(myCountCacheKey);
-          if (!forceRefresh && myCountCached && (now - myCountCached.timestamp) < CACHE_DURATION * 2) {
-            totalCountResult = { data: myCountCached.totalItems, error: null };
-          } else {
-            totalCountResult = await EventService.getUserEventsWithResponsesTotalCount(user.id);
-            if (totalCountResult.data !== null) {
-              eventsCache.current.set(myCountCacheKey, {
-                data: [],
-                timestamp: now,
-                totalItems: totalCountResult.data
-              });
+          // Пробуем новый метод с откликами, если не работает - используем fallback
+          try {
+            result = await EventService.getUserEventsWithResponsesFast(user.id, ITEMS_PER_PAGE, offset);
+            markTiming('API: getUserEventsWithResponsesFast');
+            
+            const myCountCacheKey = `${tab}_${user.id}_total_count`;
+            const myCountCached = eventsCache.current.get(myCountCacheKey);
+            if (!forceRefresh && myCountCached && (now - myCountCached.timestamp) < CACHE_DURATION * 2) {
+              totalCountResult = { data: myCountCached.totalItems, error: null };
+            } else {
+              totalCountResult = await EventService.getUserEventsWithResponsesTotalCount(user.id);
+              if (totalCountResult.data !== null) {
+                eventsCache.current.set(myCountCacheKey, {
+                  data: [],
+                  timestamp: now,
+                  totalItems: totalCountResult.data
+                });
+              }
             }
+            markTiming('API: getUserEventsWithResponsesTotalCount');
+          } catch (error) {
+            console.warn('⚠️ Fallback to simple user events due to:', error);
+            result = await EventService.getUserEventsFast(user.id, ITEMS_PER_PAGE, offset);
+            markTiming('API: getUserEventsFast (fallback)');
+            
+            totalCountResult = await EventService.getUserEventsTotalCount(user.id);
+            markTiming('API: getUserEventsTotalCount (fallback)');
           }
-          markTiming('API: getUserEventsWithResponsesTotalCount');
           break;
           
         case 'archive':
@@ -602,24 +613,35 @@ export const EventsList: React.FC<EventsListProps> = ({
             }
             return [];
           }
-          result = await EventService.getUserArchiveWithResponsesFast(user.id, ITEMS_PER_PAGE, offset);
-          markTiming('API: getUserArchiveWithResponsesFast');
           
-          const archiveCountCacheKey = `${tab}_${user.id}_total_count`;
-          const archiveCountCached = eventsCache.current.get(archiveCountCacheKey);
-          if (!forceRefresh && archiveCountCached && (now - archiveCountCached.timestamp) < CACHE_DURATION * 2) {
-            totalCountResult = { data: archiveCountCached.totalItems, error: null };
-          } else {
-            totalCountResult = await EventService.getUserArchiveWithResponsesTotalCount(user.id);
-            if (totalCountResult.data !== null) {
-              eventsCache.current.set(archiveCountCacheKey, {
-                data: [],
-                timestamp: now,
-                totalItems: totalCountResult.data
-              });
+          // Пробуем новый метод с откликами, если не работает - используем fallback
+          try {
+            result = await EventService.getUserArchiveWithResponsesFast(user.id, ITEMS_PER_PAGE, offset);
+            markTiming('API: getUserArchiveWithResponsesFast');
+            
+            const archiveCountCacheKey = `${tab}_${user.id}_total_count`;
+            const archiveCountCached = eventsCache.current.get(archiveCountCacheKey);
+            if (!forceRefresh && archiveCountCached && (now - archiveCountCached.timestamp) < CACHE_DURATION * 2) {
+              totalCountResult = { data: archiveCountCached.totalItems, error: null };
+            } else {
+              totalCountResult = await EventService.getUserArchiveWithResponsesTotalCount(user.id);
+              if (totalCountResult.data !== null) {
+                eventsCache.current.set(archiveCountCacheKey, {
+                  data: [],
+                  timestamp: now,
+                  totalItems: totalCountResult.data
+                });
+              }
             }
+            markTiming('API: getUserArchiveWithResponsesTotalCount');
+          } catch (error) {
+            console.warn('⚠️ Fallback to simple archive events due to:', error);
+            result = await EventService.getUserArchiveFast(user.id, ITEMS_PER_PAGE, offset);
+            markTiming('API: getUserArchiveFast (fallback)');
+            
+            totalCountResult = await EventService.getUserArchiveTotalCount(user.id);
+            markTiming('API: getUserArchiveTotalCount (fallback)');
           }
-          markTiming('API: getUserArchiveWithResponsesTotalCount');
           break;
           
         default:
@@ -632,11 +654,22 @@ export const EventsList: React.FC<EventsListProps> = ({
             }
             return [];
           }
-          result = await EventService.getUserEventsWithResponsesFast(user.id, ITEMS_PER_PAGE, offset);
-          markTiming('API: getUserEventsWithResponsesFast (default)');
           
-          totalCountResult = await EventService.getUserEventsWithResponsesTotalCount(user.id);
-          markTiming('API: getUserEventsWithResponsesTotalCount (default)');
+          // Пробуем новый метод с откликами, если не работает - используем fallback
+          try {
+            result = await EventService.getUserEventsWithResponsesFast(user.id, ITEMS_PER_PAGE, offset);
+            markTiming('API: getUserEventsWithResponsesFast (default)');
+            
+            totalCountResult = await EventService.getUserEventsWithResponsesTotalCount(user.id);
+            markTiming('API: getUserEventsWithResponsesTotalCount (default)');
+          } catch (error) {
+            console.warn('⚠️ Fallback to simple user events due to:', error);
+            result = await EventService.getUserEventsFast(user.id, ITEMS_PER_PAGE, offset);
+            markTiming('API: getUserEventsFast (default fallback)');
+            
+            totalCountResult = await EventService.getUserEventsTotalCount(user.id);
+            markTiming('API: getUserEventsTotalCount (default fallback)');
+          }
       }
 
       const apiEndTime = performance.now();
