@@ -310,34 +310,6 @@ export const EventPage: React.FC<EventPageProps> = ({
           </button>
         </div>
 
-        {/* Статус мероприятия */}
-        <div className="absolute top-4 left-1/2 transform -translate-x-1/2">
-          <div className="flex gap-2">
-            <span className={`px-4 py-2 rounded-full text-sm font-medium ${
-              updatedEvent.status === 'active' 
-                ? 'bg-green-100 text-green-800' 
-                : 'bg-gray-100 text-gray-600'
-            }`}>
-              {updatedEvent.status === 'active' ? 'Активно' : 'Завершено'}
-            </span>
-            
-            {updatedEvent.is_private && (
-              <span className="px-3 py-2 rounded-full text-sm font-medium bg-purple-100 text-purple-800 flex items-center">
-                <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
-                </svg>
-                Частное
-              </span>
-            )}
-          </div>
-        </div>
-
-        {/* Заголовок */}
-        <div className="absolute bottom-6 left-4 right-4">
-          <h1 className="text-white text-3xl font-bold drop-shadow-lg mb-2">
-            {updatedEvent.title}
-          </h1>
-        </div>
       </div>
 
       {/* Контент */}
