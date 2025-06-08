@@ -183,6 +183,16 @@ interface EventCardProps {
 const EventCard: React.FC<EventCardProps> = React.memo(({ event, onEventClick, onMapClick, onImageLoad, priority = false }) => {
   const eventStatus = getEventStatus(event);
   
+  // Отладочная информация для сравнения с детальной карточкой
+  console.log('EventCard status calculation:', {
+    id: event.id,
+    title: event.title,
+    date: event.date,
+    end_date: event.end_date,
+    current_date: new Date().toISOString(),
+    calculated_status: eventStatus
+  });
+  
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     return date.toLocaleDateString('ru-RU', {
