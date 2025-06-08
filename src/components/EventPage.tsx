@@ -17,6 +17,7 @@ import { refreshEventData } from '@/utils/eventResponses';
 import { getEventGradient } from '@/utils/gradients';
 import { EventParticipants } from './EventParticipants';
 import { EventResponseButtons } from './EventResponseButtons';
+import { AdminDebugPanel } from './AdminDebugPanel';
 import { useTelegram } from './TelegramProvider';
 import { useYandexMetrika } from '@/hooks/useYandexMetrika';
 import { supabase } from '@/hooks/useSupabase';
@@ -573,6 +574,9 @@ export const EventPage: React.FC<EventPageProps> = ({
             </div>
           </div>
         </div>
+
+        {/* Админская панель отладки */}
+        <AdminDebugPanel className="mt-6" />
       </div>
     </div>
   );
