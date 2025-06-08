@@ -19,7 +19,7 @@ import { EventResponseButtons } from './EventResponseButtons';
 import { useTelegram } from './TelegramProvider';
 import { useYandexMetrika } from '@/hooks/useYandexMetrika';
 import { supabase } from '@/hooks/useSupabase';
-import { getEventStatus, formatEventPeriod } from '../utils/eventStatus';
+import { formatEventPeriod } from '../utils/eventStatus';
 
 interface EventDetailModalProps {
   event: DatabaseEvent;
@@ -57,8 +57,7 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
   } | null>(null);
   const [loadingOrganizer, setLoadingOrganizer] = useState(false);
   
-  // Используем оригинальное событие для определения статуса (как в списке)
-  const eventStatus = getEventStatus(event);
+
   
   
   // Обновляем локальное состояние мероприятия при изменении props
@@ -266,62 +265,40 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
           )}
           
           {/* Статус мероприятия и кнопки управления */}
-          <div className="absolute top-3 right-3 flex flex-col items-end gap-2">
-            {/* Статус мероприятия */}
-            <div className="flex flex-col gap-1 items-end">
-              <span 
-                className={`px-2 py-1 rounded-full text-xs font-medium border shadow-sm ${eventStatus.className}`}
-                title={`${eventStatus.description} | Дата: ${event.date} | Сегодня: ${new Date().toISOString().split('T')[0]}`}
-              >
-                {eventStatus.label}
-              </span>
-              
-              {updatedEvent.is_private && (
-                <span className="px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800 border border-purple-200 shadow-sm flex items-center">
-                  <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
-                  </svg>
-                  Частное
-                </span>
-              )}
-            </div>
-
-            {/* Кнопки управления */}
-            <div className="flex gap-2">
-              {/* Кнопки для создателя */}
-              {isCreator && (
-                <>
-                  <button
-                    onClick={() => onEdit && onEdit(event)}
-                    className="bg-black/50 text-white p-2 rounded-full hover:bg-orange-600 transition-colors"
-                    title="Редактировать мероприятие"
-                  >
-                    <Edit className="w-4 h-4" />
-                  </button>
-                  
-                  <button
-                    onClick={() => {
-                      if (window.confirm('Вы уверены, что хотите удалить это мероприятие? Это действие нельзя отменить.')) {
-                        onDelete && onDelete(event.id);
-                      }
-                    }}
-                    className="bg-black/50 text-white p-2 rounded-full hover:bg-red-600 transition-colors"
-                    title="Удалить мероприятие"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </>
-              )}
-              
-              {/* Кнопка закрытия */}
-              <button
-                onClick={onClose}
-                className="bg-black/50 text-white p-2 rounded-full hover:bg-black/70 transition-colors"
-                title="Закрыть"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
+          <div className="absolute top-3 right-3 flex gap-2">
+            {/* Кнопки для создателя */}
+            {isCreator && (
+              <>
+                <button
+                  onClick={() => onEdit && onEdit(event)}
+                  className="bg-black/50 text-white p-2 rounded-full hover:bg-orange-600 transition-colors"
+                  title="Редактировать мероприятие"
+                >
+                  <Edit className="w-4 h-4" />
+                </button>
+                
+                <button
+                  onClick={() => {
+                    if (window.confirm('Вы уверены, что хотите удалить это мероприятие? Это действие нельзя отменить.')) {
+                      onDelete && onDelete(event.id);
+                    }
+                  }}
+                  className="bg-black/50 text-white p-2 rounded-full hover:bg-red-600 transition-colors"
+                  title="Удалить мероприятие"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </>
+            )}
+            
+            {/* Кнопка закрытия */}
+            <button
+              onClick={onClose}
+              className="bg-black/50 text-white p-2 rounded-full hover:bg-black/70 transition-colors"
+              title="Закрыть"
+            >
+              <X className="w-5 h-5" />
+            </button>
           </div>
 
           {/* Заголовок при скролле */}
@@ -349,9 +326,6 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
                 <h1 className="text-2xl font-bold text-gray-900 flex-1">
                   {updatedEvent.title}
                 </h1>
-                {eventStatus.status === 'active' && (
-                  <div className="ml-2 w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                )}
               </div>
               
               {/* Основная информация */}
