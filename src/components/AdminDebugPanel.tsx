@@ -1,13 +1,14 @@
 import React, { useState } from 'react';
-import { ChevronDown, ChevronUp, Bug, Database, MessageSquare, Eye, EyeOff } from 'lucide-react';
+import { ChevronDown, ChevronUp, Bug, Database, MessageSquare, Eye, EyeOff, Calendar } from 'lucide-react';
 import { DebugInfo } from './DebugInfo';
 import { SupabaseTest } from './SupabaseTest';
+import { EventStatusDebug } from './EventStatusDebug';
 import { useAdminStatus } from '@/hooks/useAdminStatus';
 
 export const AdminDebugPanel: React.FC<{ className?: string }> = ({ className = '' }) => {
   const { isAdmin, isLoading: adminLoading } = useAdminStatus();
   const [isExpanded, setIsExpanded] = useState(false);
-  const [activeTab, setActiveTab] = useState<'debug' | 'supabase' | 'telegram'>('debug');
+  const [activeTab, setActiveTab] = useState<'debug' | 'supabase' | 'telegram' | 'events'>('debug');
 
   // Показываем только администраторам
   if (!isAdmin || adminLoading) {
@@ -16,6 +17,7 @@ export const AdminDebugPanel: React.FC<{ className?: string }> = ({ className = 
 
   const tabs = [
     { id: 'debug' as const, label: 'Debug Info', icon: Bug },
+    { id: 'events' as const, label: 'Event Status', icon: Calendar },
     { id: 'supabase' as const, label: 'Supabase Test', icon: Database },
     { id: 'telegram' as const, label: 'Telegram Debug', icon: MessageSquare },
   ];
@@ -72,6 +74,7 @@ export const AdminDebugPanel: React.FC<{ className?: string }> = ({ className = 
           {/* Контент вкладок */}
           <div className="p-3">
             {activeTab === 'debug' && <DebugInfo className="m-0" />}
+            {activeTab === 'events' && <EventStatusDebug className="m-0" />}
             {activeTab === 'supabase' && <SupabaseTest />}
             {activeTab === 'telegram' && (
               <div className="space-y-2">
